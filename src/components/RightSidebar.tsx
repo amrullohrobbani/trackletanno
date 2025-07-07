@@ -203,6 +203,28 @@ export default function RightSidebar() {
                   <li>• Click boxes to assign selected ID</li>
                 </ul>
               </div>
+
+              {/* Team Color Legend */}
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">Team Colors</h4>
+                <div className="grid grid-cols-1 gap-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
+                    <span className="text-gray-400">Home Team (0)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#EF4444' }}></div>
+                    <span className="text-gray-400">Away Team (1)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#6B7280' }}></div>
+                    <span className="text-gray-400">Others (-1)</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Team values: 0=home, 1=away, -1=others
+                </p>
+              </div>
             </>
           ) : (
             <div className="text-center text-gray-500 py-8">

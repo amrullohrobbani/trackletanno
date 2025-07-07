@@ -51,6 +51,7 @@ export interface BoundingBox {
   y: number;
   width: number;
   height: number;
+  team?: string;
   selected?: boolean;
 }
 

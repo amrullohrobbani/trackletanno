@@ -31,6 +31,52 @@ export default function MainCanvas() {
 
   const imagePath = getCurrentImagePath();
 
+  // Team color mapping function
+  const getTeamColor = (team: string | undefined, isSelected: boolean = false) => {
+    if (!team || team.trim() === '') {
+      // Default color for no team or empty team
+      return isSelected ? '#3B82F6' : '#6B7280'; // Blue if selected, gray otherwise
+    }
+    
+    const teamColors: { [key: string]: { normal: string; selected: string } } = {
+      '0': { normal: '#3B82F6', selected: '#2563EB' },     // Blue for home team (0)
+      '1': { normal: '#EF4444', selected: '#DC2626' },     // Red for away team (1)
+      '-1': { normal: '#6B7280', selected: '#4B5563' },    // Gray for others (-1)
+      // Legacy support for text-based teams
+      'home': { normal: '#3B82F6', selected: '#2563EB' },   // Blue
+      'away': { normal: '#EF4444', selected: '#DC2626' },   // Red
+      'team_a': { normal: '#3B82F6', selected: '#2563EB' }, // Blue
+      'team_b': { normal: '#EF4444', selected: '#DC2626' }, // Red
+      'team_1': { normal: '#3B82F6', selected: '#2563EB' }, // Blue
+      'team_2': { normal: '#EF4444', selected: '#DC2626' }, // Red
+      'red': { normal: '#EF4444', selected: '#DC2626' },    // Red
+      'blue': { normal: '#3B82F6', selected: '#2563EB' },   // Blue
+      'green': { normal: '#10B981', selected: '#059669' },  // Green
+      'yellow': { normal: '#F59E0B', selected: '#D97706' }, // Orange/Yellow
+      'purple': { normal: '#8B5CF6', selected: '#7C3AED' }, // Purple
+      'pink': { normal: '#EC4899', selected: '#DB2777' },   // Pink
+    };
+    
+    const teamValue = team.trim(); // Don't lowercase for numeric values
+    const colors = teamColors[teamValue];
+    
+    if (colors) {
+      return isSelected ? colors.selected : colors.normal;
+    }
+    
+    // Fallback: generate a consistent color based on team name hash
+    let hash = 0;
+    for (let i = 0; i < teamValue.length; i++) {
+      hash = teamValue.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const hue = Math.abs(hash) % 360;
+    const saturation = isSelected ? 70 : 60;
+    const lightness = isSelected ? 45 : 55;
+    
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+
   // Load and display image securely
   const loadImage = useCallback(async () => {
     if (!imagePath || !imageRef.current || typeof window === 'undefined' || !window.electronAPI) {
@@ -90,6 +136,7 @@ export default function MainCanvas() {
           y: ann.y,
           width: ann.w,
           height: ann.h,
+          team: ann.team,
           selected: false
         }));
         
@@ -121,20 +168,27 @@ export default function MainCanvas() {
     // Draw existing bounding boxes
     boundingBoxes.forEach((box) => {
       const isSelected = selectedBoundingBox === box.id;
+      const boxColor = getTeamColor(box.team, isSelected);
       
-      ctx.strokeStyle = isSelected ? '#3B82F6' : '#EF4444'; // Blue if selected, red otherwise
+      ctx.strokeStyle = boxColor;
       ctx.lineWidth = isSelected ? 3 : 2;
       ctx.setLineDash(isSelected ? [] : [5, 5]);
       
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
-      // Draw tracklet ID label
-      ctx.fillStyle = isSelected ? '#3B82F6' : '#EF4444';
-      ctx.fillRect(box.x, box.y - 25, 60, 25);
+      // Draw tracklet ID and team label background
+      const labelWidth = box.team ? 80 : 60;
+      ctx.fillStyle = boxColor;
+      ctx.fillRect(box.x, box.y - 25, labelWidth, 25);
       
+      // Draw tracklet ID and team text
       ctx.fillStyle = 'white';
-      ctx.font = '14px Arial';
-      ctx.fillText(`ID: ${box.tracklet_id}`, box.x + 5, box.y - 8);
+      ctx.font = '12px Arial';
+      if (box.team && box.team.trim() !== '') {
+        ctx.fillText(`ID: ${box.tracklet_id} | ${box.team}`, box.x + 3, box.y - 8);
+      } else {
+        ctx.fillText(`ID: ${box.tracklet_id}`, box.x + 5, box.y - 8);
+      }
     });
 
     // Draw current drawing rectangle
@@ -227,7 +281,8 @@ export default function MainCanvas() {
         x: currentRect.x,
         y: currentRect.y,
         width: currentRect.width,
-        height: currentRect.height
+        height: currentRect.height,
+        team: '' // Start with empty team, can be assigned later
       };
 
       addBoundingBox(newBox);

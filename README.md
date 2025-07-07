@@ -6,6 +6,7 @@ A cross-platform desktop application for annotating tracklet IDs in video frames
 
 - **Three-column responsive layout** with intuitive navigation
 - **Real-time bounding box drawing and editing** on 1920x1080 image frames
+- **Team-based color coding** for bounding boxes based on team annotations
 - **Automatic file saving** with visual feedback indicators
 - **Keyboard shortcuts** for efficient workflow (Z/X for frame navigation, D/A for annotation modes)
 - **Directory tree navigation** for managing multiple rally datasets
@@ -36,7 +37,17 @@ Each line represents one annotation with:
 - `role`: Role/category (e.g., "player", can be empty)
 - `jersey_number`: Player's jersey number (can be empty)
 - `jersey_color`: Color of the jersey (can be empty)
-- `team`: Team identifier (e.g., "home", "away", can be empty)
+- `team`: Team identifier using numeric values: 0=home, 1=away, -1=others
+
+### Team Color System
+
+Bounding boxes are automatically color-coded based on the `team` field in annotations:
+
+- **Blue**: Home team (0)
+- **Red**: Away team (1)
+- **Gray**: Others (-1)
+
+The system also supports legacy text-based team values for backward compatibility.
 
 ### Expected Directory Structure
 

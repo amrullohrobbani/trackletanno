@@ -20,6 +20,7 @@ This is an Electron + Next.js application for annotating tracklet IDs in video f
 ## Data Format
 Annotation files are CSV without headers, format: `frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team`
 Frame numbers correspond to 6-digit image filenames (e.g., 000001.jpg = frame 1)
+Team values are numeric: 0=home, 1=away, -1=others
 
 ## Electron Integration
 - Uses IPC (Inter-Process Communication) for secure file operations
