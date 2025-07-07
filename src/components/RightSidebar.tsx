@@ -95,10 +95,10 @@ export default function RightSidebar() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden bg-gray-800">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700 flex-shrink-0">
-        <h2 className="text-lg font-semibold mb-2">Tracklet IDs</h2>
+      <div className="p-4 border-b border-gray-700 flex-shrink-0 bg-gray-800">
+        <h2 className="text-lg font-semibold mb-2 text-white">Tracklet IDs</h2>
         <div className="text-sm text-gray-400">
           {currentRally ? (
             <>
@@ -112,23 +112,23 @@ export default function RightSidebar() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="p-4 bg-gray-800">
           {currentRally ? (
             <>
               {/* Available IDs */}
               <div className="mb-6">
-                <h3 className="text-md font-medium mb-3">Available IDs</h3>
+                <h3 className="text-md font-medium mb-3 text-white">Available IDs</h3>
                 {availableIds.length > 0 ? (
                   <div className="grid grid-cols-4 gap-2">
                     {availableIds.map((id) => (
                       <button
                         key={id}
                         onClick={() => handleSelectId(id)}
-                        className={`p-2 rounded text-sm font-medium transition-colors ${
+                        className={`p-2 rounded text-sm font-medium transition-colors border ${
                           selectedTrackletId === id
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
+                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
                         }`}
                       >
                         {id}
@@ -136,14 +136,14 @@ export default function RightSidebar() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-gray-500 text-sm">No tracklet IDs found in annotations</div>
+                  <div className="text-gray-400 text-sm">No tracklet IDs found in annotations</div>
                 )}
               </div>
 
               {/* Custom ID Input */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-md font-medium">Custom ID</h3>
+                  <h3 className="text-md font-medium text-white">Custom ID</h3>
                   <button
                     onClick={() => setShowCustomInput(!showCustomInput)}
                     className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -159,7 +159,7 @@ export default function RightSidebar() {
                       value={customId}
                       onChange={(e) => setCustomId(e.target.value)}
                       placeholder="Enter ID..."
-                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min="1"
                     />
                     <button
@@ -174,8 +174,8 @@ export default function RightSidebar() {
               </div>
 
               {/* Selected ID Display */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-md font-medium mb-2">Selected ID</h3>
+              <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+                <h3 className="text-md font-medium mb-2 text-white">Selected ID</h3>
                 {selectedTrackletId !== null ? (
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold text-blue-400">{selectedTrackletId}</span>
@@ -187,15 +187,15 @@ export default function RightSidebar() {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-gray-500 text-sm">
+                  <div className="text-gray-400 text-sm">
                     No ID selected
                   </div>
                 )}
               </div>
 
               {/* Instructions */}
-              <div className="mt-6 p-3 bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Instructions</h4>
+              <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg">
+                <h4 className="text-sm font-medium mb-2 text-white">Instructions</h4>
                 <ul className="text-xs text-gray-400 space-y-1">
                   <li>• Select an ID above</li>
                   <li>• Use D key for draw mode</li>
@@ -205,32 +205,32 @@ export default function RightSidebar() {
               </div>
 
               {/* Team Color Legend */}
-              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Team Colors</h4>
+              <div className="mt-4 p-3 bg-gray-900 border border-gray-700 rounded-lg">
+                <h4 className="text-sm font-medium mb-2 text-white">Team Colors</h4>
                 <div className="grid grid-cols-1 gap-1 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
-                    <span className="text-gray-400">Home Team (0)</span>
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#3B82F6' }}></div>
+                    <span className="text-gray-300">Home Team (0)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#EF4444' }}></div>
-                    <span className="text-gray-400">Away Team (1)</span>
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#EF4444' }}></div>
+                    <span className="text-gray-300">Away Team (1)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded" style={{ backgroundColor: '#6B7280' }}></div>
-                    <span className="text-gray-400">Others (-1)</span>
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#6B7280' }}></div>
+                    <span className="text-gray-300">Others (-1)</span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-400 mt-2">
                   Team values: 0=home, 1=away, -1=others
                 </p>
               </div>
             </>
           ) : (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-400 py-8">
               <div className="text-4xl mb-2">🏃‍♂️</div>
-              <div className="text-lg font-medium mb-1">No Rally Selected</div>
-              <div className="text-xs text-gray-500">
+              <div className="text-lg font-medium mb-1 text-gray-300">No Rally Selected</div>
+              <div className="text-xs text-gray-400">
                 Use the directory tree on the left to switch between rallies
               </div>
             </div>

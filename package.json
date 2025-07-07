@@ -1,25 +1,30 @@
 {
   "name": "trackletanno",
   "version": "0.1.0",
+  "description": "A tool for annotating tracklet IDs in video frames",
+  "author": {
+    "name": "Tracklet Annotation Team",
+    "email": "team@trackletanno.com"
+  },
   "private": true,
   "main": "electron/main.js",
   "homepage": "./",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && node scripts/fix-paths.js",
     "start": "next start",
     "lint": "next lint",
-    "export": "next build && next export",
     "electron": "cross-env NODE_ENV=development electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
-    "electron-build": "npm run export && electron-builder",
-    "build-electron": "npm run build && npm run export && electron-builder"
+    "electron-build": "npm run build && electron-builder",
+    "build-linux": "npm run build && electron-builder --linux",
+    "build-windows": "npm run build && electron-builder --win",
+    "build-all": "npm run build && electron-builder --linux --win"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",
-    "electron": "^37.2.0",
     "fabric": "^6.7.0",
     "next": "15.3.5",
     "react": "^19.0.0",
@@ -30,15 +35,17 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/fabric": "^5.3.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
-    "tailwindcss": "^4",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
   },
   "build": {
@@ -53,13 +60,42 @@
       "node_modules/**/*"
     ],
     "linux": {
-      "target": "AppImage"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Graphics",
+      "description": "A tool for annotating tracklet IDs in video frames"
     },
     "mac": {
       "target": "dmg"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/favicon.ico"
     }
   }
 }
