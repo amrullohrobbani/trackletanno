@@ -18,12 +18,17 @@ export default function Home() {
     setDrawingMode,
     setAssignMode,
     drawingMode,
-    assignMode
+    assignMode,
+    zoomIn,
+    zoomOut,
+    resetZoom
   } = useAppStore();
 
   // Keyboard shortcuts
   useHotkeys('z', () => previousFrame(), [previousFrame]);
   useHotkeys('x', () => nextFrame(), [nextFrame]);
+  useHotkeys('arrowleft', () => previousFrame(), [previousFrame]);
+  useHotkeys('arrowright', () => nextFrame(), [nextFrame]);
   useHotkeys('d', () => {
     setDrawingMode(!drawingMode);
     setAssignMode(false);
@@ -32,6 +37,10 @@ export default function Home() {
     setAssignMode(!assignMode);
     setDrawingMode(false);
   }, [assignMode, setAssignMode, setDrawingMode]);
+  useHotkeys('equal', () => zoomIn(), [zoomIn]); // + key (without shift)
+  useHotkeys('shift+equal', () => zoomIn(), [zoomIn]); // + key (with shift)
+  useHotkeys('minus', () => zoomOut(), [zoomOut]); // - key
+  useHotkeys('0', () => resetZoom(), [resetZoom]); // Reset zoom with 0 key
 
   if (!selectedDirectory) {
     return (
@@ -58,7 +67,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SaveIndicator />
               <div className="text-sm text-gray-400">
-                Z: Previous Frame | X: Next Frame | D: Draw Mode | A: Assign Mode
+                Z/←: Previous | X/→: Next | D: Draw | A: Assign | +/-: Zoom | 0: Reset | Middle/Right-drag: Pan
               </div>
             </div>
           </div>

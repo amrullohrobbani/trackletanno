@@ -8,6 +8,8 @@ export default function MainCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
@@ -26,13 +28,17 @@ export default function MainCanvas() {
     annotations,
     getCurrentRally,
     setAnnotations,
-    setSaveStatus
+    setSaveStatus,
+    zoomLevel,
+    panX,
+    panY,
+    setPan
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
 
   // Team color mapping function
-  const getTeamColor = (team: string | undefined, isSelected: boolean = false) => {
+  const getTeamColor = useCallback((team: string | undefined, isSelected: boolean = false) => {
     if (!team || team.trim() === '') {
       // Default color for no team or empty team
       return isSelected ? '#3B82F6' : '#6B7280'; // Blue if selected, gray otherwise
@@ -75,7 +81,7 @@ export default function MainCanvas() {
     const lightness = isSelected ? 45 : 55;
     
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  };
+  }, []);
 
   // Load and display image securely
   const loadImage = useCallback(async () => {
@@ -162,7 +168,14 @@ export default function MainCanvas() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw image
+    // Save the current context state
+    ctx.save();
+
+    // Apply pan (translation) first, then zoom (scale)
+    ctx.translate(panX, panY);
+    ctx.scale(zoomLevel, zoomLevel);
+
+    // Draw image at original size - the transformations will handle zoom/pan
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
     // Draw existing bounding boxes
@@ -171,34 +184,43 @@ export default function MainCanvas() {
       const boxColor = getTeamColor(box.team, isSelected);
       
       ctx.strokeStyle = boxColor;
-      ctx.lineWidth = isSelected ? 3 : 2;
-      ctx.setLineDash(isSelected ? [] : [5, 5]);
+      // Keep line width constant regardless of zoom for better visibility
+      ctx.lineWidth = (isSelected ? 3 : 2) / zoomLevel;
+      // Keep dash pattern consistent
+      const dashSize = 5 / zoomLevel;
+      ctx.setLineDash(isSelected ? [] : [dashSize, dashSize]);
       
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
       // Draw tracklet ID and team label background
       const labelWidth = box.team ? 80 : 60;
+      const labelHeight = 25;
       ctx.fillStyle = boxColor;
-      ctx.fillRect(box.x, box.y - 25, labelWidth, 25);
+      ctx.fillRect(box.x, box.y - labelHeight, labelWidth, labelHeight);
       
       // Draw tracklet ID and team text
       ctx.fillStyle = 'white';
-      ctx.font = '12px Arial';
+      // Keep font size readable regardless of zoom
+      ctx.font = `${12 / zoomLevel}px Arial`;
+      const textY = box.y - 8;
       if (box.team && box.team.trim() !== '') {
-        ctx.fillText(`ID: ${box.tracklet_id} | ${box.team}`, box.x + 3, box.y - 8);
+        ctx.fillText(`ID: ${box.tracklet_id} | ${box.team}`, box.x + 3, textY);
       } else {
-        ctx.fillText(`ID: ${box.tracklet_id}`, box.x + 5, box.y - 8);
+        ctx.fillText(`ID: ${box.tracklet_id}`, box.x + 5, textY);
       }
     });
 
     // Draw current drawing rectangle
     if (currentRect) {
       ctx.strokeStyle = '#10B981'; // Green for new drawing
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / zoomLevel;
       ctx.setLineDash([]);
       ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
     }
-  }, [boundingBoxes, selectedBoundingBox, currentRect]);
+
+    // Restore the context state
+    ctx.restore();
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTeamColor]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -213,14 +235,29 @@ export default function MainCanvas() {
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
+    // Get mouse coordinates relative to canvas
+    const mouseX = (event.clientX - rect.left) * scaleX;
+    const mouseY = (event.clientY - rect.top) * scaleY;
+
+    // Account for zoom and pan transformations
+    const canvasX = (mouseX - panX) / zoomLevel;
+    const canvasY = (mouseY - panY) / zoomLevel;
+
     return {
-      x: (event.clientX - rect.left) * scaleX,
-      y: (event.clientY - rect.top) * scaleY
+      x: canvasX,
+      y: canvasY
     };
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getCanvasCoordinates(event);
+
+    // Check for middle mouse button or right mouse button for panning
+    if (event.button === 1 || event.button === 2) { // Middle mouse button (1) or right mouse button (2)
+      setIsPanning(true);
+      setLastPanPoint({ x: event.clientX, y: event.clientY });
+      return;
+    }
 
     if (assignMode) {
       // Check if clicking on an existing bounding box
@@ -258,6 +295,16 @@ export default function MainCanvas() {
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isPanning && lastPanPoint) {
+      // Handle panning
+      const deltaX = event.clientX - lastPanPoint.x;
+      const deltaY = event.clientY - lastPanPoint.y;
+      
+      setPan(panX + deltaX, panY + deltaY);
+      setLastPanPoint({ x: event.clientX, y: event.clientY });
+      return;
+    }
+
     if (!isDrawing || !startPoint) return;
 
     const coords = getCanvasCoordinates(event);
@@ -273,6 +320,12 @@ export default function MainCanvas() {
   };
 
   const handleMouseUp = () => {
+    if (isPanning) {
+      setIsPanning(false);
+      setLastPanPoint(null);
+      return;
+    }
+
     if (isDrawing && currentRect && selectedTrackletId !== null && startPoint) {
       // Add the new bounding box
       const newBox: BoundingBox = {
@@ -295,6 +348,39 @@ export default function MainCanvas() {
     
     setIsDrawing(false);
     setStartPoint(null);
+  };
+
+  // Handle wheel events for zoom
+  const handleWheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // Zoom in/out based on wheel direction
+    const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.1, Math.min(5, zoomLevel * zoomFactor));
+
+    // Calculate new pan to zoom towards mouse position
+    const zoomRatio = newZoom / zoomLevel;
+    const newPanX = mouseX - (mouseX - panX) * zoomRatio;
+    const newPanY = mouseY - (mouseY - panY) * zoomRatio;
+
+    // Update zoom and pan
+    useAppStore.setState({ 
+      zoomLevel: newZoom, 
+      panX: newPanX, 
+      panY: newPanY 
+    });
+  }, [zoomLevel, panX, panY]);
+
+  // Prevent context menu on right-click to allow right-click panning
+  const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
   };
 
   const updateAnnotationData = async (box: BoundingBox, newTrackletId: number) => {
@@ -420,6 +506,8 @@ export default function MainCanvas() {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          onContextMenu={handleContextMenu}
         />
         
         {/* Mode indicator */}
@@ -431,7 +519,7 @@ export default function MainCanvas() {
 
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          Frame {currentFrameIndex + 1} • {boundingBoxes.length} boxes
+          Frame {currentFrameIndex + 1} • {boundingBoxes.length} boxes • Zoom: {Math.round(zoomLevel * 100)}%
         </div>
       </div>
     </div>

@@ -20,6 +20,11 @@ interface AppState {
   // Canvas state
   boundingBoxes: BoundingBox[];
   
+  // Zoom state
+  zoomLevel: number;
+  panX: number;
+  panY: number;
+  
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
   setRallyFolders: (folders: RallyFolder[]) => void;
@@ -38,6 +43,13 @@ interface AppState {
   setBoundingBoxes: (boxes: BoundingBox[]) => void;
   setLoading: (loading: boolean) => void;
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  
+  // Zoom actions
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
+  setZoom: (level: number) => void;
+  setPan: (x: number, y: number) => void;
   
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
@@ -60,6 +72,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   saveStatus: 'idle',
   boundingBoxes: [],
+  
+  // Initial zoom state
+  zoomLevel: 1,
+  panX: 0,
+  panY: 0,
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -136,6 +153,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBoundingBoxes: (boxes) => set({ boundingBoxes: boxes }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  
+  // Zoom actions
+  zoomIn: () => {
+    const state = get();
+    const newZoom = Math.min(state.zoomLevel * 1.2, 5); // Max zoom 5x
+    set({ zoomLevel: newZoom });
+  },
+  
+  zoomOut: () => {
+    const state = get();
+    const newZoom = Math.max(state.zoomLevel / 1.2, 0.1); // Min zoom 0.1x
+    set({ zoomLevel: newZoom });
+  },
+  
+  resetZoom: () => set({ 
+    zoomLevel: 1, 
+    panX: 0, 
+    panY: 0 
+  }),
+  
+  setZoom: (level) => {
+    const clampedLevel = Math.max(0.1, Math.min(5, level));
+    set({ zoomLevel: clampedLevel });
+  },
+  
+  setPan: (x, y) => set({ panX: x, panY: y }),
   
   // Computed getters
   getCurrentRally: () => {
