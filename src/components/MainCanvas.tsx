@@ -34,7 +34,9 @@ export default function MainCanvas() {
     zoomLevel,
     panX,
     panY,
-    setPan
+    setPan,
+    selectedEvent,
+    assignEventToBoundingBox
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -191,21 +193,36 @@ export default function MainCanvas() {
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
       // Draw tracklet ID and team label background at the bottom
-      const labelWidth = box.team ? 80 : 60;
-      const labelHeight = 25;
-      ctx.fillStyle = boxColor;
+      const labelWidth = box.team ? 90 : 70;
+      const labelHeight = 30;
+      
+      // Draw semi-transparent dark background for better contrast
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
       ctx.fillRect(box.x, box.y + box.height, labelWidth, labelHeight);
       
+      // Draw colored border on the label
+      ctx.strokeStyle = boxColor;
+      ctx.lineWidth = 2 / zoomLevel;
+      ctx.strokeRect(box.x, box.y + box.height, labelWidth, labelHeight);
+      
       // Draw tracklet ID and team text at the bottom
+      const fontSize = Math.max(14, 14 / zoomLevel); // Minimum 14px font size
+      ctx.font = `bold ${fontSize}px Arial`;
+      const textY = box.y + box.height + 20; // Position text inside the bottom label
+      
+      // Draw text with white fill and black stroke for maximum contrast
+      ctx.lineWidth = 3 / zoomLevel;
+      ctx.strokeStyle = 'black';
       ctx.fillStyle = 'white';
-      // Keep font size readable regardless of zoom
-      ctx.font = `${12 / zoomLevel}px Arial`;
-      const textY = box.y + box.height + 16; // Position text inside the bottom label
-      if (box.team && box.team.trim() !== '') {
-        ctx.fillText(`ID: ${box.tracklet_id} | ${box.team}`, box.x + 3, textY);
-      } else {
-        ctx.fillText(`ID: ${box.tracklet_id}`, box.x + 5, textY);
-      }
+      
+      const text = box.team && box.team.trim() !== '' 
+        ? `ID: ${box.tracklet_id} | ${box.team}` 
+        : `ID: ${box.tracklet_id}`;
+      
+      // Draw text stroke (outline) first
+      ctx.strokeText(text, box.x + 5, textY);
+      // Then draw text fill
+      ctx.fillText(text, box.x + 5, textY);
     });
 
     // Draw current drawing rectangle
@@ -273,6 +290,11 @@ export default function MainCanvas() {
         
         // Update the annotation data
         updateAnnotationData(clickedBox, selectedTrackletId);
+        
+        // If an event is also selected, assign it to the box
+        if (selectedEvent) {
+          assignEventToBoundingBox(clickedBox.id, selectedEvent);
+        }
       }
     } else if (drawingMode && selectedTrackletId !== null) {
       // Start drawing new bounding box
@@ -288,7 +310,16 @@ export default function MainCanvas() {
         coords.y <= box.y + box.height
       );
 
-      setSelectedBoundingBox(clickedBox ? clickedBox.id : null);
+      if (clickedBox) {
+        setSelectedBoundingBox(clickedBox.id);
+        
+        // If an event is selected, assign it to the clicked bounding box
+        if (selectedEvent) {
+          assignEventToBoundingBox(clickedBox.id, selectedEvent);
+        }
+      } else {
+        setSelectedBoundingBox(null);
+      }
     }
   };
 

@@ -26,6 +26,9 @@ interface AppState {
   panX: number;
   panY: number;
   
+  // Event annotation state
+  selectedEvent: string;
+  
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
   setRallyFolders: (folders: RallyFolder[]) => void;
@@ -47,6 +50,10 @@ interface AppState {
   setBoundingBoxes: (boxes: BoundingBox[]) => void;
   setLoading: (loading: boolean) => void;
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  
+  // Event annotation actions
+  setSelectedEvent: (event: string) => void;
+  assignEventToBoundingBox: (boxId: string, eventType: string) => Promise<void>;
   
   // Annotation editing
   updateAnnotationDetails: (boxId: string, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
@@ -85,6 +92,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   zoomLevel: 1,
   panX: 0,
   panY: 0,
+  
+  // Initial event annotation state
+  selectedEvent: '',
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -229,6 +239,49 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBoundingBoxes: (boxes) => set({ boundingBoxes: boxes }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  
+  // Event annotation actions
+  setSelectedEvent: (event) => set({ selectedEvent: event }),
+  
+  assignEventToBoundingBox: async (boxId, eventType) => {
+    const state = get();
+    
+    if (!boxId || typeof window === 'undefined' || !window.electronAPI) return;
+
+    try {
+      // Find the bounding box
+      const targetBox = state.boundingBoxes.find(box => box.id === boxId);
+      if (!targetBox) return;
+
+      // Get current frame number
+      const imagePath = state.getCurrentImagePath();
+      if (!imagePath) return;
+
+      const filename = imagePath.split('/').pop() || '';
+      const frameNumber = await window.electronAPI.getFrameNumber(filename);
+
+      // Update only the annotation for this specific frame and bounding box
+      const updatedAnnotations = state.annotations.map(ann => {
+        if (ann.frame === frameNumber && 
+            ann.tracklet_id === targetBox.tracklet_id &&
+            ann.x === targetBox.x && ann.y === targetBox.y && 
+            ann.w === targetBox.width && ann.h === targetBox.height) {
+          return { ...ann, event: eventType };
+        }
+        return ann;
+      });
+
+      set({ annotations: updatedAnnotations });
+      
+      // Save the changes
+      await state.saveAnnotationsToFile();
+      
+      // Show feedback
+      console.log(`Event "${eventType}" assigned to tracklet ID ${targetBox.tracklet_id} in frame ${frameNumber}`);
+    } catch (error) {
+      console.error('Error assigning event:', error);
+    }
+  },
   
   updateAnnotationDetails: (boxId, details) => {
     const state = get();
