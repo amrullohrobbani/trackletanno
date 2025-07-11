@@ -1,0 +1,136 @@
+{
+  "app": {
+    "title": "트래클릿 주석 도구",
+    "selectDirectory": "주석 디렉터리 선택",
+    "loading": "로딩 중...",
+    "saving": "저장 중...",
+    "saved": "저장됨",
+    "error": "오류"
+  },
+  "sidebar": {
+    "trackletIds": "트래클릿 ID",
+    "rally": "랠리",
+    "available": "사용 가능",
+    "noRallySelected": "선택된 랠리 없음",
+    "useDirectoryTree": "왼쪽 디렉터리 트리를 사용하여 랠리 간 전환",
+    "availableIds": "사용 가능한 ID",
+    "noTrackletIds": "주석에서 트래클릿 ID를 찾을 수 없음",
+    "customId": "사용자 정의 ID",
+    "addNew": "새로 추가",
+    "cancel": "취소",
+    "enterId": "ID 입력...",
+    "add": "추가",
+    "selectedId": "선택된 ID",
+    "noIdSelected": "선택된 ID 없음",
+    "clear": "지우기"
+  },
+  "eventAnnotation": {
+    "title": "이벤트 주석",
+    "selectEventType": "이벤트 유형 선택 (클릭 또는 단축키 사용)",
+    "clearSelection": "이벤트 선택 지우기",
+    "modeActive": "모드 활성화. 이벤트를 할당할 경계 상자를 클릭하세요.",
+    "selectFirst": "위에서 이벤트를 선택한 후 경계 상자를 클릭하여 할당하세요.",
+    "hotkeyTip": "빠른 이벤트 선택을 위해 숫자 키(1-8)를 누르세요"
+  },
+  "events": {
+    "serve": "서브",
+    "receive": "리시브",
+    "dig": "디그",
+    "pass": "패스",
+    "set": "세트",
+    "spike": "스파이크",
+    "block": "블록",
+    "score": "득점"
+  },
+  "annotationDetails": {
+    "title": "주석 세부사항",
+    "editDetails": "세부사항 편집",
+    "close": "닫기",
+    "role": "역할",
+    "rolePlaceholder": "예: 선수, 심판",
+    "jerseyNumber": "등번호",
+    "jerseyNumberPlaceholder": "예: 10, 23",
+    "jerseyColor": "유니폼 색상",
+    "selectColor": "색상 선택",
+    "customColor": "사용자 정의...",
+    "enterCustomColor": "사용자 정의 색상 입력",
+    "team": "팀",
+    "selectTeam": "팀 선택",
+    "homeTeam": "홈 팀 (0)",
+    "awayTeam": "원정 팀 (1)",
+    "others": "기타 (-1)",
+    "saveDetails": "세부사항 저장",
+    "clickEditToModify": "주석 정보를 수정하려면 \"세부사항 편집\"을 클릭하세요",
+    "selectBoxToEdit": "세부사항을 편집할 경계 상자를 선택하세요"
+  },
+  "instructions": {
+    "howToUse": "이 앱 사용법",
+    "navigation": {
+      "title": "탐색",
+      "prevNext": "이전/다음 프레임",
+      "jumpFrame": "특정 프레임으로 이동하려면 프레임 번호 입력을 클릭",
+      "zoom": "마우스 휠 - 캔버스 확대/축소",
+      "pan": "오른쪽 클릭 + 드래그 - 확대된 이미지 주변 팬"
+    },
+    "drawing": {
+      "title": "그리기 및 할당",
+      "selectId": "위 목록에서 트래클릿 ID 선택",
+      "drawingMode": "그리기 모드로 전환",
+      "assignMode": "할당 모드로 전환",
+      "drawMode": "그리기 모드: 클릭 및 드래그로 새 경계 상자 생성",
+      "assignModeDesc": "할당 모드: 기존 상자를 클릭하여 선택된 ID 할당"
+    },
+    "editing": {
+      "title": "주석 편집",
+      "selectBox": "경계 상자를 클릭하여 선택",
+      "editDetails": "선수 정보 수정을 위해 \"세부사항 편집\" 사용",
+      "eventAnnotation": "\"이벤트 주석\" 섹션 사용: 이벤트 선택 (클릭 또는 단축키 1-8), 그 다음 경계 상자 클릭",
+      "playerDetails": "선수 세부사항은 같은 트래클릿 ID를 가진 모든 프레임에 적용",
+      "events": "이벤트는 현재 프레임에만 적용",
+      "delete": "개별 상자 또는 전체 트래클릿 ID 삭제"
+    },
+    "fileManagement": {
+      "title": "파일 관리",
+      "autoSave": "모든 변경사항이 자동으로 저장됨",
+      "csvSupport": "7-12 열 CSV 주석 형식 지원",
+      "switchRallies": "왼쪽 사이드바를 사용하여 랠리 간 전환",
+      "dataPreserved": "원본 데이터가 보존되고 백업됨"
+    },
+    "visualCues": {
+      "title": "시각적 단서",
+      "uniqueColors": "각 트래클릿 ID는 고유한 색상을 가짐",
+      "selectedBoxes": "선택된 상자는 더 두꺼운 테두리를 가짐",
+      "currentMode": "현재 모드가 왼쪽 상단에 표시",
+      "zoomLevel": "확대 수준이 오른쪽 하단에 표시"
+    }
+  },
+  "quickTips": {
+    "title": "빠른 팁",
+    "consistentIds": "추적을 위해 프레임 간 일관된 트래클릿 ID 사용",
+    "zoomIn": "정확한 경계 상자 배치를 위해 확대",
+    "editOnce": "선수 세부사항 한 번 편집 - 모든 프레임에 적용",
+    "useHotkeys": "빠른 이벤트 선택을 위해 단축키 1-8 사용, 그 다음 상자 클릭",
+    "eventsPerFrame": "이벤트는 프레임별로 할당, 트래클릿 ID는 모든 프레임에 적용",
+    "saveTime": "기존 상자에는 할당 모드를 사용하여 시간 절약"
+  },
+  "modes": {
+    "drawing": "그리기",
+    "assign": "할당",
+    "selection": "선택"
+  },
+  "colors": {
+    "red": "빨간색",
+    "blue": "파란색",
+    "white": "흰색",
+    "black": "검은색",
+    "yellow": "노란색",
+    "green": "초록색",
+    "orange": "주황색",
+    "purple": "보라색"
+  },
+  "common": {
+    "frame": "프레임",
+    "zoom": "확대",
+    "of": "의"
+  }
+}

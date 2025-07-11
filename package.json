@@ -26,10 +26,13 @@
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",
     "fabric": "^6.7.0",
+    "i18next": "^25.3.2",
     "next": "15.3.5",
+    "next-i18next": "^15.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hotkeys-hook": "^5.1.0",
+    "react-i18next": "^15.6.0",
     "wait-on": "^8.0.3",
     "zustand": "^5.0.6"
   },

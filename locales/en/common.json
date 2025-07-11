@@ -1,0 +1,136 @@
+{
+  "app": {
+    "title": "Tracklet Annotation Tool",
+    "selectDirectory": "Select Annotation Directory",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "error": "Error"
+  },
+  "sidebar": {
+    "trackletIds": "Tracklet IDs",
+    "rally": "Rally",
+    "available": "available",
+    "noRallySelected": "No rally selected",
+    "useDirectoryTree": "Use the directory tree on the left to switch between rallies",
+    "availableIds": "Available IDs",
+    "noTrackletIds": "No tracklet IDs found in annotations",
+    "customId": "Custom ID",
+    "addNew": "Add New",
+    "cancel": "Cancel",
+    "enterId": "Enter ID...",
+    "add": "Add",
+    "selectedId": "Selected ID",
+    "noIdSelected": "No ID selected",
+    "clear": "Clear"
+  },
+  "eventAnnotation": {
+    "title": "Event Annotation",
+    "selectEventType": "Select Event Type (Click or Use Hotkey)",
+    "clearSelection": "Clear Event Selection",
+    "modeActive": "mode active. Click any bounding box to assign this event.",
+    "selectFirst": "Select an event above, then click a bounding box to assign it.",
+    "hotkeyTip": "Press number keys (1-8) for quick event selection"
+  },
+  "events": {
+    "serve": "Serve",
+    "receive": "Receive", 
+    "dig": "Dig",
+    "pass": "Pass",
+    "set": "Set",
+    "spike": "Spike",
+    "block": "Block",
+    "score": "Score"
+  },
+  "annotationDetails": {
+    "title": "Annotation Details",
+    "editDetails": "Edit Details",
+    "close": "Close",
+    "role": "Role",
+    "rolePlaceholder": "e.g., player, referee",
+    "jerseyNumber": "Jersey Number",
+    "jerseyNumberPlaceholder": "e.g., 10, 23",
+    "jerseyColor": "Jersey Color",
+    "selectColor": "Select color",
+    "customColor": "Custom...",
+    "enterCustomColor": "Enter custom color",
+    "team": "Team",
+    "selectTeam": "Select team",
+    "homeTeam": "Home Team (0)",
+    "awayTeam": "Away Team (1)",
+    "others": "Others (-1)",
+    "saveDetails": "Save Details",
+    "clickEditToModify": "Click \"Edit Details\" to modify annotation information",
+    "selectBoxToEdit": "Select a bounding box to edit its details"
+  },
+  "instructions": {
+    "howToUse": "How to Use This App",
+    "navigation": {
+      "title": "Navigation",
+      "prevNext": "Previous/Next frame",
+      "jumpFrame": "Click frame number input to jump to specific frame",
+      "zoom": "Mouse wheel - Zoom in/out on canvas",
+      "pan": "Right-click + drag - Pan around zoomed image"
+    },
+    "drawing": {
+      "title": "Drawing & Assigning",
+      "selectId": "Select a tracklet ID from the list above",
+      "drawingMode": "Switch to Drawing mode",
+      "assignMode": "Switch to Assign mode",
+      "drawMode": "Draw mode: Click & drag to create new bounding boxes",
+      "assignModeDesc": "Assign mode: Click existing boxes to assign selected ID"
+    },
+    "editing": {
+      "title": "Editing Annotations",
+      "selectBox": "Click any bounding box to select it",
+      "editDetails": "Use \"Edit Details\" to modify player information",
+      "eventAnnotation": "Use \"Event Annotation\" section: select event (click or hotkey 1-8), then click bounding box",
+      "playerDetails": "Player details apply to ALL frames with same tracklet ID",
+      "events": "Events apply only to the current frame",
+      "delete": "Delete individual boxes or entire tracklet IDs"
+    },
+    "fileManagement": {
+      "title": "File Management",
+      "autoSave": "All changes are automatically saved",
+      "csvSupport": "Supports 7-12 column CSV annotation format",
+      "switchRallies": "Switch between rallies using left sidebar",
+      "dataPreserved": "Original data is preserved and backed up"
+    },
+    "visualCues": {
+      "title": "Visual Cues",
+      "uniqueColors": "Each tracklet ID has a unique color",
+      "selectedBoxes": "Selected boxes have thicker borders",
+      "currentMode": "Current mode shown in top-left corner",
+      "zoomLevel": "Zoom level displayed in bottom-right"
+    }
+  },
+  "quickTips": {
+    "title": "Quick Tips",
+    "consistentIds": "Use consistent tracklet IDs across frames for tracking",
+    "zoomIn": "Zoom in for precise bounding box placement", 
+    "editOnce": "Edit player details once - applies to all frames",
+    "useHotkeys": "Use hotkeys 1-8 for quick event selection, then click boxes",
+    "eventsPerFrame": "Events are assigned per frame, tracklet IDs apply to all frames",
+    "saveTime": "Save time by using assign mode for existing boxes"
+  },
+  "modes": {
+    "drawing": "Drawing",
+    "assign": "Assign",
+    "selection": "Selection"
+  },
+  "colors": {
+    "red": "Red",
+    "blue": "Blue", 
+    "white": "White",
+    "black": "Black",
+    "yellow": "Yellow",
+    "green": "Green",
+    "orange": "Orange",
+    "purple": "Purple"
+  },
+  "common": {
+    "frame": "Frame",
+    "zoom": "Zoom",
+    "of": "of"
+  }
+}

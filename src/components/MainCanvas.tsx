@@ -4,8 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function MainCanvas() {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -539,14 +541,14 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {drawingMode && selectedTrackletId && `Drawing Mode - ID: ${selectedTrackletId}`}
-          {assignMode && selectedTrackletId && `Assign Mode - ID: ${selectedTrackletId}`}
-          {!drawingMode && !assignMode && 'Selection Mode'}
+          {drawingMode && selectedTrackletId && `${t('modes.drawing')} - ID: ${selectedTrackletId}`}
+          {assignMode && selectedTrackletId && `${t('modes.assign')} - ID: ${selectedTrackletId}`}
+          {!drawingMode && !assignMode && t('modes.selection')}
         </div>
 
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          Frame {currentFrameIndex + 1} • {boundingBoxes.length} boxes • Zoom: {Math.round(zoomLevel * 100)}%
+          {t('common.frame')} {currentFrameIndex + 1} • {boundingBoxes.length} boxes • {t('common.zoom')}: {Math.round(zoomLevel * 100)}%
         </div>
       </div>
     </div>

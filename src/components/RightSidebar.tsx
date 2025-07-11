@@ -3,8 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { parseAnnotations } from '@/utils/annotationParser';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function RightSidebar() {
+  const { t } = useLanguage();
+  
   const {
     selectedTrackletId,
     setSelectedTrackletId,
@@ -38,15 +42,15 @@ export default function RightSidebar() {
 
   // Event types with hotkeys (memoized to prevent dependency issues)
   const eventTypes = useMemo(() => [
-    { key: '1', name: 'serve', label: 'Serve', color: 'bg-red-600' },
-    { key: '2', name: 'receive', label: 'Receive', color: 'bg-blue-600' },
-    { key: '3', name: 'dig', label: 'Dig', color: 'bg-green-600' },
-    { key: '4', name: 'pass', label: 'Pass', color: 'bg-yellow-600' },
-    { key: '5', name: 'set', label: 'Set', color: 'bg-purple-600' },
-    { key: '6', name: 'spike', label: 'Spike', color: 'bg-orange-600' },
-    { key: '7', name: 'block', label: 'Block', color: 'bg-pink-600' },
-    { key: '8', name: 'score', label: 'Score', color: 'bg-indigo-600' }
-  ], []);
+    { key: '1', name: 'serve', label: t('events.serve'), color: 'bg-red-600' },
+    { key: '2', name: 'receive', label: t('events.receive'), color: 'bg-blue-600' },
+    { key: '3', name: 'dig', label: t('events.dig'), color: 'bg-green-600' },
+    { key: '4', name: 'pass', label: t('events.pass'), color: 'bg-yellow-600' },
+    { key: '5', name: 'set', label: t('events.set'), color: 'bg-purple-600' },
+    { key: '6', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
+    { key: '7', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
+    { key: '8', name: 'score', label: t('events.score'), color: 'bg-indigo-600' }
+  ], [t]);
 
   // Load annotation data when rally changes
   useEffect(() => {
@@ -115,15 +119,18 @@ export default function RightSidebar() {
     <div className="flex flex-col h-full overflow-hidden bg-gray-800">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex-shrink-0 bg-gray-800">
-        <h2 className="text-lg font-semibold mb-2 text-white">Tracklet IDs</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold text-white">{t('sidebar.trackletIds')}</h2>
+          <LanguageSwitcher />
+        </div>
         <div className="text-sm text-gray-400">
           {currentRally ? (
             <>
-              Rally: {currentRally.name}<br />
-              {availableIds.length} tracklet IDs available
+              {t('sidebar.rally')}: {currentRally.name}<br />
+              {availableIds.length} {t('sidebar.trackletIds')} {t('sidebar.available')}
             </>
           ) : (
-            'No rally selected'
+            t('sidebar.noRallySelected')
           )}
         </div>
       </div>
@@ -135,7 +142,7 @@ export default function RightSidebar() {
             <>
               {/* Available IDs */}
               <div className="mb-6">
-                <h3 className="text-md font-medium mb-3 text-white">Available IDs</h3>
+                <h3 className="text-md font-medium mb-3 text-white">{t('sidebar.availableIds')}</h3>
                 {availableIds.length > 0 ? (
                   <div className="grid grid-cols-4 gap-2">
                     {availableIds.map((id) => (
@@ -153,19 +160,19 @@ export default function RightSidebar() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-gray-400 text-sm">No tracklet IDs found in annotations</div>
+                  <div className="text-gray-400 text-sm">{t('sidebar.noTrackletIds')}</div>
                 )}
               </div>
 
               {/* Custom ID Input */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-md font-medium text-white">Custom ID</h3>
+                  <h3 className="text-md font-medium text-white">{t('sidebar.customId')}</h3>
                   <button
                     onClick={() => setShowCustomInput(!showCustomInput)}
                     className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                   >
-                    {showCustomInput ? 'Cancel' : 'Add New'}
+                    {showCustomInput ? t('sidebar.cancel') : t('sidebar.addNew')}
                   </button>
                 </div>
                 
@@ -175,7 +182,7 @@ export default function RightSidebar() {
                       type="number"
                       value={customId}
                       onChange={(e) => setCustomId(e.target.value)}
-                      placeholder="Enter ID..."
+                      placeholder={t('sidebar.enterId')}
                       className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min="1"
                     />
@@ -184,7 +191,7 @@ export default function RightSidebar() {
                       disabled={!customId || isNaN(parseInt(customId)) || parseInt(customId) <= 0}
                       className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
                     >
-                      Add
+                      {t('sidebar.add')}
                     </button>
                   </div>
                 )}
@@ -192,7 +199,7 @@ export default function RightSidebar() {
 
               {/* Selected ID Display */}
               <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-                <h3 className="text-md font-medium mb-2 text-white">Selected ID</h3>
+                <h3 className="text-md font-medium mb-2 text-white">{t('sidebar.selectedId')}</h3>
                 {selectedTrackletId !== null ? (
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold text-blue-400">{selectedTrackletId}</span>
@@ -200,22 +207,22 @@ export default function RightSidebar() {
                       onClick={() => setSelectedTrackletId(null)}
                       className="text-xs text-red-400 hover:text-red-300 transition-colors"
                     >
-                      Clear
+                      {t('sidebar.clear')}
                     </button>
                   </div>
                 ) : (
                   <div className="text-gray-400 text-sm">
-                    No ID selected
+                    {t('sidebar.noIdSelected')}
                   </div>
                 )}
               </div>
 
               {/* Event Annotation */}
               <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
-                <h3 className="text-md font-medium mb-3 text-white">Event Annotation</h3>
+                <h3 className="text-md font-medium mb-3 text-white">{t('eventAnnotation.title')}</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs text-gray-400 mb-2">Select Event Type (Click or Use Hotkey)</label>
+                    <label className="block text-xs text-gray-400 mb-2">{t('eventAnnotation.selectEventType')}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {eventTypes.map((eventType) => (
                         <button
@@ -246,18 +253,18 @@ export default function RightSidebar() {
                     onClick={() => setSelectedEvent('')}
                     className="w-full p-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
                   >
-                    Clear Event Selection
+                    {t('eventAnnotation.clearSelection')}
                   </button>
                   
                   <div className="text-xs text-gray-400 space-y-1">
                     <p>
                       {selectedEvent ? (
-                        <>🎯 <strong className="text-white">{selectedEvent.toUpperCase()}</strong> mode active. Click any bounding box to assign this event.</>
+                        <>🎯 <strong className="text-white">{selectedEvent.toUpperCase()}</strong> {t('eventAnnotation.modeActive')}</>
                       ) : (
-                        <>⚡ Select an event above, then click a bounding box to assign it.</>
+                        <>⚡ {t('eventAnnotation.selectFirst')}</>
                       )}
                     </p>
-                    <p>• Press number keys (1-8) for quick event selection</p>
+                    <p>• {t('eventAnnotation.hotkeyTip')}</p>
                     <p>• Events apply only to the current frame</p>
                   </div>
                 </div>
@@ -266,7 +273,7 @@ export default function RightSidebar() {
               {/* Annotation Details Editor */}
               <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-md font-medium text-white">Annotation Details</h3>
+                  <h3 className="text-md font-medium text-white">{t('annotationDetails.title')}</h3>
                   <button
                     onClick={() => {
                       setShowAnnotationEditor(!showAnnotationEditor);
@@ -294,7 +301,7 @@ export default function RightSidebar() {
                         : 'text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {showAnnotationEditor ? 'Close' : 'Edit Details'}
+                    {showAnnotationEditor ? t('annotationDetails.close') : t('annotationDetails.editDetails')}
                   </button>
                 </div>
                 
@@ -303,31 +310,31 @@ export default function RightSidebar() {
                     <div className="space-y-3">
                       {/* Role */}
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Role</label>
+                        <label className="block text-xs text-gray-400 mb-1">{t('annotationDetails.role')}</label>
                         <input
                           type="text"
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value)}
-                          placeholder="e.g., player, referee"
+                          placeholder={t('annotationDetails.rolePlaceholder')}
                           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                         />
                       </div>
                       
                       {/* Jersey Number */}
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Jersey Number</label>
+                        <label className="block text-xs text-gray-400 mb-1">{t('annotationDetails.jerseyNumber')}</label>
                         <input
                           type="text"
                           value={editJerseyNumber}
                           onChange={(e) => setEditJerseyNumber(e.target.value)}
-                          placeholder="e.g., 10, 23"
+                          placeholder={t('annotationDetails.jerseyNumberPlaceholder')}
                           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                         />
                       </div>
                       
                       {/* Jersey Color */}
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Jersey Color</label>
+                        <label className="block text-xs text-gray-400 mb-1">{t('annotationDetails.jerseyColor')}</label>
                         <div className="space-y-2">
                           <select
                             value={editJerseyColor}
@@ -337,16 +344,16 @@ export default function RightSidebar() {
                             }}
                             className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                           >
-                            <option value="">Select color</option>
-                            <option value="red">Red</option>
-                            <option value="blue">Blue</option>
-                            <option value="white">White</option>
-                            <option value="black">Black</option>
-                            <option value="yellow">Yellow</option>
-                            <option value="green">Green</option>
-                            <option value="orange">Orange</option>
-                            <option value="purple">Purple</option>
-                            <option value="custom">Custom...</option>
+                            <option value="">{t('annotationDetails.selectColor')}</option>
+                            <option value="red">{t('colors.red')}</option>
+                            <option value="blue">{t('colors.blue')}</option>
+                            <option value="white">{t('colors.white')}</option>
+                            <option value="black">{t('colors.black')}</option>
+                            <option value="yellow">{t('colors.yellow')}</option>
+                            <option value="green">{t('colors.green')}</option>
+                            <option value="orange">{t('colors.orange')}</option>
+                            <option value="purple">{t('colors.purple')}</option>
+                            <option value="custom">{t('annotationDetails.customColor')}</option>
                           </select>
                           
                           {showCustomColor && (
@@ -357,7 +364,7 @@ export default function RightSidebar() {
                                 setCustomJerseyColor(e.target.value);
                                 setEditJerseyColor(e.target.value);
                               }}
-                              placeholder="Enter custom color"
+                              placeholder={t('annotationDetails.enterCustomColor')}
                               className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                             />
                           )}
@@ -366,16 +373,16 @@ export default function RightSidebar() {
                       
                       {/* Team */}
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Team</label>
+                        <label className="block text-xs text-gray-400 mb-1">{t('annotationDetails.team')}</label>
                         <select
                           value={editTeam}
                           onChange={(e) => setEditTeam(e.target.value)}
                           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                         >
-                          <option value="">Select team</option>
-                          <option value="0">Home Team (0)</option>
-                          <option value="1">Away Team (1)</option>
-                          <option value="-1">Others (-1)</option>
+                          <option value="">{t('annotationDetails.selectTeam')}</option>
+                          <option value="0">{t('annotationDetails.homeTeam')}</option>
+                          <option value="1">{t('annotationDetails.awayTeam')}</option>
+                          <option value="-1">{t('annotationDetails.others')}</option>
                         </select>
                       </div>
                       
@@ -394,81 +401,81 @@ export default function RightSidebar() {
                         }}
                         className="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
                       >
-                        Save Details
+                        {t('annotationDetails.saveDetails')}
                       </button>
                     </div>
                   ) : (
                     <p className="text-xs text-gray-400">
-                      Click &quot;Edit Details&quot; to modify annotation information
+                      {t('annotationDetails.clickEditToModify')}
                     </p>
                   )
                 ) : (
                   <p className="text-xs text-gray-400">
-                    Select a bounding box to edit its details
+                    {t('annotationDetails.selectBoxToEdit')}
                   </p>
                 )}
               </div>
 
               {/* Detailed Instructions */}
               <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg">
-                <h4 className="text-sm font-medium mb-3 text-white">How to Use This App</h4>
+                <h4 className="text-sm font-medium mb-3 text-white">{t('instructions.howToUse')}</h4>
                 <div className="space-y-4 text-xs text-gray-400">
                   
                   {/* Navigation */}
                   <div>
-                    <h5 className="text-white font-medium mb-2">🎯 Navigation</h5>
+                    <h5 className="text-white font-medium mb-2">🎯 {t('instructions.navigation.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">Z</kbd> / <kbd className="bg-gray-700 px-1 rounded text-xs">X</kbd> - Previous/Next frame</li>
-                      <li>• Click frame number input to jump to specific frame</li>
-                      <li>• Mouse wheel - Zoom in/out on canvas</li>
-                      <li>• Right-click + drag - Pan around zoomed image</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">Z</kbd> / <kbd className="bg-gray-700 px-1 rounded text-xs">X</kbd> - {t('instructions.navigation.prevNext')}</li>
+                      <li>• {t('instructions.navigation.jumpFrame')}</li>
+                      <li>• {t('instructions.navigation.zoom')}</li>
+                      <li>• {t('instructions.navigation.pan')}</li>
                     </ul>
                   </div>
 
                   {/* Drawing & Assigning */}
                   <div>
-                    <h5 className="text-white font-medium mb-2">✏️ Drawing & Assigning</h5>
+                    <h5 className="text-white font-medium mb-2">✏️ {t('instructions.drawing.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• Select a tracklet ID from the list above</li>
-                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">D</kbd> - Switch to Drawing mode</li>
-                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">A</kbd> - Switch to Assign mode</li>
-                      <li>• Draw mode: Click & drag to create new bounding boxes</li>
-                      <li>• Assign mode: Click existing boxes to assign selected ID</li>
+                      <li>• {t('instructions.drawing.selectId')}</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">D</kbd> - {t('instructions.drawing.drawingMode')}</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">A</kbd> - {t('instructions.drawing.assignMode')}</li>
+                      <li>• {t('instructions.drawing.drawMode')}</li>
+                      <li>• {t('instructions.drawing.assignModeDesc')}</li>
                     </ul>
                   </div>
 
                   {/* Editing */}
                   <div>
-                    <h5 className="text-white font-medium mb-2">📝 Editing Annotations</h5>
+                    <h5 className="text-white font-medium mb-2">📝 {t('instructions.editing.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• Click any bounding box to select it</li>
-                      <li>• Use &quot;Edit Details&quot; to modify player information</li>
-                      <li>• Use &quot;Event Annotation&quot; section: select event (click or hotkey 1-8), then click bounding box</li>
-                      <li>• Player details apply to ALL frames with same tracklet ID</li>
-                      <li>• Events apply only to the current frame</li>
-                      <li>• Delete individual boxes or entire tracklet IDs</li>
+                      <li>• {t('instructions.editing.selectBox')}</li>
+                      <li>• {t('instructions.editing.editDetails')}</li>
+                      <li>• {t('instructions.editing.eventAnnotation')}</li>
+                      <li>• {t('instructions.editing.playerDetails')}</li>
+                      <li>• {t('instructions.editing.events')}</li>
+                      <li>• {t('instructions.editing.delete')}</li>
                     </ul>
                   </div>
 
                   {/* File Management */}
                   <div>
-                    <h5 className="text-white font-medium mb-2">💾 File Management</h5>
+                    <h5 className="text-white font-medium mb-2">💾 {t('instructions.fileManagement.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• All changes are automatically saved</li>
-                      <li>• Supports 7-12 column CSV annotation format</li>
-                      <li>• Switch between rallies using left sidebar</li>
-                      <li>• Original data is preserved and backed up</li>
+                      <li>• {t('instructions.fileManagement.autoSave')}</li>
+                      <li>• {t('instructions.fileManagement.csvSupport')}</li>
+                      <li>• {t('instructions.fileManagement.switchRallies')}</li>
+                      <li>• {t('instructions.fileManagement.dataPreserved')}</li>
                     </ul>
                   </div>
 
                   {/* Visual Cues */}
                   <div>
-                    <h5 className="text-white font-medium mb-2">🎨 Visual Cues</h5>
+                    <h5 className="text-white font-medium mb-2">🎨 {t('instructions.visualCues.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• Each tracklet ID has a unique color</li>
-                      <li>• Selected boxes have thicker borders</li>
-                      <li>• Current mode shown in top-left corner</li>
-                      <li>• Zoom level displayed in bottom-right</li>
+                      <li>• {t('instructions.visualCues.uniqueColors')}</li>
+                      <li>• {t('instructions.visualCues.selectedBoxes')}</li>
+                      <li>• {t('instructions.visualCues.currentMode')}</li>
+                      <li>• {t('instructions.visualCues.zoomLevel')}</li>
                     </ul>
                   </div>
 
@@ -477,23 +484,23 @@ export default function RightSidebar() {
 
               {/* Quick Tips */}
               <div className="mt-4 p-3 bg-blue-900 border border-blue-700 rounded-lg">
-                <h4 className="text-sm font-medium mb-2 text-blue-200">💡 Quick Tips</h4>
+                <h4 className="text-sm font-medium mb-2 text-blue-200">💡 {t('quickTips.title')}</h4>
                 <ul className="text-xs text-blue-300 space-y-1">
-                  <li>• Use consistent tracklet IDs across frames for tracking</li>
-                  <li>• Zoom in for precise bounding box placement</li>
-                  <li>• Edit player details once - applies to all frames</li>
-                  <li>• Use hotkeys 1-8 for quick event selection, then click boxes</li>
-                  <li>• Events are assigned per frame, tracklet IDs apply to all frames</li>
-                  <li>• Save time by using assign mode for existing boxes</li>
+                  <li>• {t('quickTips.consistentIds')}</li>
+                  <li>• {t('quickTips.zoomIn')}</li>
+                  <li>• {t('quickTips.editOnce')}</li>
+                  <li>• {t('quickTips.useHotkeys')}</li>
+                  <li>• {t('quickTips.eventsPerFrame')}</li>
+                  <li>• {t('quickTips.saveTime')}</li>
                 </ul>
               </div>
             </>
           ) : (
             <div className="text-center text-gray-400 py-8">
               <div className="text-4xl mb-2">🏃‍♂️</div>
-              <div className="text-lg font-medium mb-1 text-gray-300">No Rally Selected</div>
+              <div className="text-lg font-medium mb-1 text-gray-300">{t('sidebar.noRallySelected')}</div>
               <div className="text-xs text-gray-400">
-                Use the directory tree on the left to switch between rallies
+                {t('sidebar.useDirectoryTree')}
               </div>
             </div>
           )}
