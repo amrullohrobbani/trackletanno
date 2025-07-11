@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { AnnotationData } from '@/types/electron';
+import { parseAnnotations } from '@/utils/annotationParser';
 
 export default function RightSidebar() {
   const {
@@ -11,41 +11,28 @@ export default function RightSidebar() {
     getAvailableTrackletIds,
     getCurrentRally,
     setAnnotations,
-    setLoading
+    setLoading,
+    selectedBoundingBox,
+    boundingBoxes,
+    annotations,
+    currentFrameIndex,
+    updateAnnotationDetails
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [showAnnotationEditor, setShowAnnotationEditor] = useState(false);
+  
+  // Annotation editing state
+  const [editRole, setEditRole] = useState('');
+  const [editJerseyNumber, setEditJerseyNumber] = useState('');
+  const [editJerseyColor, setEditJerseyColor] = useState('');
+  const [editTeam, setEditTeam] = useState('');
+  const [customJerseyColor, setCustomJerseyColor] = useState('');
+  const [showCustomColor, setShowCustomColor] = useState(false);
   
   const availableIds = getAvailableTrackletIds();
   const currentRally = getCurrentRally();
-
-  const parseAnnotationFile = (content: string): AnnotationData[] => {
-    const lines = content.trim().split('\n');
-    if (lines.length === 0) return []; // No data
-
-    return lines.map((line, index) => {
-      const parts = line.split(',');
-      if (parts.length !== 11) {
-        console.warn(`Line ${index + 1} has incorrect number of columns:`, line);
-        return null;
-      }
-
-      return {
-        frame: parseInt(parts[0]),
-        tracklet_id: parseInt(parts[1]),
-        x: parseFloat(parts[2]),
-        y: parseFloat(parts[3]),
-        w: parseFloat(parts[4]),
-        h: parseFloat(parts[5]),
-        score: parseFloat(parts[6]),
-        role: parts[7],
-        jersey_number: parts[8],
-        jersey_color: parts[9],
-        team: parts[10]
-      };
-    }).filter((ann): ann is AnnotationData => ann !== null);
-  };
 
   // Load annotation data when rally changes
   useEffect(() => {
@@ -60,7 +47,7 @@ export default function RightSidebar() {
         console.log('File content length:', fileContent.length);
         console.log('First 200 chars:', fileContent.substring(0, 200));
         
-        const annotations = parseAnnotationFile(fileContent);
+        const annotations = parseAnnotations(fileContent);
         console.log('Parsed annotations count:', annotations.length);
         if (annotations.length > 0) {
           console.log('Sample annotation:', annotations[0]);
@@ -193,6 +180,152 @@ export default function RightSidebar() {
                 )}
               </div>
 
+              {/* Annotation Details Editor */}
+              <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-md font-medium text-white">Annotation Details</h3>
+                  <button
+                    onClick={() => {
+                      setShowAnnotationEditor(!showAnnotationEditor);
+                      if (!showAnnotationEditor && selectedBoundingBox) {
+                        // Load current annotation data when opening editor
+                        const targetBox = boundingBoxes.find(box => box.id === selectedBoundingBox);
+                        if (targetBox) {
+                          const frameNumber = currentFrameIndex + 1;
+                          const annotation = annotations.find(ann => 
+                            ann.frame === frameNumber && ann.tracklet_id === targetBox.tracklet_id
+                          );
+                          if (annotation) {
+                            setEditRole(annotation.role || '');
+                            setEditJerseyNumber(annotation.jersey_number || '');
+                            setEditJerseyColor(annotation.jersey_color || '');
+                            setEditTeam(annotation.team || '');
+                          }
+                        }
+                      }
+                    }}
+                    disabled={!selectedBoundingBox}
+                    className={`text-xs transition-colors ${
+                      selectedBoundingBox
+                        ? 'text-blue-400 hover:text-blue-300'
+                        : 'text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {showAnnotationEditor ? 'Close' : 'Edit Details'}
+                  </button>
+                </div>
+                
+                {selectedBoundingBox ? (
+                  showAnnotationEditor ? (
+                    <div className="space-y-3">
+                      {/* Role */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Role</label>
+                        <input
+                          type="text"
+                          value={editRole}
+                          onChange={(e) => setEditRole(e.target.value)}
+                          placeholder="e.g., player, referee"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                        />
+                      </div>
+                      
+                      {/* Jersey Number */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Jersey Number</label>
+                        <input
+                          type="text"
+                          value={editJerseyNumber}
+                          onChange={(e) => setEditJerseyNumber(e.target.value)}
+                          placeholder="e.g., 10, 23"
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                        />
+                      </div>
+                      
+                      {/* Jersey Color */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Jersey Color</label>
+                        <div className="space-y-2">
+                          <select
+                            value={editJerseyColor}
+                            onChange={(e) => {
+                              setEditJerseyColor(e.target.value);
+                              setShowCustomColor(e.target.value === 'custom');
+                            }}
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          >
+                            <option value="">Select color</option>
+                            <option value="red">Red</option>
+                            <option value="blue">Blue</option>
+                            <option value="white">White</option>
+                            <option value="black">Black</option>
+                            <option value="yellow">Yellow</option>
+                            <option value="green">Green</option>
+                            <option value="orange">Orange</option>
+                            <option value="purple">Purple</option>
+                            <option value="custom">Custom...</option>
+                          </select>
+                          
+                          {showCustomColor && (
+                            <input
+                              type="text"
+                              value={customJerseyColor}
+                              onChange={(e) => {
+                                setCustomJerseyColor(e.target.value);
+                                setEditJerseyColor(e.target.value);
+                              }}
+                              placeholder="Enter custom color"
+                              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Team */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Team</label>
+                        <select
+                          value={editTeam}
+                          onChange={(e) => setEditTeam(e.target.value)}
+                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                        >
+                          <option value="">Select team</option>
+                          <option value="0">Home Team (0)</option>
+                          <option value="1">Away Team (1)</option>
+                          <option value="-1">Others (-1)</option>
+                        </select>
+                      </div>
+                      
+                      {/* Save Button */}
+                      <button
+                        onClick={() => {
+                          if (selectedBoundingBox) {
+                            updateAnnotationDetails(selectedBoundingBox, {
+                              role: editRole,
+                              jersey_number: editJerseyNumber,
+                              jersey_color: editJerseyColor,
+                              team: editTeam
+                            });
+                            setShowAnnotationEditor(false);
+                          }
+                        }}
+                        className="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                      >
+                        Save Details
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">
+                      Click &quot;Edit Details&quot; to modify annotation information
+                    </p>
+                  )
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Select a bounding box to edit its details
+                  </p>
+                )}
+              </div>
+
               {/* Instructions */}
               <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg">
                 <h4 className="text-sm font-medium mb-2 text-white">Instructions</h4>
@@ -204,25 +337,29 @@ export default function RightSidebar() {
                 </ul>
               </div>
 
-              {/* Team Color Legend */}
+              {/* Tracklet ID Color Legend */}
               <div className="mt-4 p-3 bg-gray-900 border border-gray-700 rounded-lg">
-                <h4 className="text-sm font-medium mb-2 text-white">Team Colors</h4>
+                <h4 className="text-sm font-medium mb-2 text-white">Tracklet ID Colors</h4>
                 <div className="grid grid-cols-1 gap-1 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#3B82F6' }}></div>
-                    <span className="text-gray-300">Home Team (0)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#EF4444' }}></div>
-                    <span className="text-gray-300">Away Team (1)</span>
+                    <span className="text-gray-300">ID 1, 21, 41...</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#6B7280' }}></div>
-                    <span className="text-gray-300">Others (-1)</span>
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#3B82F6' }}></div>
+                    <span className="text-gray-300">ID 2, 22, 42...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#10B981' }}></div>
+                    <span className="text-gray-300">ID 3, 23, 43...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded border border-gray-600" style={{ backgroundColor: '#F59E0B' }}></div>
+                    <span className="text-gray-300">ID 4, 24, 44...</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Team values: 0=home, 1=away, -1=others
+                  Colors repeat every 20 IDs for better variety
                 </p>
               </div>
             </>

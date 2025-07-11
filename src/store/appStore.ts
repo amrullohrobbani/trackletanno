@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox } from '@/types/electron';
-import { parseAnnotations } from '@/utils/annotationParser';
+import { parseAnnotations, annotationsToCSV } from '@/utils/annotationParser';
 
 interface AppState {
   // Directory and data management
@@ -31,6 +31,7 @@ interface AppState {
   setRallyFolders: (folders: RallyFolder[]) => void;
   setCurrentRally: (index: number) => Promise<void>;
   setCurrentFrame: (index: number) => void;
+  goToFrame: (frameNumber: number) => void;
   nextFrame: () => void;
   previousFrame: () => void;
   setAnnotations: (annotations: AnnotationData[]) => void;
@@ -41,9 +42,15 @@ interface AppState {
   addBoundingBox: (box: BoundingBox) => void;
   updateBoundingBox: (id: string, updates: Partial<BoundingBox>) => void;
   removeBoundingBox: (id: string) => void;
+  deleteSelectedBoundingBox: () => void;
+  deleteAllAnnotationsWithTrackletId: (trackletId: number) => void;
   setBoundingBoxes: (boxes: BoundingBox[]) => void;
   setLoading: (loading: boolean) => void;
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  
+  // Annotation editing
+  updateAnnotationDetails: (boxId: string, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
+  saveAnnotationsToFile: () => Promise<void>;
   
   // Zoom actions
   zoomIn: () => void;
@@ -133,23 +140,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
-  nextFrame: () => {
+  goToFrame: (frameNumber) => {
     const state = get();
     const rally = state.getCurrentRally();
     if (rally) {
-      const nextIndex = (state.currentFrameIndex + 1) % rally.imageFiles.length;
-      set({ currentFrameIndex: nextIndex });
+      // Convert frame number to index (assuming frame numbers start from 1)
+      const frameIndex = frameNumber - 1;
+      if (frameIndex >= 0 && frameIndex < rally.imageFiles.length) {
+        set({ currentFrameIndex: frameIndex });
+      }
+    }
+  },
+  
+  nextFrame: () => {
+    const state = get();
+    const rally = state.getCurrentRally();
+    if (rally && state.currentFrameIndex < rally.imageFiles.length - 1) {
+      set({ currentFrameIndex: state.currentFrameIndex + 1 });
     }
   },
   
   previousFrame: () => {
     const state = get();
-    const rally = state.getCurrentRally();
-    if (rally) {
-      const prevIndex = state.currentFrameIndex === 0 
-        ? rally.imageFiles.length - 1 
-        : state.currentFrameIndex - 1;
-      set({ currentFrameIndex: prevIndex });
+    if (state.currentFrameIndex > 0) {
+      set({ currentFrameIndex: state.currentFrameIndex - 1 });
     }
   },
   
@@ -179,9 +193,87 @@ export const useAppStore = create<AppState>((set, get) => ({
     boundingBoxes: state.boundingBoxes.filter(box => box.id !== id)
   })),
   
+  deleteSelectedBoundingBox: () => {
+    const state = get();
+    if (state.selectedBoundingBox) {
+      // Remove from bounding boxes
+      const boxToDelete = state.boundingBoxes.find(box => box.id === state.selectedBoundingBox);
+      if (boxToDelete) {
+        // Remove from annotations
+        const updatedAnnotations = state.annotations.filter(ann => {
+          const frameNumber = state.currentFrameIndex + 1; // Convert index to frame number
+          return !(ann.frame === frameNumber && ann.tracklet_id === boxToDelete.tracklet_id);
+        });
+        
+        set({
+          boundingBoxes: state.boundingBoxes.filter(box => box.id !== state.selectedBoundingBox),
+          annotations: updatedAnnotations,
+          selectedBoundingBox: null
+        });
+      }
+    }
+  },
+  
+  deleteAllAnnotationsWithTrackletId: (trackletId) => {
+    const state = get();
+    const updatedAnnotations = state.annotations.filter(ann => ann.tracklet_id !== trackletId);
+    const updatedBoundingBoxes = state.boundingBoxes.filter(box => box.tracklet_id !== trackletId);
+    
+    set({
+      annotations: updatedAnnotations,
+      boundingBoxes: updatedBoundingBoxes,
+      selectedBoundingBox: null
+    });
+  },
+  
   setBoundingBoxes: (boxes) => set({ boundingBoxes: boxes }),
   setLoading: (loading) => set({ isLoading: loading }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  
+  updateAnnotationDetails: (boxId, details) => {
+    const state = get();
+    
+    // Find the bounding box to get tracklet info
+    const targetBox = state.boundingBoxes.find(box => box.id === boxId);
+    if (!targetBox) return;
+    
+    // Update ALL annotations that match this tracklet ID across all frames
+    const updatedAnnotations = state.annotations.map(ann => {
+      if (ann.tracklet_id === targetBox.tracklet_id) {
+        return { ...ann, ...details };
+      }
+      return ann;
+    });
+    
+    set({ annotations: updatedAnnotations });
+    
+    // Auto-save the changes
+    get().saveAnnotationsToFile();
+  },
+  
+  saveAnnotationsToFile: async () => {
+    const state = get();
+    const rally = state.rallyFolders[state.currentRallyIndex];
+    
+    if (!rally || typeof window === 'undefined' || !window.electronAPI) return;
+
+    state.setSaveStatus('saving');
+    
+    try {
+      // Use the annotation parser to convert to CSV format
+      const csvContent = annotationsToCSV(state.annotations);
+
+      await window.electronAPI.saveAnnotationFile(rally.annotationFile, csvContent);
+      state.setSaveStatus('saved');
+      
+      // Clear saved status after 2 seconds
+      setTimeout(() => state.setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Error saving annotation file:', error);
+      state.setSaveStatus('error');
+      setTimeout(() => state.setSaveStatus('idle'), 3000);
+    }
+  },
   
   // Zoom actions
   zoomIn: () => {

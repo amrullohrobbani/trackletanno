@@ -2,10 +2,10 @@ import { AnnotationData } from '@/types/electron';
 
 /**
  * Parse annotation data from CSV content with flexible column support
- * Supports both new format (7 columns) and old format (11 columns)
+ * Supports formats from 7 to 12 columns
  * 
- * New format: frame,tracklet_id,x,y,w,h,score
- * Old format: frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team
+ * Minimum format (7 columns): frame,tracklet_id,x,y,w,h,score
+ * Full format (12 columns): frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team,event
  */
 export function parseAnnotations(csvContent: string): AnnotationData[] {
   const lines = csvContent.trim().split('\n').filter(line => line.trim() !== '');
@@ -35,6 +35,7 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
       const jersey_number = columns[8] || '';
       const jersey_color = columns[9] || '';
       const team = columns[10] || '';
+      const event = columns[11] || ''; // New event field
 
       // Validate required numeric fields
       if (isNaN(frame) || isNaN(tracklet_id) || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || isNaN(score)) {
@@ -53,7 +54,8 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
         role,
         jersey_number,
         jersey_color,
-        team
+        team,
+        event
       };
 
       annotations.push(annotation);
@@ -68,11 +70,11 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
 
 /**
  * Convert annotations back to CSV format
- * Always exports in full 11-column format for consistency
+ * Always exports in full 12-column format for consistency
  */
 export function annotationsToCSV(annotations: AnnotationData[]): string {
   const lines = annotations.map(ann => 
-    `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role || ''},${ann.jersey_number || ''},${ann.jersey_color || ''},${ann.team || ''}`
+    `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role || ''},${ann.jersey_number || ''},${ann.jersey_color || ''},${ann.team || ''},${ann.event || ''}`
   );
   return lines.join('\n');
 }

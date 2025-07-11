@@ -96,9 +96,9 @@ Check the console for more detailed logs.`);
       <div className="mt-6 text-sm text-gray-500">
         <p>Annotation files should contain data in this format:</p>
         <code className="bg-gray-800 px-2 py-1 rounded text-xs">
-          frame,tracklet_id,x,y,w,h,score[,role,jersey_number,jersey_color,team]
+          frame,tracklet_id,x,y,w,h,score[,role,jersey_number,jersey_color,team,event]
         </code>
-        <p className="mt-1 text-xs">At least 7 columns required, additional columns optional. No header required.</p>
+        <p className="mt-1 text-xs">At least 7 columns required, up to 12 columns supported. No header required.</p>
       </div>
     </div>
   );

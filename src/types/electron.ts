@@ -44,6 +44,7 @@ export interface AnnotationData {
   jersey_number: string;
   jersey_color: string;
   team: string;
+  event: string; // New field for spatial temporal events
 }
 
 export interface BoundingBox {

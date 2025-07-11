@@ -39,50 +39,37 @@ export default function MainCanvas() {
 
   const imagePath = getCurrentImagePath();
 
-  // Team color mapping function
-  const getTeamColor = useCallback((team: string | undefined, isSelected: boolean = false) => {
-    if (!team || team.trim() === '') {
-      // Default color for no team or empty team
-      return isSelected ? '#3B82F6' : '#6B7280'; // Blue if selected, gray otherwise
-    }
+  // Generate consistent color based on tracklet ID
+  const getTrackletColor = useCallback((trackletId: number, isSelected: boolean = false) => {
+    // Predefined colors for tracklet IDs (20 colors for better variety)
+    const predefinedColors = [
+      { normal: '#EF4444', selected: '#DC2626' }, // Red
+      { normal: '#3B82F6', selected: '#2563EB' }, // Blue
+      { normal: '#10B981', selected: '#059669' }, // Green
+      { normal: '#F59E0B', selected: '#D97706' }, // Orange
+      { normal: '#8B5CF6', selected: '#7C3AED' }, // Purple
+      { normal: '#EC4899', selected: '#DB2777' }, // Pink
+      { normal: '#06B6D4', selected: '#0891B2' }, // Cyan
+      { normal: '#84CC16', selected: '#65A30D' }, // Lime
+      { normal: '#F97316', selected: '#EA580C' }, // Orange-Red
+      { normal: '#6366F1', selected: '#4F46E5' }, // Indigo
+      { normal: '#14B8A6', selected: '#0F766E' }, // Teal
+      { normal: '#F59E0B', selected: '#D97706' }, // Amber
+      { normal: '#EF4444', selected: '#B91C1C' }, // Red (variant)
+      { normal: '#8B5CF6', selected: '#6D28D9' }, // Violet
+      { normal: '#06B6D4', selected: '#0E7490' }, // Sky
+      { normal: '#10B981', selected: '#047857' }, // Emerald
+      { normal: '#F97316', selected: '#C2410C' }, // Orange (variant)
+      { normal: '#EC4899', selected: '#BE185D' }, // Rose
+      { normal: '#6366F1', selected: '#3730A3' }, // Indigo (variant)
+      { normal: '#84CC16', selected: '#4D7C0F' }, // Green (variant)
+    ];
     
-    const teamColors: { [key: string]: { normal: string; selected: string } } = {
-      '0': { normal: '#3B82F6', selected: '#2563EB' },     // Blue for home team (0)
-      '1': { normal: '#EF4444', selected: '#DC2626' },     // Red for away team (1)
-      '-1': { normal: '#6B7280', selected: '#4B5563' },    // Gray for others (-1)
-      // Legacy support for text-based teams
-      'home': { normal: '#3B82F6', selected: '#2563EB' },   // Blue
-      'away': { normal: '#EF4444', selected: '#DC2626' },   // Red
-      'team_a': { normal: '#3B82F6', selected: '#2563EB' }, // Blue
-      'team_b': { normal: '#EF4444', selected: '#DC2626' }, // Red
-      'team_1': { normal: '#3B82F6', selected: '#2563EB' }, // Blue
-      'team_2': { normal: '#EF4444', selected: '#DC2626' }, // Red
-      'red': { normal: '#EF4444', selected: '#DC2626' },    // Red
-      'blue': { normal: '#3B82F6', selected: '#2563EB' },   // Blue
-      'green': { normal: '#10B981', selected: '#059669' },  // Green
-      'yellow': { normal: '#F59E0B', selected: '#D97706' }, // Orange/Yellow
-      'purple': { normal: '#8B5CF6', selected: '#7C3AED' }, // Purple
-      'pink': { normal: '#EC4899', selected: '#DB2777' },   // Pink
-    };
+    // Use tracklet ID to select color consistently (repeats every 20)
+    const colorIndex = (trackletId - 1) % predefinedColors.length;
+    const colors = predefinedColors[colorIndex];
     
-    const teamValue = team.trim(); // Don't lowercase for numeric values
-    const colors = teamColors[teamValue];
-    
-    if (colors) {
-      return isSelected ? colors.selected : colors.normal;
-    }
-    
-    // Fallback: generate a consistent color based on team name hash
-    let hash = 0;
-    for (let i = 0; i < teamValue.length; i++) {
-      hash = teamValue.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    
-    const hue = Math.abs(hash) % 360;
-    const saturation = isSelected ? 70 : 60;
-    const lightness = isSelected ? 45 : 55;
-    
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    return isSelected ? colors.selected : colors.normal;
   }, []);
 
   // Load and display image securely
@@ -192,7 +179,7 @@ export default function MainCanvas() {
     // Draw existing bounding boxes
     boundingBoxes.forEach((box) => {
       const isSelected = selectedBoundingBox === box.id;
-      const boxColor = getTeamColor(box.team, isSelected);
+      const boxColor = getTrackletColor(box.tracklet_id, isSelected);
       
       ctx.strokeStyle = boxColor;
       // Keep line width constant regardless of zoom for better visibility
@@ -231,7 +218,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTeamColor, canvasDimensions]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, canvasDimensions]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -441,7 +428,8 @@ export default function MainCanvas() {
         role: '',
         jersey_number: '',
         jersey_color: '',
-        team: ''
+        team: '',
+        event: ''
       };
 
       const updatedAnnotations = [...annotations, newAnnotation];
