@@ -15,6 +15,8 @@ export interface ElectronAPI {
     error?: string;
   }>;
   getImageData: (imagePath: string) => Promise<string>;
+  loadAnnotationFile: (annotationFilePath: string) => Promise<string>;
+  saveAnnotationFile: (annotationFilePath: string, content: string) => Promise<boolean>;
 }
 
 export interface DirectoryEntry {

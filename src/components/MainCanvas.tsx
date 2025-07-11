@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { AnnotationData, BoundingBox } from '@/types/electron';
+import { annotationsToCSV } from '@/utils/annotationParser';
 
 export default function MainCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -12,6 +13,7 @@ export default function MainCanvas() {
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 1920, height: 1080 });
 
   const {
     getCurrentImagePath,
@@ -94,6 +96,15 @@ export default function MainCanvas() {
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
       if (imageRef.current) {
         imageRef.current.src = imageDataUrl;
+        
+        // Update canvas dimensions when image loads
+        imageRef.current.onload = () => {
+          if (imageRef.current) {
+            const { naturalWidth, naturalHeight } = imageRef.current;
+            console.log(`Image dimensions: ${naturalWidth}x${naturalHeight}`);
+            setCanvasDimensions({ width: naturalWidth, height: naturalHeight });
+          }
+        };
       }
     } catch (error) {
       console.error('Error loading image:', error);
@@ -176,7 +187,7 @@ export default function MainCanvas() {
     ctx.scale(zoomLevel, zoomLevel);
 
     // Draw image at original size - the transformations will handle zoom/pan
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvasDimensions.width, canvasDimensions.height);
 
     // Draw existing bounding boxes
     boundingBoxes.forEach((box) => {
@@ -192,17 +203,17 @@ export default function MainCanvas() {
       
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
-      // Draw tracklet ID and team label background
+      // Draw tracklet ID and team label background at the bottom
       const labelWidth = box.team ? 80 : 60;
       const labelHeight = 25;
       ctx.fillStyle = boxColor;
-      ctx.fillRect(box.x, box.y - labelHeight, labelWidth, labelHeight);
+      ctx.fillRect(box.x, box.y + box.height, labelWidth, labelHeight);
       
-      // Draw tracklet ID and team text
+      // Draw tracklet ID and team text at the bottom
       ctx.fillStyle = 'white';
       // Keep font size readable regardless of zoom
       ctx.font = `${12 / zoomLevel}px Arial`;
-      const textY = box.y - 8;
+      const textY = box.y + box.height + 16; // Position text inside the bottom label
       if (box.team && box.team.trim() !== '') {
         ctx.fillText(`ID: ${box.tracklet_id} | ${box.team}`, box.x + 3, textY);
       } else {
@@ -220,7 +231,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTeamColor]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTeamColor, canvasDimensions]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -448,13 +459,10 @@ export default function MainCanvas() {
     setSaveStatus('saving');
     
     try {
-      // Convert annotations to CSV format without header
-      const csvLines = annotationData.map(ann => 
-        `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role},${ann.jersey_number},${ann.jersey_color},${ann.team}`
-      );
-      const csvContent = csvLines.join('\n');
+      // Use the annotation parser to convert to CSV format
+      const csvContent = annotationsToCSV(annotationData);
 
-      await window.electronAPI.writeFile(rally.annotationFile, csvContent);
+      await window.electronAPI.saveAnnotationFile(rally.annotationFile, csvContent);
       setSaveStatus('saved');
       
       // Clear saved status after 2 seconds
@@ -492,8 +500,8 @@ export default function MainCanvas() {
         />
         <canvas
           ref={canvasRef}
-          width={1920}
-          height={1080}
+          width={canvasDimensions.width}
+          height={canvasDimensions.height}
           className="block border border-gray-600 cursor-crosshair"
           style={{ 
             maxWidth: '100%',

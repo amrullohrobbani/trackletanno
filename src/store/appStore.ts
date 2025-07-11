@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox } from '@/types/electron';
+import { parseAnnotations } from '@/utils/annotationParser';
 
 interface AppState {
   // Directory and data management
@@ -28,7 +29,7 @@ interface AppState {
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
   setRallyFolders: (folders: RallyFolder[]) => void;
-  setCurrentRally: (index: number) => void;
+  setCurrentRally: (index: number) => Promise<void>;
   setCurrentFrame: (index: number) => void;
   nextFrame: () => void;
   previousFrame: () => void;
@@ -89,12 +90,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     boundingBoxes: []
   }),
   
-  setCurrentRally: (index) => set({ 
-    currentRallyIndex: index,
-    currentFrameIndex: 0,
-    annotations: [],
-    boundingBoxes: []
-  }),
+  setCurrentRally: async (index) => {
+    const state = get();
+    const rally = state.rallyFolders[index];
+    
+    if (!rally) {
+      console.error('Rally not found at index:', index);
+      return;
+    }
+
+    // Reset state first
+    set({ 
+      currentRallyIndex: index,
+      currentFrameIndex: 0,
+      annotations: [],
+      boundingBoxes: []
+    });
+
+    // Load annotations if available and we're in an Electron environment
+    if (rally.annotationFile && typeof window !== 'undefined' && window.electronAPI) {
+      try {
+        console.log('Loading annotations from:', rally.annotationFile);
+        const csvContent = await window.electronAPI.loadAnnotationFile(rally.annotationFile);
+        const annotations = parseAnnotations(csvContent);
+        
+        console.log(`Loaded ${annotations.length} annotations for rally: ${rally.name}`);
+        set({ annotations });
+      } catch (error) {
+        console.error('Error loading annotations:', error);
+        // Continue without annotations - they can be created manually
+      }
+    } else {
+      console.log('No annotation file found for rally:', rally.name);
+    }
+  },
   
   setCurrentFrame: (index) => {
     const state = get();

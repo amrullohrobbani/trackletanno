@@ -39,10 +39,11 @@ Debug info:
 - Rally directories: ${debugInfo.rallyDirectories?.join(', ') || 'none'}
 
 Please check:
-1. Directory contains folders starting with 'rally_'
-2. Rally folders contain .txt files (annotations)  
+1. Directory contains folders named [gameId]s[set]rally[rallynumber] (e.g., 207s2rally001)
+2. Rally folders contain corresponding .txt files with matching names (e.g., 207s2rally001.txt)
 3. Rally folders contain image files (.jpg, .png, etc.)
-4. Annotation files have 11 columns: frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team
+4. Annotation files have at least 7 columns: frame,tracklet_id,x,y,w,h,score
+5. Additional columns (role,jersey_number,jersey_color,team) are optional
 
 Check the console for more detailed logs.`);
           setSelectedDirectory(null);
@@ -73,13 +74,12 @@ Check the console for more detailed logs.`);
           <h3 className="text-lg font-semibold mb-3">Expected Directory Structure:</h3>
           <div className="text-left text-sm text-gray-300 font-mono">
             <div>📁 selected_directory/</div>
-            <div className="ml-4">📁 sets_1/</div>
-            <div className="ml-8">📁 rally_1/</div>
-            <div className="ml-12">📄 annotations.txt</div>
-            <div className="ml-12">🖼️ 000001.jpg</div>
-            <div className="ml-12">🖼️ 000002.jpg</div>
+            <div className="ml-4">📁 207s2rally001/</div>
+            <div className="ml-12">�️ 002001.jpg</div>
+            <div className="ml-12">🖼️ 002002.jpg</div>
             <div className="ml-12">🖼️ ...</div>
-            <div className="ml-8">📁 rally_2/</div>
+            <div className="ml-4">� 207s2rally001.txt</div>
+            <div className="ml-4">📁 207s2rally002/</div>
             <div className="ml-12">📄 ...</div>
           </div>
         </div>
@@ -96,9 +96,9 @@ Check the console for more detailed logs.`);
       <div className="mt-6 text-sm text-gray-500">
         <p>Annotation files should contain data in this format:</p>
         <code className="bg-gray-800 px-2 py-1 rounded text-xs">
-          frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team
+          frame,tracklet_id,x,y,w,h,score[,role,jersey_number,jersey_color,team]
         </code>
-        <p className="mt-1 text-xs">One row per annotation, no header required</p>
+        <p className="mt-1 text-xs">At least 7 columns required, additional columns optional. No header required.</p>
       </div>
     </div>
   );

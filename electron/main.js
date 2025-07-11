@@ -103,96 +103,106 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
     const entries = await fs.readdir(basePath, { withFileTypes: true });
     const rallyFolders = [];
     
-    // First, look for direct rally folders in the base path
+    // Look for folders matching the pattern [gameId]s[set]rally[rallynumber]
+    // and corresponding .txt files with the same name
+    const rallyPattern = /^(\d+s\d+rally\d+)$/;
+    
     for (const entry of entries) {
-      if (entry.isDirectory() && entry.name.startsWith('rally_')) {
-        const rallyPath = path.join(basePath, entry.name);
-        console.log('Checking rally folder:', rallyPath);
-        
-        try {
-          const rallyEntries = await fs.readdir(rallyPath);
-          console.log('Files in rally folder:', rallyEntries);
+      if (entry.isDirectory()) {
+        const match = entry.name.match(rallyPattern);
+        if (match) {
+          const rallyName = match[1];
+          const rallyPath = path.join(basePath, entry.name);
+          const annotationFilePath = path.join(basePath, `${rallyName}.txt`);
           
-          // Look for annotation file and images
-          const annotationFile = rallyEntries.find(file => file.endsWith('.txt'));
-          const imageFiles = rallyEntries.filter(file => 
-            /\.(jpg|jpeg|png|bmp)$/i.test(file)
-          ).sort((a, b) => {
-            // Extract frame numbers for proper sorting (handles format like 000001.jpg)
-            const getFrameNumber = (filename) => {
-              const match = filename.match(/(\d{6})\./);
-              return match ? parseInt(match[1], 10) : 0;
-            };
-            return getFrameNumber(a) - getFrameNumber(b);
-          });
+          console.log('Checking rally folder:', rallyPath);
+          console.log('Looking for annotation file:', annotationFilePath);
           
-          console.log('Found annotation file:', annotationFile);
-          console.log('Found image files count:', imageFiles.length);
-          
-          if (annotationFile && imageFiles.length > 0) {
-            rallyFolders.push({
-              name: entry.name,
-              path: rallyPath,
-              annotationFile: path.join(rallyPath, annotationFile),
-              imageFiles: imageFiles.map(img => path.join(rallyPath, img))
-            });
-            console.log('Added rally folder:', entry.name);
-          } else {
-            console.log('Rally folder missing required files:', entry.name);
+          try {
+            // Check if annotation file exists
+            const annotationExists = await fs.access(annotationFilePath).then(() => true).catch(() => false);
+            
+            if (annotationExists) {
+              const rallyEntries = await fs.readdir(rallyPath);
+              console.log('Files in rally folder:', rallyEntries.length);
+              
+              // Look for image files
+              const imageFiles = rallyEntries.filter(file => 
+                /\.(jpg|jpeg|png|bmp)$/i.test(file)
+              ).sort((a, b) => {
+                // Extract frame numbers for proper sorting (handles format like 002001.jpg)
+                const getFrameNumber = (filename) => {
+                  const match = filename.match(/(\d{6})\./);
+                  return match ? parseInt(match[1], 10) : 0;
+                };
+                return getFrameNumber(a) - getFrameNumber(b);
+              });
+              
+              console.log('Found image files count:', imageFiles.length);
+              
+              if (imageFiles.length > 0) {
+                rallyFolders.push({
+                  name: rallyName,
+                  path: rallyPath,
+                  annotationFile: annotationFilePath,
+                  imageFiles: imageFiles.map(img => path.join(rallyPath, img))
+                });
+                console.log('Added rally folder:', rallyName);
+              } else {
+                console.log('Rally folder missing image files:', rallyName);
+              }
+            } else {
+              console.log('Annotation file not found for:', rallyName);
+            }
+          } catch (rallyError) {
+            console.error(`Error reading rally folder ${rallyPath}:`, rallyError);
           }
-        } catch (rallyError) {
-          console.error(`Error reading rally folder ${rallyPath}:`, rallyError);
         }
       }
     }
     
-    // If no direct rally folders found, look in subdirectories (like sets_1)
+    // Fallback: look for the old rally_ pattern for backward compatibility
     if (rallyFolders.length === 0) {
-      console.log('No direct rally folders found, checking subdirectories...');
+      console.log('No new format rally folders found, checking old format...');
       
       for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const subDirPath = path.join(basePath, entry.name);
-          console.log('Checking subdirectory:', subDirPath);
+        if (entry.isDirectory() && entry.name.startsWith('rally_')) {
+          const rallyPath = path.join(basePath, entry.name);
+          console.log('Checking old format rally folder:', rallyPath);
           
           try {
-            const subEntries = await fs.readdir(subDirPath, { withFileTypes: true });
+            const rallyEntries = await fs.readdir(rallyPath);
+            console.log('Files in rally folder:', rallyEntries);
             
-            for (const subEntry of subEntries) {
-              if (subEntry.isDirectory() && subEntry.name.startsWith('rally_')) {
-                const rallyPath = path.join(subDirPath, subEntry.name);
-                console.log('Found rally folder in subdirectory:', rallyPath);
-                
-                try {
-                  const rallyEntries = await fs.readdir(rallyPath);
-                  
-                  const annotationFile = rallyEntries.find(file => file.endsWith('.txt'));
-                  const imageFiles = rallyEntries.filter(file => 
-                    /\.(jpg|jpeg|png|bmp)$/i.test(file)
-                  ).sort((a, b) => {
-                    const getFrameNumber = (filename) => {
-                      const match = filename.match(/(\d{6})\./);
-                      return match ? parseInt(match[1], 10) : 0;
-                    };
-                    return getFrameNumber(a) - getFrameNumber(b);
-                  });
-                  
-                  if (annotationFile && imageFiles.length > 0) {
-                    rallyFolders.push({
-                      name: `${entry.name}/${subEntry.name}`,
-                      path: rallyPath,
-                      annotationFile: path.join(rallyPath, annotationFile),
-                      imageFiles: imageFiles.map(img => path.join(rallyPath, img))
-                    });
-                    console.log('Added rally folder from subdirectory:', `${entry.name}/${subEntry.name}`);
-                  }
-                } catch (subRallyError) {
-                  console.error(`Error reading sub rally folder ${rallyPath}:`, subRallyError);
-                }
-              }
+            // Look for annotation file and images
+            const annotationFile = rallyEntries.find(file => file.endsWith('.txt'));
+            const imageFiles = rallyEntries.filter(file => 
+              /\.(jpg|jpeg|png|bmp)$/i.test(file)
+            ).sort((a, b) => {
+              // Extract frame numbers for proper sorting (handles format like 000001.jpg)
+              const getFrameNumber = (filename) => {
+                const match = filename.match(/(\d{6})\./);
+                return match ? parseInt(match[1], 10) : 0;
+              };
+              return getFrameNumber(a) - getFrameNumber(b);
+            });
+            
+            console.log('Found annotation file:', annotationFile);
+            console.log('Found image files count:', imageFiles.length);
+            
+            if (annotationFile && imageFiles.length > 0) {
+              rallyFolders.push({
+                name: entry.name,
+                path: rallyPath,
+                annotationFile: path.join(rallyPath, annotationFile),
+                imageFiles: imageFiles.map(img => path.join(rallyPath, img))
+              });
+              console.log('Added old format rally folder:', entry.name);
+            } else {
+              console.log('Old format rally folder missing required files:', entry.name);
             }
-          } catch (subDirError) {
-            console.error(`Error reading subdirectory ${subDirPath}:`, subDirError);
+          } catch (rallyError) {
+            console.error(`Error reading old format rally folder ${rallyPath}:`, rallyError);
           }
         }
       }
@@ -273,6 +283,32 @@ ipcMain.handle('debug-directory', async (event, dirPath) => {
   } catch (error) {
     console.error('Error debugging directory:', error);
     return { error: error.message };
+  }
+});
+
+// Load annotation file content
+ipcMain.handle('load-annotation-file', async (event, annotationFilePath) => {
+  try {
+    console.log('Loading annotation file:', annotationFilePath);
+    const content = await fs.readFile(annotationFilePath, 'utf8');
+    console.log('Annotation file loaded, size:', content.length, 'bytes');
+    return content;
+  } catch (error) {
+    console.error('Error loading annotation file:', error);
+    throw error;
+  }
+});
+
+// Save annotation file content
+ipcMain.handle('save-annotation-file', async (event, annotationFilePath, content) => {
+  try {
+    console.log('Saving annotation file:', annotationFilePath);
+    await fs.writeFile(annotationFilePath, content, 'utf8');
+    console.log('Annotation file saved successfully');
+    return true;
+  } catch (error) {
+    console.error('Error saving annotation file:', error);
+    throw error;
   }
 });
 
