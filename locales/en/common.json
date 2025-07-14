@@ -30,7 +30,7 @@
     "clearSelection": "Clear Event Selection",
     "modeActive": "mode active. Click any bounding box to assign this event.",
     "selectFirst": "Select an event above, then click a bounding box to assign it.",
-    "hotkeyTip": "Press number keys (1-8) for quick event selection"
+    "hotkeyTip": "Press QWERTY keys (Q,W,E,R,T,Y,U,I,N) for quick event selection"
   },
   "events": {
     "serve": "Serve",
@@ -40,7 +40,8 @@
     "set": "Set",
     "spike": "Spike",
     "block": "Block",
-    "score": "Score"
+    "score": "Score",
+    "no_event": "No Event"
   },
   "annotationDetails": {
     "title": "Annotation Details",
@@ -84,7 +85,7 @@
       "title": "Editing Annotations",
       "selectBox": "Click any bounding box to select it",
       "editDetails": "Use \"Edit Details\" to modify player information",
-      "eventAnnotation": "Use \"Event Annotation\" section: select event (click or hotkey 1-8), then click bounding box",
+      "eventAnnotation": "Use \"Event Annotation\" section: select event (click or hotkey Q,W,E,R,T,Y,U,I), then click bounding box",
       "playerDetails": "Player details apply to ALL frames with same tracklet ID",
       "events": "Events apply only to the current frame",
       "delete": "Delete individual boxes or entire tracklet IDs"
@@ -109,7 +110,7 @@
     "consistentIds": "Use consistent tracklet IDs across frames for tracking",
     "zoomIn": "Zoom in for precise bounding box placement", 
     "editOnce": "Edit player details once - applies to all frames",
-    "useHotkeys": "Use hotkeys 1-8 for quick event selection, then click boxes",
+    "useHotkeys": "Use QWERTY hotkeys (Q,W,E,R,T,Y,U,I,N) for quick event selection, then click boxes",
     "eventsPerFrame": "Events are assigned per frame, tracklet IDs apply to all frames",
     "saveTime": "Save time by using assign mode for existing boxes"
   },

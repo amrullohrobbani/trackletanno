@@ -20,6 +20,7 @@ interface AppState {
   
   // Canvas state
   boundingBoxes: BoundingBox[];
+  isDeletingBox: boolean; // Flag to prevent recreation during deletion
   
   // Zoom state
   zoomLevel: number;
@@ -87,6 +88,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   saveStatus: 'idle',
   boundingBoxes: [],
+  isDeletingBox: false,
   
   // Initial zoom state
   zoomLevel: 1,
@@ -127,18 +129,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Load annotations if available and we're in an Electron environment
     if (rally.annotationFile && typeof window !== 'undefined' && window.electronAPI) {
       try {
-        console.log('Loading annotations from:', rally.annotationFile);
         const csvContent = await window.electronAPI.loadAnnotationFile(rally.annotationFile);
         const annotations = parseAnnotations(csvContent);
         
-        console.log(`Loaded ${annotations.length} annotations for rally: ${rally.name}`);
         set({ annotations });
       } catch (error) {
         console.error('Error loading annotations:', error);
         // Continue without annotations - they can be created manually
       }
-    } else {
-      console.log('No annotation file found for rally:', rally.name);
     }
   },
   
@@ -205,35 +203,106 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   deleteSelectedBoundingBox: () => {
     const state = get();
+    
     if (state.selectedBoundingBox) {
       // Remove from bounding boxes
       const boxToDelete = state.boundingBoxes.find(box => box.id === state.selectedBoundingBox);
       if (boxToDelete) {
-        // Remove from annotations
-        const updatedAnnotations = state.annotations.filter(ann => {
-          const frameNumber = state.currentFrameIndex + 1; // Convert index to frame number
-          return !(ann.frame === frameNumber && ann.tracklet_id === boxToDelete.tracklet_id);
+        // Get the actual frame number using the same logic as MainCanvas
+        const getCurrentFrameNumber = async () => {
+          try {
+            const imagePath = state.getCurrentImagePath();
+            if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
+              console.error('Cannot get image path or electronAPI not available');
+              return null;
+            }
+
+            const filename = imagePath.split('/').pop() || '';
+            const frameNumber = await window.electronAPI.getFrameNumber(filename);
+            return frameNumber;
+          } catch (error) {
+            console.error('Error getting frame number:', error);
+            return null;
+          }
+        };
+
+        getCurrentFrameNumber().then(frameNumber => {
+          if (frameNumber === null) {
+            console.error('Could not determine frame number');
+            return;
+          }
+          
+          const annotationsToDelete = state.annotations.filter(ann => {
+            const matches = ann.frame === frameNumber && 
+                           ann.tracklet_id === boxToDelete.tracklet_id &&
+                           Math.abs(ann.x - boxToDelete.x) < 1.0 &&
+                           Math.abs(ann.y - boxToDelete.y) < 1.0 &&
+                           Math.abs(ann.w - boxToDelete.width) < 1.0 &&
+                           Math.abs(ann.h - boxToDelete.height) < 1.0;
+            return matches;
+          });
+          
+          if (annotationsToDelete.length === 0) {
+            console.warn('No matching annotations found for deletion');
+          }
+          
+          const updatedAnnotations = state.annotations.filter(ann => {
+            // Delete the annotation that matches frame, tracklet_id, and position (with tolerance)
+            return !(ann.frame === frameNumber && 
+                     ann.tracklet_id === boxToDelete.tracklet_id &&
+                     Math.abs(ann.x - boxToDelete.x) < 1.0 &&
+                     Math.abs(ann.y - boxToDelete.y) < 1.0 &&
+                     Math.abs(ann.w - boxToDelete.width) < 1.0 &&
+                     Math.abs(ann.h - boxToDelete.height) < 1.0);
+          });
+          
+          const updatedBoundingBoxes = state.boundingBoxes.filter(box => box.id !== state.selectedBoundingBox);
+          
+          // Update state immediately with deletion flag
+          set({
+            boundingBoxes: updatedBoundingBoxes,
+            annotations: updatedAnnotations,
+            selectedBoundingBox: null,
+            isDeletingBox: true // Prevent recreation during deletion
+          });
+          
+          // Auto-save after deletion and clear the deletion flag
+          setTimeout(() => {
+            const newState = get();
+            newState.saveAnnotationsToFile().then(() => {
+              // Clear deletion flag after save completes
+              set({ isDeletingBox: false });
+            });
+          }, 100);
         });
-        
-        set({
-          boundingBoxes: state.boundingBoxes.filter(box => box.id !== state.selectedBoundingBox),
-          annotations: updatedAnnotations,
-          selectedBoundingBox: null
-        });
+      } else {
+        console.error('Box to delete not found');
       }
+    } else {
+      console.error('No bounding box selected for deletion');
     }
   },
   
   deleteAllAnnotationsWithTrackletId: (trackletId) => {
     const state = get();
+    console.log('Deleting all annotations with tracklet ID:', trackletId);
+    
     const updatedAnnotations = state.annotations.filter(ann => ann.tracklet_id !== trackletId);
     const updatedBoundingBoxes = state.boundingBoxes.filter(box => box.tracklet_id !== trackletId);
+    
+    console.log('Annotations before deletion:', state.annotations.length);
+    console.log('Annotations after deletion:', updatedAnnotations.length);
+    console.log('Bounding boxes before deletion:', state.boundingBoxes.length);
+    console.log('Bounding boxes after deletion:', updatedBoundingBoxes.length);
     
     set({
       annotations: updatedAnnotations,
       boundingBoxes: updatedBoundingBoxes,
       selectedBoundingBox: null
     });
+    
+    // Auto-save after deletion - use get() to get the updated state
+    get().saveAnnotationsToFile();
   },
   
   setBoundingBoxes: (boxes) => set({ boundingBoxes: boxes }),
@@ -266,7 +335,14 @@ export const useAppStore = create<AppState>((set, get) => ({
             ann.tracklet_id === targetBox.tracklet_id &&
             ann.x === targetBox.x && ann.y === targetBox.y && 
             ann.w === targetBox.width && ann.h === targetBox.height) {
-          return { ...ann, event: eventType };
+          // Handle "no_event" by removing the event property
+          if (eventType === 'no_event') {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { event, ...annWithoutEvent } = ann;
+            return annWithoutEvent;
+          } else {
+            return { ...ann, event: eventType };
+          }
         }
         return ann;
       });

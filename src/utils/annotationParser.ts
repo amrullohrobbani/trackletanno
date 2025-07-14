@@ -55,7 +55,7 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
         jersey_number,
         jersey_color,
         team,
-        event
+        ...(event && { event }) // Only include event field if it's not empty
       };
 
       annotations.push(annotation);

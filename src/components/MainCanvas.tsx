@@ -10,12 +10,14 @@ export default function MainCanvas() {
   const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const lastBoundingBoxesRef = useRef<BoundingBox[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 1920, height: 1080 });
+  const [currentFrameNumber, setCurrentFrameNumber] = useState<number>(1);
 
   const {
     getCurrentImagePath,
@@ -38,7 +40,8 @@ export default function MainCanvas() {
     panY,
     setPan,
     selectedEvent,
-    assignEventToBoundingBox
+    assignEventToBoundingBox,
+    isDeletingBox
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -47,26 +50,26 @@ export default function MainCanvas() {
   const getTrackletColor = useCallback((trackletId: number, isSelected: boolean = false) => {
     // Predefined colors for tracklet IDs (20 colors for better variety)
     const predefinedColors = [
-      { normal: '#EF4444', selected: '#DC2626' }, // Red
-      { normal: '#3B82F6', selected: '#2563EB' }, // Blue
-      { normal: '#10B981', selected: '#059669' }, // Green
-      { normal: '#F59E0B', selected: '#D97706' }, // Orange
-      { normal: '#8B5CF6', selected: '#7C3AED' }, // Purple
-      { normal: '#EC4899', selected: '#DB2777' }, // Pink
-      { normal: '#06B6D4', selected: '#0891B2' }, // Cyan
-      { normal: '#84CC16', selected: '#65A30D' }, // Lime
-      { normal: '#F97316', selected: '#EA580C' }, // Orange-Red
-      { normal: '#6366F1', selected: '#4F46E5' }, // Indigo
-      { normal: '#14B8A6', selected: '#0F766E' }, // Teal
-      { normal: '#F59E0B', selected: '#D97706' }, // Amber
-      { normal: '#EF4444', selected: '#B91C1C' }, // Red (variant)
-      { normal: '#8B5CF6', selected: '#6D28D9' }, // Violet
-      { normal: '#06B6D4', selected: '#0E7490' }, // Sky
-      { normal: '#10B981', selected: '#047857' }, // Emerald
-      { normal: '#F97316', selected: '#C2410C' }, // Orange (variant)
-      { normal: '#EC4899', selected: '#BE185D' }, // Rose
-      { normal: '#6366F1', selected: '#3730A3' }, // Indigo (variant)
-      { normal: '#84CC16', selected: '#4D7C0F' }, // Green (variant)
+      { normal: '#EF4444', selected: '#DC2626', dark: '#7F1D1D' }, // Red
+      { normal: '#3B82F6', selected: '#2563EB', dark: '#1E3A8A' }, // Blue
+      { normal: '#10B981', selected: '#059669', dark: '#064E3B' }, // Green
+      { normal: '#F59E0B', selected: '#D97706', dark: '#78350F' }, // Orange
+      { normal: '#8B5CF6', selected: '#7C3AED', dark: '#581C87' }, // Purple
+      { normal: '#EC4899', selected: '#DB2777', dark: '#831843' }, // Pink
+      { normal: '#06B6D4', selected: '#0891B2', dark: '#164E63' }, // Cyan
+      { normal: '#84CC16', selected: '#65A30D', dark: '#365314' }, // Lime
+      { normal: '#F97316', selected: '#EA580C', dark: '#7C2D12' }, // Orange-Red
+      { normal: '#6366F1', selected: '#4F46E5', dark: '#312E81' }, // Indigo
+      { normal: '#14B8A6', selected: '#0F766E', dark: '#134E4A' }, // Teal
+      { normal: '#F59E0B', selected: '#D97706', dark: '#78350F' }, // Amber
+      { normal: '#EF4444', selected: '#B91C1C', dark: '#7F1D1D' }, // Red (variant)
+      { normal: '#8B5CF6', selected: '#6D28D9', dark: '#581C87' }, // Violet
+      { normal: '#06B6D4', selected: '#0E7490', dark: '#164E63' }, // Sky
+      { normal: '#10B981', selected: '#047857', dark: '#064E3B' }, // Emerald
+      { normal: '#F97316', selected: '#C2410C', dark: '#7C2D12' }, // Orange (variant)
+      { normal: '#EC4899', selected: '#BE185D', dark: '#831843' }, // Rose
+      { normal: '#6366F1', selected: '#3730A3', dark: '#312E81' }, // Indigo (variant)
+      { normal: '#84CC16', selected: '#4D7C0F', dark: '#365314' }, // Green (variant)
     ];
     
     // Use tracklet ID to select color consistently (repeats every 20)
@@ -75,6 +78,48 @@ export default function MainCanvas() {
     
     return isSelected ? colors.selected : colors.normal;
   }, []);
+
+  // Get the dark version of the tracklet color for backgrounds
+  const getTrackletDarkColor = useCallback((trackletId: number) => {
+    const predefinedColors = [
+      { dark: '#7F1D1D' }, // Red
+      { dark: '#1E3A8A' }, // Blue
+      { dark: '#064E3B' }, // Green
+      { dark: '#78350F' }, // Orange
+      { dark: '#581C87' }, // Purple
+      { dark: '#831843' }, // Pink
+      { dark: '#164E63' }, // Cyan
+      { dark: '#365314' }, // Lime
+      { dark: '#7C2D12' }, // Orange-Red
+      { dark: '#312E81' }, // Indigo
+      { dark: '#134E4A' }, // Teal
+      { dark: '#78350F' }, // Amber
+      { dark: '#7F1D1D' }, // Red (variant)
+      { dark: '#581C87' }, // Violet
+      { dark: '#164E63' }, // Sky
+      { dark: '#064E3B' }, // Emerald
+      { dark: '#7C2D12' }, // Orange (variant)
+      { dark: '#831843' }, // Rose
+      { dark: '#312E81' }, // Indigo (variant)
+      { dark: '#365314' }, // Green (variant)
+    ];
+    
+    const colorIndex = (trackletId - 1) % predefinedColors.length;
+    return predefinedColors[colorIndex].dark;
+  }, []);
+
+  // Check if a bounding box has an event annotation (synchronous)
+  const getBoxEventAnnotation = useCallback((box: BoundingBox, frameNumber: number) => {
+    // Find the annotation that matches this bounding box
+    const annotation = annotations.find(ann => 
+      ann.frame === frameNumber && 
+      ann.tracklet_id === box.tracklet_id &&
+      ann.x === box.x && ann.y === box.y && 
+      ann.w === box.width && ann.h === box.height
+    );
+    
+    return annotation?.event || null;
+  }, [annotations]);
 
   // Load and display image securely
   const loadImage = useCallback(async () => {
@@ -109,6 +154,12 @@ export default function MainCanvas() {
 
   // Convert annotations to bounding boxes for current frame
   useEffect(() => {
+    // Skip recreation if we're in the middle of deleting a box
+    if (isDeletingBox) {
+      console.log('Skipping bounding box recreation - deletion in progress');
+      return;
+    }
+
     const getCurrentFrameNumber = async () => {
       const imagePath = getCurrentImagePath();
       if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
@@ -131,6 +182,7 @@ export default function MainCanvas() {
         
         if (currentFrameAnnotations.length > 0) {
           console.log('First annotation:', currentFrameAnnotations[0]);
+          console.log('All annotations for this frame:', currentFrameAnnotations);
         } else {
           // Show available frames for debugging
           const uniqueFrames = [...new Set(annotations.map(ann => ann.frame))].sort();
@@ -148,8 +200,33 @@ export default function MainCanvas() {
           selected: false
         }));
         
-        console.log('Bounding boxes created:', boxes.length);
-        setBoundingBoxes(boxes);
+        console.log('Bounding boxes created from annotations:', boxes.length);
+        console.log('Bounding boxes details:', boxes);
+        console.log('About to call setBoundingBoxes...');
+        
+        // Only update bounding boxes if they are actually different
+        // This prevents unnecessary re-renders and potential conflicts with deletion
+        const currentBoxes = lastBoundingBoxesRef.current;
+        const boxesChanged = currentBoxes.length !== boxes.length || 
+          !currentBoxes.every((box, index) => {
+            const newBox = boxes[index];
+            return newBox && box.tracklet_id === newBox.tracklet_id && 
+                   box.x === newBox.x && box.y === newBox.y && 
+                   box.width === newBox.width && box.height === newBox.height;
+          });
+        
+        if (boxesChanged) {
+          console.log('Bounding boxes changed, updating...');
+          setBoundingBoxes(boxes);
+          lastBoundingBoxesRef.current = boxes;
+        } else {
+          console.log('Bounding boxes unchanged, skipping update...');
+        }
+        
+        console.log('setBoundingBoxes processing completed');
+        
+        // Store the current frame number for event annotation lookups
+        setCurrentFrameNumber(frameNumber);
       } catch (error) {
         console.error('Error getting frame number:', error);
         setBoundingBoxes([]);
@@ -157,7 +234,12 @@ export default function MainCanvas() {
     };
 
     getCurrentFrameNumber();
-  }, [getCurrentImagePath, annotations, setBoundingBoxes, currentFrameIndex]);
+  }, [getCurrentImagePath, annotations, setBoundingBoxes, currentFrameIndex, isDeletingBox]);
+
+  // Update ref when boundingBoxes change from store
+  useEffect(() => {
+    lastBoundingBoxesRef.current = boundingBoxes;
+  }, [boundingBoxes]);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -188,9 +270,8 @@ export default function MainCanvas() {
       ctx.strokeStyle = boxColor;
       // Keep line width constant regardless of zoom for better visibility
       ctx.lineWidth = (isSelected ? 3 : 2) / zoomLevel;
-      // Keep dash pattern consistent
-      const dashSize = 5 / zoomLevel;
-      ctx.setLineDash(isSelected ? [] : [dashSize, dashSize]);
+      // Use solid lines for all bounding boxes
+      ctx.setLineDash([]);
       
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
@@ -198,8 +279,9 @@ export default function MainCanvas() {
       const labelWidth = box.team ? 90 : 70;
       const labelHeight = 30;
       
-      // Draw semi-transparent dark background for better contrast
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // Draw background using the darkest color of the bounding box color
+      const darkColor = getTrackletDarkColor(box.tracklet_id);
+      ctx.fillStyle = darkColor;
       ctx.fillRect(box.x, box.y + box.height, labelWidth, labelHeight);
       
       // Draw colored border on the label
@@ -225,6 +307,89 @@ export default function MainCanvas() {
       ctx.strokeText(text, box.x + 5, textY);
       // Then draw text fill
       ctx.fillText(text, box.x + 5, textY);
+      
+      // Check if this bounding box has an event annotation and draw indicator
+      const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumber);
+      if (eventAnnotation && eventAnnotation.trim() !== '') {
+        // Draw event indicator - show the actual event type
+        const indicatorHeight = Math.max(20, 20 / zoomLevel);
+        const padding = 4 / zoomLevel;
+        
+        // Determine display text and background color based on event type
+        const displayText = eventAnnotation.toUpperCase();
+        let backgroundColor = '#FFD700'; // Default gold
+        let borderColor = '#FFA500'; // Default orange
+        
+        // Customize colors for different event types
+        switch (eventAnnotation.toLowerCase()) {
+          case 'serve':
+            backgroundColor = '#EF4444'; // Red
+            borderColor = '#DC2626';
+            break;
+          case 'receive':
+            backgroundColor = '#3B82F6'; // Blue
+            borderColor = '#2563EB';
+            break;
+          case 'dig':
+            backgroundColor = '#10B981'; // Green
+            borderColor = '#059669';
+            break;
+          case 'pass':
+            backgroundColor = '#F59E0B'; // Yellow
+            borderColor = '#D97706';
+            break;
+          case 'set':
+            backgroundColor = '#8B5CF6'; // Purple
+            borderColor = '#7C3AED';
+            break;
+          case 'spike':
+            backgroundColor = '#F97316'; // Orange
+            borderColor = '#EA580C';
+            break;
+          case 'block':
+            backgroundColor = '#64748B'; // Gray
+            borderColor = '#475569';
+            break;
+          case 'kill':
+            backgroundColor = '#DC2626'; // Dark red
+            borderColor = '#B91C1C';
+            break;
+        }
+        
+        // Measure text to determine indicator width
+        ctx.font = `bold ${Math.max(12, 12 / zoomLevel)}px Arial`;
+        const textWidth = ctx.measureText(displayText).width;
+        const indicatorWidth = textWidth + (padding * 2);
+        
+        // Position indicator in top-right corner
+        const indicatorX = box.x + box.width - indicatorWidth;
+        const indicatorY = box.y;
+        
+        // Draw background rectangle
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+        
+        // Draw border
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 2 / zoomLevel;
+        ctx.strokeRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+        
+        // Draw event text
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${Math.max(11, 11 / zoomLevel)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add text stroke for better visibility
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1 / zoomLevel;
+        ctx.strokeText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
+        ctx.fillText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
+        
+        // Reset text alignment for other text
+        ctx.textAlign = 'start';
+        ctx.textBaseline = 'alphabetic';
+      }
     });
 
     // Draw current drawing rectangle
@@ -237,7 +402,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, canvasDimensions]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {

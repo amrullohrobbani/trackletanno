@@ -30,7 +30,7 @@
     "clearSelection": "이벤트 선택 지우기",
     "modeActive": "모드 활성화. 이벤트를 할당할 경계 상자를 클릭하세요.",
     "selectFirst": "위에서 이벤트를 선택한 후 경계 상자를 클릭하여 할당하세요.",
-    "hotkeyTip": "빠른 이벤트 선택을 위해 숫자 키(1-8)를 누르세요"
+    "hotkeyTip": "빠른 이벤트 선택을 위해 QWERTY 키(Q,W,E,R,T,Y,U,I,N)를 누르세요"
   },
   "events": {
     "serve": "서브",
@@ -40,7 +40,8 @@
     "set": "세트",
     "spike": "스파이크",
     "block": "블록",
-    "score": "득점"
+    "score": "득점",
+    "no_event": "이벤트 없음"
   },
   "annotationDetails": {
     "title": "주석 세부사항",
@@ -84,7 +85,7 @@
       "title": "주석 편집",
       "selectBox": "경계 상자를 클릭하여 선택",
       "editDetails": "선수 정보 수정을 위해 \"세부사항 편집\" 사용",
-      "eventAnnotation": "\"이벤트 주석\" 섹션 사용: 이벤트 선택 (클릭 또는 단축키 1-8), 그 다음 경계 상자 클릭",
+      "eventAnnotation": "\"이벤트 주석\" 섹션 사용: 이벤트 선택 (클릭 또는 단축키 Q,W,E,R,T,Y,U,I), 그 다음 경계 상자 클릭",
       "playerDetails": "선수 세부사항은 같은 트래클릿 ID를 가진 모든 프레임에 적용",
       "events": "이벤트는 현재 프레임에만 적용",
       "delete": "개별 상자 또는 전체 트래클릿 ID 삭제"
@@ -109,7 +110,7 @@
     "consistentIds": "추적을 위해 프레임 간 일관된 트래클릿 ID 사용",
     "zoomIn": "정확한 경계 상자 배치를 위해 확대",
     "editOnce": "선수 세부사항 한 번 편집 - 모든 프레임에 적용",
-    "useHotkeys": "빠른 이벤트 선택을 위해 단축키 1-8 사용, 그 다음 상자 클릭",
+    "useHotkeys": "빠른 이벤트 선택을 위해 QWERTY 단축키 (Q,W,E,R,T,Y,U,I,N) 사용, 그 다음 상자 클릭",
     "eventsPerFrame": "이벤트는 프레임별로 할당, 트래클릿 ID는 모든 프레임에 적용",
     "saveTime": "기존 상자에는 할당 모드를 사용하여 시간 절약"
   },

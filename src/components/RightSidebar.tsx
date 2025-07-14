@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useAppStore } from '@/store/appStore';
 import { parseAnnotations } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -27,7 +28,7 @@ export default function RightSidebar() {
 
   const [customId, setCustomId] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [showAnnotationEditor, setShowAnnotationEditor] = useState(false);
+  const [showAnnotationEditor, setShowAnnotationEditor] = useState(true);
   
   // Annotation editing state
   const [editRole, setEditRole] = useState('');
@@ -42,14 +43,15 @@ export default function RightSidebar() {
 
   // Event types with hotkeys (memoized to prevent dependency issues)
   const eventTypes = useMemo(() => [
-    { key: '1', name: 'serve', label: t('events.serve'), color: 'bg-red-600' },
-    { key: '2', name: 'receive', label: t('events.receive'), color: 'bg-blue-600' },
-    { key: '3', name: 'dig', label: t('events.dig'), color: 'bg-green-600' },
-    { key: '4', name: 'pass', label: t('events.pass'), color: 'bg-yellow-600' },
-    { key: '5', name: 'set', label: t('events.set'), color: 'bg-purple-600' },
-    { key: '6', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
-    { key: '7', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
-    { key: '8', name: 'score', label: t('events.score'), color: 'bg-indigo-600' }
+    { key: 'q', name: 'serve', label: t('events.serve'), color: 'bg-red-600' },
+    { key: 'w', name: 'receive', label: t('events.receive'), color: 'bg-blue-600' },
+    { key: 'e', name: 'dig', label: t('events.dig'), color: 'bg-green-600' },
+    { key: 'r', name: 'pass', label: t('events.pass'), color: 'bg-yellow-600' },
+    { key: 't', name: 'set', label: t('events.set'), color: 'bg-purple-600' },
+    { key: 'y', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
+    { key: 'u', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
+    { key: 'i', name: 'score', label: t('events.score'), color: 'bg-indigo-600' },
+    { key: 'n', name: 'no_event', label: t('events.no_event'), color: 'bg-gray-600' }
   ], [t]);
 
   // Load annotation data when rally changes
@@ -85,21 +87,85 @@ export default function RightSidebar() {
     loadAnnotations();
   }, [currentRally, setAnnotations, setLoading]);
 
-  // Handle keyboard shortcuts for event selection
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      // Check if the key matches any event type hotkey
-      const eventType = eventTypes.find(e => e.key === event.key);
-      if (eventType) {
-        event.preventDefault();
-        setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
-        console.log(`Event hotkey pressed: ${event.key} -> ${eventType.name}`);
-      }
-    };
+  // Handle keyboard shortcuts for event selection using react-hotkeys-hook for better input handling
+  const eventHotkeyOptions = {
+    enableOnFormTags: false, // Disable when focus is on form elements (input, textarea, select)
+    enableOnContentEditable: false, // Disable on contenteditable elements
+    ignoreModifiers: false
+  };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedEvent, eventTypes, setSelectedEvent]);
+  // Set up hotkeys for each event type using react-hotkeys-hook
+  useHotkeys('q', () => {
+    const eventType = eventTypes.find(e => e.key === 'q');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: Q -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('w', () => {
+    const eventType = eventTypes.find(e => e.key === 'w');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: W -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('e', () => {
+    const eventType = eventTypes.find(e => e.key === 'e');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: E -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('r', () => {
+    const eventType = eventTypes.find(e => e.key === 'r');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: R -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('t', () => {
+    const eventType = eventTypes.find(e => e.key === 't');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: T -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('y', () => {
+    const eventType = eventTypes.find(e => e.key === 'y');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: Y -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('u', () => {
+    const eventType = eventTypes.find(e => e.key === 'u');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: U -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('i', () => {
+    const eventType = eventTypes.find(e => e.key === 'i');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: I -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+
+  useHotkeys('n', () => {
+    const eventType = eventTypes.find(e => e.key === 'n');
+    if (eventType) {
+      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      console.log(`Event hotkey pressed: N -> ${eventType.name}`);
+    }
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
 
   const handleSelectId = (id: number) => {
     setSelectedTrackletId(id);
@@ -223,7 +289,7 @@ export default function RightSidebar() {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-2">{t('eventAnnotation.selectEventType')}</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {eventTypes.map((eventType) => (
                         <button
                           key={eventType.name}

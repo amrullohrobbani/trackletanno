@@ -21,26 +21,53 @@ export default function Home() {
     assignMode,
     zoomIn,
     zoomOut,
-    resetZoom
+    resetZoom,
+    deleteSelectedBoundingBox,
+    deleteAllAnnotationsWithTrackletId,
+    selectedBoundingBox,
+    selectedTrackletId
   } = useAppStore();
 
-  // Keyboard shortcuts
-  useHotkeys('z', () => previousFrame(), [previousFrame]);
-  useHotkeys('x', () => nextFrame(), [nextFrame]);
-  useHotkeys('arrowleft', () => previousFrame(), [previousFrame]);
-  useHotkeys('arrowright', () => nextFrame(), [nextFrame]);
+  // Keyboard shortcuts - with options to prevent interference with input fields
+  const hotkeyOptions = {
+    enableOnFormTags: false, // Disable hotkeys when focus is on form elements
+    enableOnContentEditable: false, // Disable on contenteditable elements
+    ignoreModifiers: false
+  };
+
+  useHotkeys('z', () => previousFrame(), hotkeyOptions, [previousFrame]);
+  useHotkeys('x', () => nextFrame(), hotkeyOptions, [nextFrame]);
+  useHotkeys('arrowleft', () => previousFrame(), hotkeyOptions, [previousFrame]);
+  useHotkeys('arrowright', () => nextFrame(), hotkeyOptions, [nextFrame]);
   useHotkeys('d', () => {
     setDrawingMode(!drawingMode);
     setAssignMode(false);
-  }, [drawingMode, setDrawingMode, setAssignMode]);
+  }, hotkeyOptions, [drawingMode, setDrawingMode, setAssignMode]);
   useHotkeys('a', () => {
     setAssignMode(!assignMode);
     setDrawingMode(false);
-  }, [assignMode, setAssignMode, setDrawingMode]);
-  useHotkeys('equal', () => zoomIn(), [zoomIn]); // + key (without shift)
-  useHotkeys('shift+equal', () => zoomIn(), [zoomIn]); // + key (with shift)
-  useHotkeys('minus', () => zoomOut(), [zoomOut]); // - key
-  useHotkeys('0', () => resetZoom(), [resetZoom]); // Reset zoom with 0 key
+  }, hotkeyOptions, [assignMode, setAssignMode, setDrawingMode]);
+  useHotkeys('equal', () => zoomIn(), hotkeyOptions, [zoomIn]); // + key (without shift)
+  useHotkeys('shift+equal', () => zoomIn(), hotkeyOptions, [zoomIn]); // + key (with shift)
+  useHotkeys('minus', () => zoomOut(), hotkeyOptions, [zoomOut]); // - key
+  useHotkeys('0', () => resetZoom(), hotkeyOptions, [resetZoom]); // Reset zoom with 0 key
+  
+  // Delete shortcuts
+  useHotkeys('delete', () => {
+    if (selectedBoundingBox) {
+      deleteSelectedBoundingBox();
+    }
+  }, hotkeyOptions, [selectedBoundingBox, deleteSelectedBoundingBox]);
+  useHotkeys('backspace', () => {
+    if (selectedBoundingBox) {
+      deleteSelectedBoundingBox();
+    }
+  }, hotkeyOptions, [selectedBoundingBox, deleteSelectedBoundingBox]);
+  useHotkeys('shift+delete', () => {
+    if (selectedTrackletId) {
+      deleteAllAnnotationsWithTrackletId(selectedTrackletId);
+    }
+  }, hotkeyOptions, [selectedTrackletId, deleteAllAnnotationsWithTrackletId]);
 
   if (!selectedDirectory) {
     return (
@@ -67,7 +94,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SaveIndicator />
               <div className="text-sm text-gray-400">
-                Z/←: Previous | X/→: Next | D: Draw | A: Assign | +/-: Zoom | 0: Reset | Middle/Right-drag: Pan
+                Z/←: Previous | X/→: Next | D: Draw | A: Assign | +/-: Zoom | 0: Reset | Del/Backspace: Delete | Shift+Del: Delete All | Middle/Right-drag: Pan
               </div>
             </div>
           </div>
