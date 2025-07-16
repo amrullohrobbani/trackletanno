@@ -22,7 +22,8 @@
     "add": "Add",
     "selectedId": "Selected ID",
     "noIdSelected": "No ID selected",
-    "clear": "Clear"
+    "clear": "Clear",
+    "trackletLabelToggle": "Toggle Tracklet Labels"
   },
   "eventAnnotation": {
     "title": "Event Annotation",

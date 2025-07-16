@@ -29,7 +29,9 @@ export default function RightSidebar() {
     showAnalysis,
     analyzeTrackletIDs,
     setShowAnalysis,
-    clearAnalysis
+    clearAnalysis,
+    showTrackletLabels,
+    setShowTrackletLabels
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -201,6 +203,22 @@ export default function RightSidebar() {
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold text-white">{t('sidebar.trackletIds')}</h2>
           <LanguageSwitcher />
+        </div>
+        {/* Tracklet Label Toggle */}
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            type="button"
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${showTrackletLabels ? 'bg-blue-600' : 'bg-gray-400'}`}
+            onClick={() => setShowTrackletLabels(!showTrackletLabels)}
+            aria-pressed={showTrackletLabels}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${showTrackletLabels ? 'translate-x-5' : 'translate-x-1'}`}
+            />
+          </button>
+          <span className="text-sm text-gray-400">
+            {t('sidebar.trackletLabelToggle')}
+          </span>
         </div>
         <div className="text-sm text-gray-400">
           {currentRally ? (

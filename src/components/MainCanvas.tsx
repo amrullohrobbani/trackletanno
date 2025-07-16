@@ -40,7 +40,8 @@ export default function MainCanvas() {
     setPan,
     selectedEvent,
     assignEventToBoundingBox,
-    isDeletingBox
+    isDeletingBox,
+    showTrackletLabels
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -275,37 +276,27 @@ export default function MainCanvas() {
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
       // Draw tracklet ID and team label background at the bottom
-      const labelWidth = box.team ? 90 : 70;
-      const labelHeight = 30;
-      
-      // Draw background using the darkest color of the bounding box color
-      const darkColor = getTrackletDarkColor(box.tracklet_id);
-      ctx.fillStyle = darkColor;
-      ctx.fillRect(box.x, box.y + box.height, labelWidth, labelHeight);
-      
-      // Draw colored border on the label
-      ctx.strokeStyle = boxColor;
-      ctx.lineWidth = 2 / zoomLevel;
-      ctx.strokeRect(box.x, box.y + box.height, labelWidth, labelHeight);
-      
-      // Draw tracklet ID and team text at the bottom
-      const fontSize = Math.max(14, 14 / zoomLevel); // Minimum 14px font size
-      ctx.font = `bold ${fontSize}px Arial`;
-      const textY = box.y + box.height + 20; // Position text inside the bottom label
-      
-      // Draw text with white fill and black stroke for maximum contrast
-      ctx.lineWidth = 3 / zoomLevel;
-      ctx.strokeStyle = 'black';
-      ctx.fillStyle = 'white';
-      
-      const text = box.team && box.team.trim() !== '' 
-        ? `ID: ${box.tracklet_id} | ${box.team}` 
-        : `ID: ${box.tracklet_id}`;
-      
-      // Draw text stroke (outline) first
-      ctx.strokeText(text, box.x + 5, textY);
-      // Then draw text fill
-      ctx.fillText(text, box.x + 5, textY);
+      if (showTrackletLabels) {
+        const labelWidth = box.team ? 90 : 70;
+        const labelHeight = 30;
+        const darkColor = getTrackletDarkColor(box.tracklet_id);
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(box.x, box.y + box.height, labelWidth, labelHeight);
+        ctx.strokeStyle = boxColor;
+        ctx.lineWidth = 2 / zoomLevel;
+        ctx.strokeRect(box.x, box.y + box.height, labelWidth, labelHeight);
+        const fontSize = Math.max(14, 14 / zoomLevel);
+        ctx.font = `bold ${fontSize}px Arial`;
+        const textY = box.y + box.height + 20;
+        ctx.lineWidth = 3 / zoomLevel;
+        ctx.strokeStyle = 'black';
+        ctx.fillStyle = 'white';
+        const text = box.team && box.team.trim() !== '' 
+          ? `ID: ${box.tracklet_id} | ${box.team}` 
+          : `ID: ${box.tracklet_id}`;
+        ctx.strokeText(text, box.x + 5, textY);
+        ctx.fillText(text, box.x + 5, textY);
+      }
       
       // Check if this bounding box has an event annotation and draw indicator
       const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumber);
@@ -401,7 +392,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {

@@ -22,7 +22,8 @@
     "add": "추가",
     "selectedId": "선택된 ID",
     "noIdSelected": "선택된 ID 없음",
-    "clear": "지우기"
+    "clear": "지우기",
+    "trackletLabelToggle": "트래클릿 레이블 전환"
   },
   "eventAnnotation": {
     "title": "이벤트 주석",
