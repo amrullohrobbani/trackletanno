@@ -17,6 +17,10 @@ export interface ElectronAPI {
   getImageData: (imagePath: string) => Promise<string>;
   loadAnnotationFile: (annotationFilePath: string) => Promise<string>;
   saveAnnotationFile: (annotationFilePath: string, content: string) => Promise<boolean>;
+  extractDominantColor: (imagePath: string, x: number, y: number, width: number, height: number) => Promise<{
+    color: { r: number; g: number; b: number };
+    confidence: number;
+  }>;
 }
 
 export interface DirectoryEntry {
@@ -56,6 +60,35 @@ export interface BoundingBox {
   height: number;
   team?: string;
   selected?: boolean;
+}
+
+export interface TrackletAnalysis {
+  trackletId: number;
+  totalFrames: number;
+  missingFrames: number[];
+  continuityGaps: number;
+  dominantColors: DominantColor[];
+  colorConsistency: number; // 0-1 score
+  suspectedSwitching: boolean;
+  firstFrame: number;
+  lastFrame: number;
+}
+
+export interface DominantColor {
+  frame: number;
+  color: {
+    r: number;
+    g: number;
+    b: number;
+  };
+  confidence: number;
+}
+
+export interface IDAnalysisResult {
+  tracklets: TrackletAnalysis[];
+  totalTracklets: number;
+  problematicTracklets: number;
+  overallScore: number; // 0-1 quality score
 }
 
 declare global {

@@ -23,7 +23,13 @@ export default function RightSidebar() {
     currentFrameIndex,
     updateAnnotationDetails,
     selectedEvent,
-    setSelectedEvent
+    setSelectedEvent,
+    idAnalysisResult,
+    isAnalyzing,
+    showAnalysis,
+    analyzeTrackletIDs,
+    setShowAnalysis,
+    clearAnalysis
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -86,6 +92,13 @@ export default function RightSidebar() {
 
     loadAnnotations();
   }, [currentRally, setAnnotations, setLoading]);
+
+  // Auto-show analysis results when completed
+  useEffect(() => {
+    if (idAnalysisResult && !isAnalyzing) {
+      setShowAnalysis(true);
+    }
+  }, [idAnalysisResult, isAnalyzing, setShowAnalysis]);
 
   // Handle keyboard shortcuts for event selection using react-hotkeys-hook for better input handling
   const eventHotkeyOptions = {
@@ -336,6 +349,8 @@ export default function RightSidebar() {
                 </div>
               </div>
 
+
+
               {/* Annotation Details Editor */}
               <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -479,6 +494,151 @@ export default function RightSidebar() {
                   <p className="text-xs text-gray-400">
                     {t('annotationDetails.selectBoxToEdit')}
                   </p>
+                )}
+              </div>
+
+              {/* ID Analysis */}
+              <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-md font-medium text-white">{t('idAnalysis.title')}</h3>
+                  <div className="flex gap-2">
+                    {!showAnalysis ? (
+                      <button
+                        onClick={analyzeTrackletIDs}
+                        disabled={isAnalyzing || annotations.length === 0}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1 rounded transition-colors"
+                      >
+                        {isAnalyzing ? t('idAnalysis.analyzing') : t('idAnalysis.analyze')}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowAnalysis(false)}
+                        className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded transition-colors mr-2"
+                      >
+                        {t('idAnalysis.hide')}
+                      </button>
+                    )}
+                    {idAnalysisResult && (
+                      <button
+                        onClick={clearAnalysis}
+                        className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {showAnalysis && idAnalysisResult ? (
+                  <div className="space-y-4">
+                    {/* Overall Statistics */}
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-gray-800 rounded p-3">
+                        <div className="text-lg font-bold text-blue-400">{idAnalysisResult.totalTracklets}</div>
+                        <div className="text-xs text-gray-400">{t('idAnalysis.totalTracklets')}</div>
+                      </div>
+                      <div className="bg-gray-800 rounded p-3">
+                        <div className={`text-lg font-bold ${idAnalysisResult.problematicTracklets === 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {idAnalysisResult.problematicTracklets}
+                        </div>
+                        <div className="text-xs text-gray-400">{t('idAnalysis.problematicTracklets')}</div>
+                      </div>
+                      <div className="bg-gray-800 rounded p-3">
+                        <div className={`text-lg font-bold ${idAnalysisResult.overallScore > 0.8 ? 'text-green-400' : idAnalysisResult.overallScore > 0.6 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {Math.round(idAnalysisResult.overallScore * 100)}%
+                        </div>
+                        <div className="text-xs text-gray-400">{t('idAnalysis.overallScore')}</div>
+                      </div>
+                    </div>
+                    
+                    {/* Tracklet Details */}
+                    {idAnalysisResult.problematicTracklets > 0 ? (
+                      <div>
+                        <h4 className="text-sm font-medium text-white mb-2">{t('idAnalysis.trackletDetails')}</h4>
+                        <div className="space-y-2">
+                          {idAnalysisResult.tracklets
+                            .filter(t => t.suspectedSwitching || t.missingFrames.length > 0 || t.colorConsistency < 0.7)
+                            .map((tracklet) => {
+                              const getQualityColor = (analysis: typeof tracklet): string => {
+                                if (analysis.suspectedSwitching) return '#ef4444'; // red
+                                if (analysis.missingFrames.length > 0) return '#f97316'; // orange
+                                if (analysis.colorConsistency < 0.7) return '#eab308'; // yellow
+                                return '#22c55e'; // green
+                              };
+                              
+                              const getTrackletStatus = (analysis: typeof tracklet): string => {
+                                if (analysis.suspectedSwitching) return t('idAnalysis.status.suspectedSwitching');
+                                if (analysis.missingFrames.length > analysis.totalFrames * 0.3) return t('idAnalysis.status.manyMissingFrames');
+                                if (analysis.missingFrames.length > 0) return t('idAnalysis.status.someMissingFrames');
+                                if (analysis.colorConsistency < 0.7) return t('idAnalysis.status.inconsistentColors');
+                                return t('idAnalysis.status.good');
+                              };
+                              
+                              return (
+                                <div key={tracklet.trackletId} className="bg-gray-800 rounded p-3 border-l-4" style={{ borderLeftColor: getQualityColor(tracklet) }}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-bold text-white">ID {tracklet.trackletId}</span>
+                                    <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: getQualityColor(tracklet), color: 'white' }}>
+                                      {getTrackletStatus(tracklet)}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                                    <div>{t('idAnalysis.details.frames')}: {tracklet.firstFrame}-{tracklet.lastFrame}</div>
+                                    <div>{t('idAnalysis.details.missing')}: {tracklet.missingFrames.length}</div>
+                                    <div>{t('idAnalysis.details.gaps')}: {tracklet.continuityGaps}</div>
+                                    <div></div> {/* Empty slot to maintain grid layout */}
+                                  </div>
+                                  {tracklet.dominantColors.length > 0 && (
+                                    <div className="mt-2">
+                                      <div className="text-xs text-gray-400 mb-1">Sampled Colors:</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {tracklet.dominantColors.slice(0, 8).map((colorData, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="w-4 h-4 rounded border border-gray-600"
+                                            style={{ 
+                                              backgroundColor: `rgb(${colorData.color.r}, ${colorData.color.g}, ${colorData.color.b})` 
+                                            }}
+                                            title={`Frame ${colorData.frame}: rgb(${colorData.color.r}, ${colorData.color.g}, ${colorData.color.b}) - ${Math.round(colorData.confidence * 100)}%`}
+                                          ></div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {tracklet.missingFrames.length > 0 && tracklet.missingFrames.length <= 10 && (
+                                    <div className="mt-2 text-xs text-yellow-400">
+                                      Missing: {tracklet.missingFrames.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-green-400 py-4">
+                        <div className="text-2xl mb-2">✓</div>
+                        <div className="text-sm">{t('idAnalysis.noIssues')}</div>
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-500 italic">
+                      {t('idAnalysis.help')}
+                    </div>
+                  </div>
+                ) : !showAnalysis && idAnalysisResult ? (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setShowAnalysis(true)}
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      {t('idAnalysis.show')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-400 text-center py-4">
+                    {t('idAnalysis.noAnalysis')}
+                  </div>
                 )}
               </div>
 

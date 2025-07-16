@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getImageData: (imagePath) => ipcRenderer.invoke('get-image-data', imagePath),
   loadAnnotationFile: (annotationFilePath) => ipcRenderer.invoke('load-annotation-file', annotationFilePath),
   saveAnnotationFile: (annotationFilePath, content) => ipcRenderer.invoke('save-annotation-file', annotationFilePath, content),
+  extractDominantColor: (imagePath, x, y, width, height) => ipcRenderer.invoke('extract-dominant-color', imagePath, x, y, width, height),
 });

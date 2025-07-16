@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AnnotationData, RallyFolder, BoundingBox } from '@/types/electron';
+import { AnnotationData, RallyFolder, BoundingBox, IDAnalysisResult } from '@/types/electron';
 import { parseAnnotations, annotationsToCSV } from '@/utils/annotationParser';
 
 interface AppState {
@@ -29,6 +29,11 @@ interface AppState {
   
   // Event annotation state
   selectedEvent: string;
+  
+  // ID Analysis state
+  idAnalysisResult: IDAnalysisResult | null;
+  isAnalyzing: boolean;
+  showAnalysis: boolean;
   
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
@@ -67,6 +72,11 @@ interface AppState {
   setZoom: (level: number) => void;
   setPan: (x: number, y: number) => void;
   
+  // ID Analysis actions
+  analyzeTrackletIDs: () => Promise<void>;
+  setShowAnalysis: (show: boolean) => void;
+  clearAnalysis: () => void;
+  
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
   getCurrentImagePath: () => string | null;
@@ -97,6 +107,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Initial event annotation state
   selectedEvent: '',
+  
+  // Initial ID analysis state
+  idAnalysisResult: null,
+  isAnalyzing: false,
+  showAnalysis: false,
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -454,5 +469,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     const trackletIds = new Set(state.annotations.map(ann => ann.tracklet_id));
     return Array.from(trackletIds).sort((a, b) => a - b);
-  }
+  },
+
+  // ID Analysis actions
+  analyzeTrackletIDs: async () => {
+    const state = get();
+    const rally = state.rallyFolders[state.currentRallyIndex];
+    
+    if (!rally || state.annotations.length === 0) return;
+    
+    set({ isAnalyzing: true });
+    
+    try {
+      const { analyzeTrackletIDs } = await import('@/utils/trackletAnalysis');
+      const result = await analyzeTrackletIDs(state.annotations, rally.path);
+      set({ idAnalysisResult: result, isAnalyzing: false });
+    } catch (error) {
+      console.error('Error analyzing tracklet IDs:', error);
+      set({ isAnalyzing: false });
+    }
+  },
+
+  setShowAnalysis: (show) => set({ showAnalysis: show }),
+
+  clearAnalysis: () => set({ idAnalysisResult: null, showAnalysis: false })
 }));

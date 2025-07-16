@@ -26,7 +26,6 @@ export default function MainCanvas() {
     selectedTrackletId,
     boundingBoxes,
     setBoundingBoxes,
-    addBoundingBox,
     updateBoundingBox,
     selectedBoundingBox,
     setSelectedBoundingBox,
@@ -515,7 +514,45 @@ export default function MainCanvas() {
     });
   };
 
-  const handleMouseUp = () => {
+  const addAnnotationData = useCallback(async (box: BoundingBox) => {
+    if (typeof window === 'undefined' || !window.electronAPI) return;
+
+    try {
+      const imagePath = getCurrentImagePath();
+      if (!imagePath) return;
+
+      const filename = imagePath.split('/').pop() || '';
+      const frameNumber = await window.electronAPI.getFrameNumber(filename);
+
+      // Remove any existing annotation with the same tracklet ID and frame number
+      const filteredAnnotations = annotations.filter(ann => 
+        !(ann.frame === frameNumber && ann.tracklet_id === box.tracklet_id)
+      );
+
+      const newAnnotation: AnnotationData = {
+        frame: frameNumber,
+        tracklet_id: box.tracklet_id,
+        x: box.x,
+        y: box.y,
+        w: box.width,
+        h: box.height,
+        score: 1.0,
+        role: '',
+        jersey_number: '',
+        jersey_color: '',
+        team: '',
+        event: ''
+      };
+
+      const updatedAnnotations = [...filteredAnnotations, newAnnotation];
+      setAnnotations(updatedAnnotations);
+      saveAnnotationFile(updatedAnnotations);
+    } catch (error) {
+      console.error('Error adding annotation data:', error);
+    }
+  }, [annotations, setAnnotations, getCurrentImagePath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleMouseUp = useCallback(() => {
     if (isPanning) {
       setIsPanning(false);
       setLastPanPoint(null);
@@ -523,6 +560,21 @@ export default function MainCanvas() {
     }
 
     if (isDrawing && currentRect && selectedTrackletId !== null && startPoint) {
+      // Check if the drawn rectangle is large enough (minimum 5x5 pixels to avoid single dots)
+      const minSize = 5;
+      if (currentRect.width < minSize || currentRect.height < minSize) {
+        // Don't create a bounding box for very small rectangles (single dots)
+        setCurrentRect(null);
+        setIsDrawing(false);
+        setStartPoint(null);
+        return;
+      }
+
+      // Remove any existing bounding box with the same tracklet ID on the current frame
+      const currentFrameBoundingBoxes = boundingBoxes.filter(box => 
+        box.tracklet_id !== selectedTrackletId
+      );
+
       // Add the new bounding box
       const newBox: BoundingBox = {
         id: `new-${Date.now()}`,
@@ -534,9 +586,10 @@ export default function MainCanvas() {
         team: '' // Start with empty team, can be assigned later
       };
 
-      addBoundingBox(newBox);
+      // Update bounding boxes to replace any existing box with same tracklet ID
+      setBoundingBoxes([...currentFrameBoundingBoxes, newBox]);
       
-      // Add to annotation data
+      // Add to annotation data (this will also handle removing existing annotations with same tracklet ID)
       addAnnotationData(newBox);
       
       setCurrentRect(null);
@@ -544,9 +597,19 @@ export default function MainCanvas() {
     
     setIsDrawing(false);
     setStartPoint(null);
-  };
+  }, [isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
 
-  // Handle wheel events for zoom
+  const handleMouseLeave = () => {
+    // Only cancel panning when cursor leaves canvas, but keep drawing active
+    if (isPanning) {
+      setIsPanning(false);
+      setLastPanPoint(null);
+    }
+    
+    // Note: We intentionally do NOT cancel drawing here.
+    // This allows users to continue drawing even if their cursor briefly leaves the canvas.
+    // The drawing will complete when they release the mouse button (handleMouseUp).
+  };
   const handleWheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     
@@ -605,39 +668,6 @@ export default function MainCanvas() {
     }
   };
 
-  const addAnnotationData = async (box: BoundingBox) => {
-    if (typeof window === 'undefined' || !window.electronAPI) return;
-
-    try {
-      const imagePath = getCurrentImagePath();
-      if (!imagePath) return;
-
-      const filename = imagePath.split('/').pop() || '';
-      const frameNumber = await window.electronAPI.getFrameNumber(filename);
-
-      const newAnnotation: AnnotationData = {
-        frame: frameNumber,
-        tracklet_id: box.tracklet_id,
-        x: box.x,
-        y: box.y,
-        w: box.width,
-        h: box.height,
-        score: 1.0,
-        role: '',
-        jersey_number: '',
-        jersey_color: '',
-        team: '',
-        event: ''
-      };
-
-      const updatedAnnotations = [...annotations, newAnnotation];
-      setAnnotations(updatedAnnotations);
-      saveAnnotationFile(updatedAnnotations);
-    } catch (error) {
-      console.error('Error adding annotation data:', error);
-    }
-  };
-
   const saveAnnotationFile = async (annotationData: AnnotationData[]) => {
     const rally = getCurrentRally();
     if (!rally || typeof window === 'undefined' || !window.electronAPI) return;
@@ -659,6 +689,58 @@ export default function MainCanvas() {
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
+
+  // Add global mouse listeners when drawing to handle cursor outside canvas
+  useEffect(() => {
+    if (!isDrawing) return;
+
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !startPoint) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      // Get mouse coordinates relative to canvas with proper scaling
+      const mouseX = (event.clientX - rect.left) * scaleX;
+      const mouseY = (event.clientY - rect.top) * scaleY;
+
+      // Convert screen coordinates to canvas coordinates with zoom and pan
+      const canvasX = (mouseX - panX) / zoomLevel;
+      const canvasY = (mouseY - panY) / zoomLevel;
+
+      // Clamp coordinates to canvas bounds
+      const coords = {
+        x: Math.max(0, Math.min(canvasDimensions.width, canvasX)),
+        y: Math.max(0, Math.min(canvasDimensions.height, canvasY))
+      };
+
+      const width = coords.x - startPoint.x;
+      const height = coords.y - startPoint.y;
+
+      setCurrentRect({
+        x: width < 0 ? coords.x : startPoint.x,
+        y: height < 0 ? coords.y : startPoint.y,
+        width: Math.abs(width),
+        height: Math.abs(height)
+      });
+    };
+
+    const handleGlobalMouseUp = () => {
+      handleMouseUp();
+    };
+
+    // Add event listeners to document for global mouse tracking
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    // Cleanup listeners when drawing stops or component unmounts
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDrawing, startPoint, panX, panY, zoomLevel, canvasDimensions.width, canvasDimensions.height, handleMouseUp]);
 
   if (!imagePath) {
     return (
@@ -699,7 +781,7 @@ export default function MainCanvas() {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
           onWheel={handleWheel}
           onContextMenu={handleContextMenu}
         />

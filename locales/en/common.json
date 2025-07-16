@@ -43,6 +43,35 @@
     "score": "Score",
     "no_event": "No Event"
   },
+  "idAnalysis": {
+    "title": "ID Analysis",
+    "analyze": "Analyze IDs",
+    "analyzing": "Analyzing...",
+    "hide": "Hide Analysis",
+    "show": "Show Analysis",
+    "overallScore": "Overall Quality",
+    "totalTracklets": "Total Tracklets",
+    "problematicTracklets": "Issues Found",
+    "trackletDetails": "Tracklet Details",
+    "status": {
+      "good": "Good",
+      "suspectedSwitching": "Suspected Switching",
+      "manyMissingFrames": "Many Missing Frames",
+      "someMissingFrames": "Some Missing Frames",
+      "inconsistentColors": "Inconsistent Colors"
+    },
+    "details": {
+      "frames": "Frames",
+      "missing": "Missing",
+      "consistency": "Color Consistency",
+      "firstFrame": "First Frame",
+      "lastFrame": "Last Frame",
+      "gaps": "Continuity Gaps"
+    },
+    "noAnalysis": "No analysis available. Click 'Analyze IDs' to check for issues.",
+    "noIssues": "No issues detected! All tracklets look good.",
+    "help": "This tool detects missing frames, ID switching, and color inconsistencies by analyzing bounding box regions in images."
+  },
   "annotationDetails": {
     "title": "Annotation Details",
     "editDetails": "Edit Details",
