@@ -37,6 +37,10 @@ interface AppState {
   
   // Tracklet label visibility
   showTrackletLabels: boolean;
+  // Event label visibility
+  showEventLabels: boolean;
+  setShowTrackletLabels: (show: boolean) => void;
+  setShowEventLabels: (show: boolean) => void;
   
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
@@ -80,9 +84,6 @@ interface AppState {
   setShowAnalysis: (show: boolean) => void;
   clearAnalysis: () => void;
   
-  // Tracklet label actions
-  setShowTrackletLabels: (show: boolean) => void;
-  
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
   getCurrentImagePath: () => string | null;
@@ -121,6 +122,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Initial tracklet label visibility
   showTrackletLabels: true,
+  setShowTrackletLabels: (show) => set({ showTrackletLabels: show }),
+
+  // Initial event label visibility
+  showEventLabels: true,
+  setShowEventLabels: (show) => set({ showEventLabels: show }),
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -501,7 +507,5 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setShowAnalysis: (show) => set({ showAnalysis: show }),
 
-  clearAnalysis: () => set({ idAnalysisResult: null, showAnalysis: false }),
-
-  setShowTrackletLabels: (show: boolean) => set({ showTrackletLabels: show })
+  clearAnalysis: () => set({ idAnalysisResult: null, showAnalysis: false })
 }));

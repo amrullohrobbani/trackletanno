@@ -41,7 +41,8 @@ export default function MainCanvas() {
     selectedEvent,
     assignEventToBoundingBox,
     isDeletingBox,
-    showTrackletLabels
+    showTrackletLabels,
+    showEventLabels
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -297,88 +298,90 @@ export default function MainCanvas() {
         ctx.strokeText(text, box.x + 5, textY);
         ctx.fillText(text, box.x + 5, textY);
       }
-      
-      // Check if this bounding box has an event annotation and draw indicator
-      const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumber);
-      if (eventAnnotation && eventAnnotation.trim() !== '') {
-        // Draw event indicator - show the actual event type
-        const indicatorHeight = Math.max(20, 20 / zoomLevel);
-        const padding = 4 / zoomLevel;
-        
-        // Determine display text and background color based on event type
-        const displayText = eventAnnotation.toUpperCase();
-        let backgroundColor = '#FFD700'; // Default gold
-        let borderColor = '#FFA500'; // Default orange
-        
-        // Customize colors for different event types
-        switch (eventAnnotation.toLowerCase()) {
-          case 'serve':
-            backgroundColor = '#EF4444'; // Red
-            borderColor = '#DC2626';
-            break;
-          case 'receive':
-            backgroundColor = '#3B82F6'; // Blue
-            borderColor = '#2563EB';
-            break;
-          case 'dig':
-            backgroundColor = '#10B981'; // Green
-            borderColor = '#059669';
-            break;
-          case 'pass':
-            backgroundColor = '#F59E0B'; // Yellow
-            borderColor = '#D97706';
-            break;
-          case 'set':
-            backgroundColor = '#8B5CF6'; // Purple
-            borderColor = '#7C3AED';
-            break;
-          case 'spike':
-            backgroundColor = '#F97316'; // Orange
-            borderColor = '#EA580C';
-            break;
-          case 'block':
-            backgroundColor = '#64748B'; // Gray
-            borderColor = '#475569';
-            break;
-          case 'kill':
-            backgroundColor = '#DC2626'; // Dark red
-            borderColor = '#B91C1C';
-            break;
+      // Draw event label indicator if enabled
+      if (showEventLabels) {
+        // Check if this bounding box has an event annotation and draw indicator
+        const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumber);
+        if (eventAnnotation && eventAnnotation.trim() !== '') {
+          // Draw event indicator - show the actual event type
+          const indicatorHeight = Math.max(20, 20 / zoomLevel);
+          const padding = 4 / zoomLevel;
+          
+          // Determine display text and background color based on event type
+          const displayText = eventAnnotation.toUpperCase();
+          let backgroundColor = '#FFD700'; // Default gold
+          let borderColor = '#FFA500'; // Default orange
+          
+          // Customize colors for different event types
+          switch (eventAnnotation.toLowerCase()) {
+            case 'serve':
+              backgroundColor = '#EF4444'; // Red
+              borderColor = '#DC2626';
+              break;
+            case 'receive':
+              backgroundColor = '#3B82F6'; // Blue
+              borderColor = '#2563EB';
+              break;
+            case 'dig':
+              backgroundColor = '#10B981'; // Green
+              borderColor = '#059669';
+              break;
+            case 'pass':
+              backgroundColor = '#F59E0B'; // Yellow
+              borderColor = '#D97706';
+              break;
+            case 'set':
+              backgroundColor = '#8B5CF6'; // Purple
+              borderColor = '#7C3AED';
+              break;
+            case 'spike':
+              backgroundColor = '#F97316'; // Orange
+              borderColor = '#EA580C';
+              break;
+            case 'block':
+              backgroundColor = '#64748B'; // Gray
+              borderColor = '#475569';
+              break;
+            case 'kill':
+              backgroundColor = '#DC2626'; // Dark red
+              borderColor = '#B91C1C';
+              break;
+          }
+          
+          // Measure text to determine indicator width
+          ctx.font = `bold ${Math.max(12, 12 / zoomLevel)}px Arial`;
+          const textWidth = ctx.measureText(displayText).width;
+          const indicatorWidth = textWidth + (padding * 2);
+          
+          // Position indicator in top-right corner
+          const indicatorX = box.x + box.width - indicatorWidth;
+          const indicatorY = box.y;
+          
+          // Draw background rectangle
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+          
+          // Draw border
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 2 / zoomLevel;
+          ctx.strokeRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+          
+          // Draw event text
+          ctx.fillStyle = 'white';
+          ctx.font = `bold ${Math.max(11, 11 / zoomLevel)}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Add text stroke for better visibility
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 1 / zoomLevel;
+          ctx.strokeText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
+          ctx.fillText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
+          
+          // Reset text alignment for other text
+          ctx.textAlign = 'start';
+          ctx.textBaseline = 'alphabetic';
         }
-        
-        // Measure text to determine indicator width
-        ctx.font = `bold ${Math.max(12, 12 / zoomLevel)}px Arial`;
-        const textWidth = ctx.measureText(displayText).width;
-        const indicatorWidth = textWidth + (padding * 2);
-        
-        // Position indicator in top-right corner
-        const indicatorX = box.x + box.width - indicatorWidth;
-        const indicatorY = box.y;
-        
-        // Draw background rectangle
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
-        
-        // Draw border
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 2 / zoomLevel;
-        ctx.strokeRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
-        
-        // Draw event text
-        ctx.fillStyle = 'white';
-        ctx.font = `bold ${Math.max(11, 11 / zoomLevel)}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Add text stroke for better visibility
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1 / zoomLevel;
-        ctx.strokeText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
-        ctx.fillText(displayText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
-        
-        // Reset text alignment for other text
-        ctx.textAlign = 'start';
-        ctx.textBaseline = 'alphabetic';
       }
     });
 
@@ -392,7 +395,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {

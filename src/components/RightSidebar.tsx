@@ -31,7 +31,9 @@ export default function RightSidebar() {
     setShowAnalysis,
     clearAnalysis,
     showTrackletLabels,
-    setShowTrackletLabels
+    setShowTrackletLabels,
+    showEventLabels,
+    setShowEventLabels
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -102,7 +104,7 @@ export default function RightSidebar() {
     }
   }, [idAnalysisResult, isAnalyzing, setShowAnalysis]);
 
-  // Handle keyboard shortcuts for event selection using react-hotkeys-hook for better input handling
+  // Handle keyboard shortcuts for event selection using react-hotkeys-hook
   const eventHotkeyOptions = {
     enableOnFormTags: false, // Disable when focus is on form elements (input, textarea, select)
     enableOnContentEditable: false, // Disable on contenteditable elements
@@ -218,6 +220,22 @@ export default function RightSidebar() {
           </button>
           <span className="text-sm text-gray-400">
             {t('sidebar.trackletLabelToggle')}
+          </span>
+        </div>
+        {/* Event Label Toggle */}
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            type="button"
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${showEventLabels ? 'bg-blue-600' : 'bg-gray-400'}`}
+            onClick={() => setShowEventLabels(!showEventLabels)}
+            aria-pressed={showEventLabels}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${showEventLabels ? 'translate-x-5' : 'translate-x-1'}`}
+            />
+          </button>
+          <span className="text-sm text-gray-400">
+            {t('sidebar.eventLabelToggle')}
           </span>
         </div>
         <div className="text-sm text-gray-400">
