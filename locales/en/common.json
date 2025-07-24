@@ -164,5 +164,10 @@
     "frame": "Frame",
     "zoom": "Zoom",
     "of": "of"
+  },
+  "tracklet": {
+    "timeline": "Tracklet Timeline",
+    "showPlaceholders": "Show Placeholders",
+    "viewTimeline": "View Timeline"
   }
 }

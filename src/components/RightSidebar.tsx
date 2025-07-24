@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore';
 import { parseAnnotations } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import TimelineButton from '@/components/TimelineButton';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -259,19 +260,26 @@ export default function RightSidebar() {
               <div className="mb-6">
                 <h3 className="text-md font-medium mb-3 text-white">{t('sidebar.availableIds')}</h3>
                 {availableIds.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {availableIds.map((id) => (
-                      <button
-                        key={id}
-                        onClick={() => handleSelectId(id)}
-                        className={`p-2 rounded text-sm font-medium transition-colors border ${
-                          selectedTrackletId === id
-                            ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
-                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
-                        }`}
-                      >
-                        {id}
-                      </button>
+                      <div key={id} className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleSelectId(id)}
+                          className={`flex-1 p-2 rounded text-sm font-medium transition-colors border ${
+                            selectedTrackletId === id
+                              ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
+                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                          }`}
+                        >
+                          {id}
+                        </button>
+                        <TimelineButton 
+                          trackletId={id} 
+                          variant="icon" 
+                          size="sm"
+                          className="flex-shrink-0"
+                        />
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -316,14 +324,22 @@ export default function RightSidebar() {
               <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-md font-medium mb-2 text-white">{t('sidebar.selectedId')}</h3>
                 {selectedTrackletId !== null ? (
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-400">{selectedTrackletId}</span>
-                    <button
-                      onClick={() => setSelectedTrackletId(null)}
-                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                    >
-                      {t('sidebar.clear')}
-                    </button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-blue-400">{selectedTrackletId}</span>
+                      <button
+                        onClick={() => setSelectedTrackletId(null)}
+                        className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        {t('sidebar.clear')}
+                      </button>
+                    </div>
+                    <TimelineButton 
+                      trackletId={selectedTrackletId} 
+                      variant="primary" 
+                      size="md"
+                      className="w-full"
+                    />
                   </div>
                 ) : (
                   <div className="text-gray-400 text-sm">

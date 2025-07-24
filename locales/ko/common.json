@@ -164,5 +164,10 @@
     "frame": "프레임",
     "zoom": "확대",
     "of": "의"
+  },
+  "tracklet": {
+    "timeline": "트래클릿 타임라인",
+    "showPlaceholders": "플레이스홀더 표시",
+    "viewTimeline": "타임라인 보기"
   }
 }
