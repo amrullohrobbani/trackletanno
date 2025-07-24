@@ -21,6 +21,8 @@ export interface ElectronAPI {
     color: { r: number; g: number; b: number };
     confidence: number;
   }>;
+  findJsonFiles: (dirPath: string) => Promise<string[]>;
+  exportToJson: (filePath: string, content: string) => Promise<boolean>;
 }
 
 export interface DirectoryEntry {

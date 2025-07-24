@@ -169,5 +169,20 @@
     "timeline": "트래클릿 타임라인",
     "showPlaceholders": "플레이스홀더 표시",
     "viewTimeline": "타임라인 보기"
+  },
+  "ball": {
+    "title": "볼 어노테이션",
+    "startMode": "볼 모드 시작",
+    "stopMode": "볼 모드 정지",
+    "modeInstructions": "볼 위치를 클릭하여 어노테이션하세요. 볼 어노테이션은 트래클릿 ID 99를 사용합니다.",
+    "annotations": "볼 어노테이션",
+    "trackletId": "트래클릿 ID",
+    "importJson": "JSON에서 볼 가져오기",
+    "exportJson": "모든 것을 JSON으로",
+    "importing": "가져오는 중...",
+    "exporting": "내보내는 중...",
+    "helpImport": "디렉토리의 JSON 파일에서 볼 어노테이션 가져오기",
+    "helpAnnotate": "볼 위치를 클릭하여 포인트 어노테이션 생성",
+    "helpExport": "모든 어노테이션(플레이어 + 볼)을 JSON 형식으로 내보내기"
   }
 }

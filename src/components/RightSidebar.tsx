@@ -7,6 +7,7 @@ import { parseAnnotations } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import TimelineButton from '@/components/TimelineButton';
+import BallAnnotationSidebar from '@/components/BallAnnotationSidebar';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -34,7 +35,9 @@ export default function RightSidebar() {
     showTrackletLabels,
     setShowTrackletLabels,
     showEventLabels,
-    setShowEventLabels
+    setShowEventLabels,
+    ballAnnotationMode,
+    setBallAnnotationMode
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -188,6 +191,11 @@ export default function RightSidebar() {
   const handleSelectId = (id: number) => {
     setSelectedTrackletId(id);
     setShowCustomInput(false);
+    
+    // Auto-enable ball annotation mode when selecting tracklet ID 99
+    if (id === 99) {
+      setBallAnnotationMode(true);
+    }
   };
 
   const handleAddCustomId = () => {
@@ -196,6 +204,11 @@ export default function RightSidebar() {
       setSelectedTrackletId(id);
       setCustomId('');
       setShowCustomInput(false);
+      
+      // Auto-enable ball annotation mode when selecting tracklet ID 99
+      if (id === 99) {
+        setBallAnnotationMode(true);
+      }
     }
   };
 
@@ -253,11 +266,11 @@ export default function RightSidebar() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <div className="p-4 bg-gray-800">
+        <div className="p-4 bg-gray-800 space-y-6">
           {currentRally ? (
             <>
               {/* Available IDs */}
-              <div className="mb-6">
+              <div>
                 <h3 className="text-md font-medium mb-3 text-white">{t('sidebar.availableIds')}</h3>
                 {availableIds.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
@@ -265,13 +278,20 @@ export default function RightSidebar() {
                       <div key={id} className="flex items-center gap-1">
                         <button
                           onClick={() => handleSelectId(id)}
-                          className={`flex-1 p-2 rounded text-sm font-medium transition-colors border ${
+                          className={`flex-1 p-2 rounded text-sm font-medium transition-colors border relative ${
                             selectedTrackletId === id
-                              ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
+                              ? (id === 99 
+                                  ? 'bg-orange-600 text-white border-orange-500 hover:bg-orange-700' 
+                                  : 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700')
                               : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
                           }`}
                         >
                           {id}
+                          {id === 99 && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full text-xs flex items-center justify-center text-white">
+                              ⚽
+                            </span>
+                          )}
                         </button>
                         <TimelineButton 
                           trackletId={id} 
@@ -300,22 +320,27 @@ export default function RightSidebar() {
                 </div>
                 
                 {showCustomInput && (
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={customId}
-                      onChange={(e) => setCustomId(e.target.value)}
-                      placeholder={t('sidebar.enterId')}
-                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      min="1"
-                    />
-                    <button
-                      onClick={handleAddCustomId}
-                      disabled={!customId || isNaN(parseInt(customId)) || parseInt(customId) <= 0}
-                      className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
-                    >
-                      {t('sidebar.add')}
-                    </button>
+                  <div>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="number"
+                        value={customId}
+                        onChange={(e) => setCustomId(e.target.value)}
+                        placeholder={t('sidebar.enterId')}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="1"
+                      />
+                      <button
+                        onClick={handleAddCustomId}
+                        disabled={!customId || isNaN(parseInt(customId)) || parseInt(customId) <= 0}
+                        className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
+                      >
+                        {t('sidebar.add')}
+                      </button>
+                    </div>
+                    <p className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
+                      💡 Tip: Use ID 99 for ball annotation (automatically enables ball mode)
+                    </p>
                   </div>
                 )}
               </div>
@@ -326,7 +351,16 @@ export default function RightSidebar() {
                 {selectedTrackletId !== null ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-blue-400">{selectedTrackletId}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-bold ${selectedTrackletId === 99 ? 'text-orange-400' : 'text-blue-400'}`}>
+                          {selectedTrackletId}
+                        </span>
+                        {selectedTrackletId === 99 && (
+                          <span className="text-xs bg-orange-600 text-white px-2 py-1 rounded font-medium">
+                            ⚽ BALL
+                          </span>
+                        )}
+                      </div>
                       <button
                         onClick={() => setSelectedTrackletId(null)}
                         className="text-xs text-red-400 hover:text-red-300 transition-colors"
@@ -334,6 +368,11 @@ export default function RightSidebar() {
                         {t('sidebar.clear')}
                       </button>
                     </div>
+                    {selectedTrackletId === 99 && ballAnnotationMode && (
+                      <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
+                        Ball annotation mode is active. Click on the canvas to place ball points.
+                      </div>
+                    )}
                     <TimelineButton 
                       trackletId={selectedTrackletId} 
                       variant="primary" 
@@ -693,6 +732,9 @@ export default function RightSidebar() {
                   </div>
                 )}
               </div>
+
+              {/* Ball Annotation Controls */}
+              <BallAnnotationSidebar />
 
               {/* Detailed Instructions */}
               <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg">

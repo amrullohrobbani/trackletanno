@@ -169,5 +169,20 @@
     "timeline": "Tracklet Timeline",
     "showPlaceholders": "Show Placeholders",
     "viewTimeline": "View Timeline"
+  },
+  "ball": {
+    "title": "Ball Annotation",
+    "startMode": "Start Ball Mode",
+    "stopMode": "Stop Ball Mode",
+    "modeInstructions": "Click on the ball position to annotate. Ball annotations use tracklet ID 99.",
+    "annotations": "Ball Annotations",
+    "trackletId": "Tracklet ID",
+    "importJson": "Import Ball from JSON",
+    "exportJson": "Export All to JSON",
+    "importing": "Importing...",
+    "exporting": "Exporting...",
+    "helpImport": "Import ball annotations from JSON files in the directory",
+    "helpAnnotate": "Click on ball positions to create point annotations",
+    "helpExport": "Export ALL annotations (players + ball) to JSON format"
   }
 }

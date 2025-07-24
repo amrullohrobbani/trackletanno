@@ -32,7 +32,8 @@ export default function LeftSidebar() {
     deleteSelectedBoundingBox,
     deleteAllAnnotationsWithTrackletId,
     selectedBoundingBox,
-    getCurrentRally
+    getCurrentRally,
+    ballAnnotationMode
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -101,12 +102,12 @@ export default function LeftSidebar() {
         <div className="space-y-2">
           <button
             onClick={handleDrawMode}
-            disabled={!selectedTrackletId}
+            disabled={!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99}
             className={`w-full flex items-center gap-2 p-3 rounded-lg font-medium transition-colors ${
               drawingMode
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-            } ${!selectedTrackletId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            } ${(!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <PencilIcon className="w-5 h-5" />
             Draw New Bounding Box
@@ -114,21 +115,27 @@ export default function LeftSidebar() {
           
           <button
             onClick={handleAssignMode}
-            disabled={!selectedTrackletId}
+            disabled={!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99}
             className={`w-full flex items-center gap-2 p-3 rounded-lg font-medium transition-colors ${
               assignMode
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-            } ${!selectedTrackletId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            } ${(!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <CursorArrowRaysIcon className="w-5 h-5" />
             Assign Tracklet ID
           </button>
         </div>
 
-        {!selectedTrackletId && (
+        {!selectedTrackletId && !ballAnnotationMode && (
           <p className="text-xs text-yellow-400 mt-2">
             Select a tracklet ID from the right panel to enable annotation controls.
+          </p>
+        )}
+        
+        {(ballAnnotationMode || selectedTrackletId === 99) && (
+          <p className="text-xs text-orange-400 mt-2">
+            Ball annotation mode is active (Tracklet ID 99). Regular annotation controls are disabled.
           </p>
         )}
       </div>

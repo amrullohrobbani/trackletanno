@@ -385,3 +385,30 @@ ipcMain.handle('extract-dominant-color', async (event, imagePath, x, y, width, h
     };
   }
 });
+
+// JSON annotation file handlers
+ipcMain.handle('find-json-files', async (event, dirPath) => {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const jsonFiles = entries
+      .filter(entry => !entry.isDirectory() && entry.name.endsWith('.json'))
+      .map(entry => path.join(dirPath, entry.name));
+    
+    console.log(`Found ${jsonFiles.length} JSON files in ${dirPath}`);
+    return jsonFiles;
+  } catch (error) {
+    console.error('Error finding JSON files:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('export-to-json', async (event, filePath, content) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf8');
+    console.log('Successfully exported to JSON:', filePath);
+    return true;
+  } catch (error) {
+    console.error('Error exporting to JSON:', error);
+    throw error;
+  }
+});

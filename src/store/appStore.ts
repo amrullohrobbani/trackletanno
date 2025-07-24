@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox, IDAnalysisResult } from '@/types/electron';
 import { parseAnnotations, annotationsToCSV } from '@/utils/annotationParser';
+import { loadJsonBallAnnotations, exportAnnotationsToJson, BALL_TRACKLET_ID } from '@/utils/ballAnnotationParser';
 
 interface AppState {
   // Directory and data management
@@ -41,6 +42,15 @@ interface AppState {
   showEventLabels: boolean;
   setShowTrackletLabels: (show: boolean) => void;
   setShowEventLabels: (show: boolean) => void;
+  
+  // Ball annotation state
+  ballAnnotationMode: boolean;
+  ballAnnotations: AnnotationData[];
+  hasBallAnnotations: boolean;
+  
+  // Canvas dimensions for coordinate scaling
+  canvasDimensions: { width: number; height: number };
+  setCanvasDimensions: (dimensions: { width: number; height: number }) => void;
   
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
@@ -84,6 +94,16 @@ interface AppState {
   setShowAnalysis: (show: boolean) => void;
   clearAnalysis: () => void;
   
+  // Ball annotation actions
+  setBallAnnotationMode: (enabled: boolean) => void;
+  loadBallAnnotationsFromJson: () => Promise<void>;
+  exportAnnotationsAsJson: (filePath?: string) => Promise<boolean>;
+  addBallAnnotation: (x: number, y: number, frameNumber: number, event?: string) => void;
+  removeBallAnnotation: (frameNumber: number) => void;
+  clearBallAnnotations: () => void;
+  getCurrentFrameBallAnnotation: () => AnnotationData | null;
+  removeCurrentFrameBallAnnotation: () => void;
+  
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
   getCurrentImagePath: () => string | null;
@@ -121,12 +141,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   showAnalysis: false,
   
   // Initial tracklet label visibility
-  showTrackletLabels: true,
+  showTrackletLabels: false,
   setShowTrackletLabels: (show) => set({ showTrackletLabels: show }),
 
   // Initial event label visibility
-  showEventLabels: true,
+  showEventLabels: false,
   setShowEventLabels: (show) => set({ showEventLabels: show }),
+  
+  // Initial ball annotation state
+  ballAnnotationMode: false,
+  ballAnnotations: [],
+  hasBallAnnotations: false,
+  
+  // Initial canvas dimensions (default 1920x1080)
+  canvasDimensions: { width: 1920, height: 1080 },
+  setCanvasDimensions: (dimensions) => set({ canvasDimensions: dimensions }),
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -136,7 +165,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     currentRallyIndex: 0,
     currentFrameIndex: 0,
     annotations: [],
-    boundingBoxes: []
+    boundingBoxes: [],
+    ballAnnotations: [],
+    hasBallAnnotations: false
   }),
   
   setCurrentRally: async (index) => {
@@ -153,7 +184,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentRallyIndex: index,
       currentFrameIndex: 0,
       annotations: [],
-      boundingBoxes: []
+      boundingBoxes: [],
+      ballAnnotations: [],
+      hasBallAnnotations: false
     });
 
     // Load annotations if available and we're in an Electron environment
@@ -162,7 +195,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         const csvContent = await window.electronAPI.loadAnnotationFile(rally.annotationFile);
         const annotations = parseAnnotations(csvContent);
         
-        set({ annotations });
+        // Extract ball annotations from loaded annotations
+        const ballAnnotations = annotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
+        
+        set({ 
+          annotations,
+          ballAnnotations,
+          hasBallAnnotations: ballAnnotations.length > 0
+        });
+        
+        console.log(`Loaded ${annotations.length} total annotations, ${ballAnnotations.length} ball annotations`);
       } catch (error) {
         console.error('Error loading annotations:', error);
         // Continue without annotations - they can be created manually
@@ -205,7 +247,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
-  setAnnotations: (annotations) => set({ annotations }),
+  setAnnotations: (annotations) => {
+    // Extract ball annotations from the annotations array
+    const ballAnnotations = annotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
+    
+    set({ 
+      annotations,
+      ballAnnotations,
+      hasBallAnnotations: ballAnnotations.length > 0
+    });
+  },
   setSelectedTrackletId: (id) => set({ selectedTrackletId: id }),
   setDrawingMode: (enabled) => set({ 
     drawingMode: enabled,
@@ -507,5 +558,189 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setShowAnalysis: (show) => set({ showAnalysis: show }),
 
-  clearAnalysis: () => set({ idAnalysisResult: null, showAnalysis: false })
+  clearAnalysis: () => set({ idAnalysisResult: null, showAnalysis: false }),
+  
+  // Ball annotation actions
+  setBallAnnotationMode: (enabled: boolean) => {
+    set({ ballAnnotationMode: enabled });
+    // When enabling ball mode, auto-select ball tracklet ID
+    if (enabled) {
+      set({ selectedTrackletId: BALL_TRACKLET_ID });
+    }
+  },
+  
+  loadBallAnnotationsFromJson: async () => {
+    const { selectedDirectory, canvasDimensions } = get();
+    if (!selectedDirectory) return;
+    
+    set({ isLoading: true });
+    try {
+      const ballAnnotations = await loadJsonBallAnnotations(selectedDirectory, canvasDimensions.width, canvasDimensions.height);
+      
+      // Merge ball annotations with existing annotations, removing any existing ball annotations first
+      const { annotations } = get();
+      const mergedAnnotations = [...annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID), ...ballAnnotations];
+      
+      set({ 
+        annotations: mergedAnnotations,
+        ballAnnotations,
+        hasBallAnnotations: ballAnnotations.length > 0
+      });
+      
+      // Save to TXT file after importing
+      const state = get();
+      await state.saveAnnotationsToFile();
+      
+      console.log(`Loaded ${ballAnnotations.length} ball annotations from JSON files (coordinates scaled from 224x224 to ${canvasDimensions.width}x${canvasDimensions.height})`);
+    } catch (error) {
+      console.error('Error loading ball annotations:', error);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  exportAnnotationsAsJson: async (filePath?: string) => {
+    const { annotations, selectedDirectory, getCurrentRally, canvasDimensions } = get();
+    if (!selectedDirectory) return false;
+    
+    const rally = getCurrentRally();
+    if (!rally) return false;
+    
+    const outputPath = filePath || `${selectedDirectory}/${rally.name}_export.json`;
+    
+    try {
+      set({ saveStatus: 'saving' });
+      const success = await exportAnnotationsToJson(annotations, outputPath, `../${rally.name}`, canvasDimensions.width, canvasDimensions.height);
+      set({ saveStatus: success ? 'saved' : 'error' });
+      
+      if (success) {
+        setTimeout(() => set({ saveStatus: 'idle' }), 2000);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Error exporting to JSON:', error);
+      set({ saveStatus: 'error' });
+      setTimeout(() => set({ saveStatus: 'idle' }), 2000);
+      return false;
+    }
+  },
+  
+  addBallAnnotation: (x: number, y: number, frameNumber: number, event?: string) => {
+    const { annotations, ballAnnotations } = get();
+    
+    // Remove existing ball annotation for this frame
+    const filteredAnnotations = annotations.filter(
+      ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
+    );
+    const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
+    
+    // Create new ball annotation
+    const newBallAnnotation: AnnotationData = {
+      frame: frameNumber,
+      tracklet_id: BALL_TRACKLET_ID,
+      x,
+      y,
+      w: 8, // Small fixed size for ball point
+      h: 8,
+      score: 1.0,
+      role: 'ball',
+      jersey_number: '',
+      jersey_color: '',
+      team: '',
+      event: event || ''
+    };
+    
+    const updatedAnnotations = [...filteredAnnotations, newBallAnnotation];
+    const updatedBallAnnotations = [...filteredBallAnnotations, newBallAnnotation];
+    
+    // Update state immediately for instant visual feedback
+    set({ 
+      annotations: updatedAnnotations,
+      ballAnnotations: updatedBallAnnotations,
+      hasBallAnnotations: true
+    });
+    
+    // Save to file after state update (async, non-blocking)
+    setTimeout(async () => {
+      try {
+        await get().saveAnnotationsToFile();
+      } catch (error) {
+        console.error('Error saving ball annotation:', error);
+        // On save error, could implement rollback here if needed
+      }
+    }, 50);
+  },
+  
+  removeBallAnnotation: (frameNumber: number) => {
+    const { annotations, ballAnnotations } = get();
+    
+    const filteredAnnotations = annotations.filter(
+      ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
+    );
+    const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
+    
+    // Update state immediately
+    set({ 
+      annotations: filteredAnnotations,
+      ballAnnotations: filteredBallAnnotations,
+      hasBallAnnotations: filteredBallAnnotations.length > 0
+    });
+    
+    // Save to file after state update
+    setTimeout(async () => {
+      try {
+        await get().saveAnnotationsToFile();
+      } catch (error) {
+        console.error('Error saving after ball annotation removal:', error);
+      }
+    }, 50);
+  },
+  
+  clearBallAnnotations: () => {
+    const { annotations } = get();
+    
+    // Remove all ball annotations (tracklet_id 99) from annotations
+    const nonBallAnnotations = annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID);
+    
+    // Update state immediately
+    set({ 
+      annotations: nonBallAnnotations,
+      ballAnnotations: [],
+      hasBallAnnotations: false
+    });
+    
+    // Save to file after state update
+    setTimeout(async () => {
+      try {
+        await get().saveAnnotationsToFile();
+      } catch (error) {
+        console.error('Error saving after clearing ball annotations:', error);
+      }
+    }, 50);
+  },
+  
+  getCurrentFrameBallAnnotation: () => {
+    const { ballAnnotations, getCurrentRally, currentFrameIndex } = get();
+    const rally = getCurrentRally();
+    
+    if (!rally || !rally.imageFiles[currentFrameIndex]) return null;
+    
+    const imageFileName = rally.imageFiles[currentFrameIndex];
+    const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
+    
+    return ballAnnotations.find(ann => ann.frame === frameNumber) || null;
+  },
+  
+  removeCurrentFrameBallAnnotation: () => {
+    const { getCurrentRally, currentFrameIndex } = get();
+    const rally = getCurrentRally();
+    
+    if (!rally || !rally.imageFiles[currentFrameIndex]) return;
+    
+    const imageFileName = rally.imageFiles[currentFrameIndex];
+    const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
+    
+    get().removeBallAnnotation(frameNumber);
+  },
 }));

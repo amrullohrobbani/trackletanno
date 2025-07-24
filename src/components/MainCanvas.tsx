@@ -16,7 +16,6 @@ export default function MainCanvas() {
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 1920, height: 1080 });
   const [currentFrameNumber, setCurrentFrameNumber] = useState<number>(1);
 
   const {
@@ -42,7 +41,12 @@ export default function MainCanvas() {
     assignEventToBoundingBox,
     isDeletingBox,
     showTrackletLabels,
-    showEventLabels
+    showEventLabels,
+    ballAnnotationMode,
+    addBallAnnotation,
+    ballAnnotations,
+    canvasDimensions,
+    setCanvasDimensions
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -146,7 +150,7 @@ export default function MainCanvas() {
     } catch (error) {
       console.error('Error loading image:', error);
     }
-  }, [imagePath]);
+  }, [imagePath, setCanvasDimensions]);
 
   // Load image when path changes
   useEffect(() => {
@@ -385,6 +389,122 @@ export default function MainCanvas() {
       }
     });
 
+    // Draw ball annotations as points
+    if (ballAnnotations && ballAnnotations.length > 0) {
+      ballAnnotations.forEach((ballAnnotation) => {
+        // Only draw ball annotations for the current frame
+        if (ballAnnotation.frame === currentFrameNumber) {
+          const ballCenterX = ballAnnotation.x;
+          const ballCenterY = ballAnnotation.y;
+          
+          // Smaller, more distinct ball indicator
+          const ballRadius = Math.max(6, 6 / zoomLevel); // Reduced from 12 to 6
+          const borderWidth = Math.max(2, 2 / zoomLevel);
+          
+          // Draw outer white border circle for better visibility
+          ctx.beginPath();
+          ctx.arc(ballCenterX, ballCenterY, ballRadius + borderWidth, 0, 2 * Math.PI);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+          
+          // Draw main ball circle (bright orange)
+          ctx.beginPath();
+          ctx.arc(ballCenterX, ballCenterY, ballRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = '#FF4500'; // More vibrant orange
+          ctx.fill();
+          
+          // Draw inner highlight for 3D effect
+          ctx.beginPath();
+          ctx.arc(ballCenterX - ballRadius * 0.3, ballCenterY - ballRadius * 0.3, ballRadius * 0.4, 0, 2 * Math.PI);
+          ctx.fillStyle = '#FFB347'; // Light orange highlight
+          ctx.fill();
+          
+          // Draw center crosshair for precise positioning
+          const crosshairSize = Math.max(1, 1 / zoomLevel);
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = crosshairSize;
+          ctx.beginPath();
+          // Horizontal line
+          ctx.moveTo(ballCenterX - 2, ballCenterY);
+          ctx.lineTo(ballCenterX + 2, ballCenterY);
+          // Vertical line
+          ctx.moveTo(ballCenterX, ballCenterY - 2);
+          ctx.lineTo(ballCenterX, ballCenterY + 2);
+          ctx.stroke();
+          
+          // Draw tracklet ID label for ball (always 99)
+          if (showTrackletLabels) {
+            const labelWidth = 50;
+            const labelHeight = 25;
+            const labelX = ballAnnotation.x - labelWidth / 2;
+            const labelY = ballAnnotation.y - ballRadius - labelHeight - 5;
+            
+            // Draw label background
+            ctx.fillStyle = 'rgba(255, 107, 53, 0.9)'; // Semi-transparent orange
+            ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
+            
+            // Draw label border
+            ctx.strokeStyle = '#FF4500'; // Use the same orange as the ball
+            ctx.lineWidth = 2 / zoomLevel;
+            ctx.strokeRect(labelX, labelY, labelWidth, labelHeight);
+            
+            // Draw label text
+            const fontSize = Math.max(12, 12 / zoomLevel);
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Add text stroke for better visibility
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1 / zoomLevel;
+            ctx.strokeText('Ball 99', labelX + labelWidth / 2, labelY + labelHeight / 2);
+            ctx.fillText('Ball 99', labelX + labelWidth / 2, labelY + labelHeight / 2);
+            
+            // Reset text alignment
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+          }
+          
+          // Draw event label for ball if enabled and event exists
+          if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '') {
+            const eventText = ballAnnotation.event.toUpperCase();
+            const indicatorHeight = Math.max(20, 20 / zoomLevel);
+            const padding = 4 / zoomLevel;
+            
+            // Measure text to determine indicator width
+            ctx.font = `bold ${Math.max(12, 12 / zoomLevel)}px Arial`;
+            const textWidth = ctx.measureText(eventText).width;
+            const indicatorWidth = textWidth + (padding * 2);
+            
+            // Position indicator below the ball
+            const indicatorX = ballAnnotation.x - indicatorWidth / 2;
+            const indicatorY = ballAnnotation.y + ballRadius + 5;
+            
+            // Draw background rectangle
+            ctx.fillStyle = '#FFD700'; // Gold for ball events
+            ctx.fillRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+            
+            // Draw border
+            ctx.strokeStyle = '#FFA500';
+            ctx.lineWidth = 2 / zoomLevel;
+            ctx.strokeRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
+            
+            // Draw event text
+            ctx.fillStyle = 'black';
+            ctx.font = `bold ${Math.max(11, 11 / zoomLevel)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(eventText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
+            
+            // Reset text alignment
+            ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
+          }
+        }
+      });
+    }
+
     // Draw current drawing rectangle
     if (currentRect) {
       ctx.strokeStyle = '#10B981'; // Green for new drawing
@@ -395,7 +515,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels]);
+  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -434,6 +554,19 @@ export default function MainCanvas() {
       return;
     }
 
+    // Ball annotation mode - handle first to prevent other modes from interfering
+    if (ballAnnotationMode || selectedTrackletId === 99) {
+      const rally = getCurrentRally();
+      if (rally && rally.imageFiles[currentFrameIndex]) {
+        // Use the same frame number as the drawing function to ensure consistency
+        const frameNumber = currentFrameNumber;
+        
+        // Add ball annotation at the clicked point (always use tracklet ID 99)
+        addBallAnnotation(coords.x, coords.y, frameNumber, selectedEvent || undefined);
+      }
+      return; // Exit early to prevent other handlers
+    }
+
     if (assignMode) {
       // Check if clicking on an existing bounding box
       const clickedBox = boundingBoxes.find(box =>
@@ -456,7 +589,7 @@ export default function MainCanvas() {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
       }
-    } else if (drawingMode && selectedTrackletId !== null) {
+    } else if (drawingMode && selectedTrackletId !== null && selectedTrackletId !== 99) {
       // Start drawing new bounding box
       setIsDrawing(true);
       setStartPoint(coords);
@@ -764,7 +897,13 @@ export default function MainCanvas() {
           ref={canvasRef}
           width={canvasDimensions.width}
           height={canvasDimensions.height}
-          className="block border border-gray-600 cursor-crosshair"
+          className={`block border border-gray-600 ${
+            ballAnnotationMode || selectedTrackletId === 99
+              ? 'cursor-crosshair' // Use crosshair for more precise targeting
+              : drawingMode || assignMode 
+                ? 'cursor-crosshair' 
+                : 'cursor-default'
+          }`}
           style={{ 
             maxWidth: '100%',
             maxHeight: '100%',
@@ -782,9 +921,10 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {drawingMode && selectedTrackletId && `${t('modes.drawing')} - ID: ${selectedTrackletId}`}
-          {assignMode && selectedTrackletId && `${t('modes.assign')} - ID: ${selectedTrackletId}`}
-          {!drawingMode && !assignMode && t('modes.selection')}
+          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point`}
+          {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId}`}
+          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId}`}
+          {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && t('modes.selection')}
         </div>
 
         {/* Frame info */}
