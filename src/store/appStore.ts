@@ -103,6 +103,7 @@ interface AppState {
   clearBallAnnotations: () => void;
   getCurrentFrameBallAnnotation: () => AnnotationData | null;
   removeCurrentFrameBallAnnotation: () => void;
+  getCurrentFrameNumber: () => number | null;
   
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
@@ -736,7 +737,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
-    const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
+    const frameNumber = parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
     
     return ballAnnotations.find(ann => ann.frame === frameNumber) || null;
   },
@@ -750,11 +751,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
-    const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
+    const frameNumber = parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
     
     // Log only for debugging ball deletion issues
     console.log(`Removing ball annotation for frame ${frameNumber}. Total ball annotations: ${ballAnnotations.length}`);
     
     get().removeBallAnnotation(frameNumber);
+  },
+  
+  getCurrentFrameNumber: () => {
+    const { getCurrentRally, currentFrameIndex } = get();
+    const rally = getCurrentRally();
+    
+    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+      return null;
+    }
+    
+    const imageFileName = rally.imageFiles[currentFrameIndex];
+    return parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
   },
 }));

@@ -58,7 +58,7 @@ export default function BallAnnotationSidebar() {
     setIsImporting(true);
     try {
       await loadBallAnnotationsFromJson();
-      alert(`Successfully imported ball annotations with Y-coordinate correction!`);
+      alert(`Successfully imported ball annotations!`);
     } catch (error) {
       console.error('Import error:', error);
       alert('Error importing ball annotations from JSON files.');

@@ -190,7 +190,7 @@ export default function LeftSidebar() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Scrollable Content Container */}
-      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb:hover]:bg-gray-500 [-ms-overflow-style:auto] [scrollbar-width:thin]">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* Frame Navigation - Moved to top for priority */}
         {getCurrentRally() && (
           <div className="p-4 border-b border-gray-700 flex-shrink-0">

@@ -47,7 +47,8 @@ export default function MainCanvas() {
     ballAnnotations,
     removeBallAnnotation,
     canvasDimensions,
-    setCanvasDimensions
+    setCanvasDimensions,
+    getCurrentFrameNumber
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -562,11 +563,12 @@ export default function MainCanvas() {
     if (ballAnnotationMode || selectedTrackletId === 99) {
       const rally = getCurrentRally();
       if (rally && rally.imageFiles[currentFrameIndex]) {
-        // Use the same frame number as the drawing function to ensure consistency
-        const frameNumber = currentFrameNumber;
-        
-        // Add ball annotation at the clicked point (always use tracklet ID 99)
-        addBallAnnotation(coords.x, coords.y, frameNumber, selectedEvent || undefined);
+        // Use consistent frame number calculation
+        const frameNumber = getCurrentFrameNumber();
+        if (frameNumber !== null) {
+          // Add ball annotation at the clicked point (always use tracklet ID 99)
+          addBallAnnotation(coords.x, coords.y, frameNumber, selectedEvent || undefined);
+        }
       }
       return; // Exit early to prevent other handlers
     }
@@ -777,7 +779,8 @@ export default function MainCanvas() {
     const rally = getCurrentRally();
     if (!rally || !rally.imageFiles[currentFrameIndex]) return;
     
-    const currentFrameNumber = parseInt(rally.imageFiles[currentFrameIndex].replace(/\D/g, ''), 10);
+    const currentFrameNumber = getCurrentFrameNumber();
+    if (currentFrameNumber === null) return;
     
     // Check if clicked on a ball annotation (within radius)
     const ballRadius = 6; // Same as used in drawing
