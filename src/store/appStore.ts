@@ -675,26 +675,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeBallAnnotation: (frameNumber: number) => {
     const { annotations, ballAnnotations } = get();
     
+    // Remove from both annotation arrays immediately
     const filteredAnnotations = annotations.filter(
       ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
     );
     const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
     
-    // Update state immediately
+    // Update state immediately for instant UI feedback - this should trigger canvas redraw
     set({ 
       annotations: filteredAnnotations,
       ballAnnotations: filteredBallAnnotations,
-      hasBallAnnotations: filteredBallAnnotations.length > 0
+      hasBallAnnotations: filteredBallAnnotations.length > 0,
+      // Force a re-render by updating a timestamp if needed
+      saveStatus: 'saving'
     });
     
-    // Save to file after state update
+    console.log(`Removed ball annotation for frame ${frameNumber}. Remaining ball annotations:`, filteredBallAnnotations.length);
+    
+    // Save to file after state update (non-blocking)
     setTimeout(async () => {
       try {
         await get().saveAnnotationsToFile();
+        set({ saveStatus: 'saved' });
       } catch (error) {
         console.error('Error saving after ball annotation removal:', error);
+        set({ saveStatus: 'error' });
       }
-    }, 50);
+    }, 100);
   },
   
   clearBallAnnotations: () => {
@@ -724,7 +731,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { ballAnnotations, getCurrentRally, currentFrameIndex } = get();
     const rally = getCurrentRally();
     
-    if (!rally || !rally.imageFiles[currentFrameIndex]) return null;
+    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+      return null;
+    }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
     const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
@@ -733,13 +742,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   removeCurrentFrameBallAnnotation: () => {
-    const { getCurrentRally, currentFrameIndex } = get();
+    const { getCurrentRally, currentFrameIndex, ballAnnotations } = get();
     const rally = getCurrentRally();
     
-    if (!rally || !rally.imageFiles[currentFrameIndex]) return;
+    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+      return;
+    }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
     const frameNumber = parseInt(imageFileName.replace(/\D/g, ''), 10);
+    
+    // Log only for debugging ball deletion issues
+    console.log(`Removing ball annotation for frame ${frameNumber}. Total ball annotations: ${ballAnnotations.length}`);
     
     get().removeBallAnnotation(frameNumber);
   },

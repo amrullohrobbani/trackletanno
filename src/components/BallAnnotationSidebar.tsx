@@ -98,6 +98,7 @@ export default function BallAnnotationSidebar() {
 
   const handleDeleteCurrentBallAnnotation = () => {
     const currentBallAnnotation = getCurrentFrameBallAnnotation();
+    
     if (currentBallAnnotation) {
       if (window.confirm('Delete ball annotation for current frame?')) {
         removeCurrentFrameBallAnnotation();

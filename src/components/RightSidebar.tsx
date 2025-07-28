@@ -7,7 +7,6 @@ import { parseAnnotations } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import TimelineButton from '@/components/TimelineButton';
-import BallAnnotationSidebar from '@/components/BallAnnotationSidebar';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -269,41 +268,72 @@ export default function RightSidebar() {
         <div className="p-4 bg-gray-800 space-y-6">
           {currentRally ? (
             <>
-              {/* Available IDs */}
+              {/* Available IDs - Unified View */}
               <div>
-                <h3 className="text-md font-medium mb-3 text-white">{t('sidebar.availableIds')}</h3>
+                <h3 className="text-md font-medium mb-3 text-white flex items-center gap-2">
+                  🎯 {t('sidebar.availableIds')}
+                  <span className="text-xs bg-blue-600 px-2 py-1 rounded-full">{availableIds.length}</span>
+                </h3>
                 {availableIds.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {availableIds.map((id) => (
-                      <div key={id} className="flex items-center gap-1">
+                  <div className="space-y-4">
+                    {/* Ball ID - Special treatment at top */}
+                    {availableIds.includes(99) && (
+                      <div>
                         <button
-                          onClick={() => handleSelectId(id)}
-                          className={`flex-1 p-2 rounded text-sm font-medium transition-colors border relative ${
-                            selectedTrackletId === id
-                              ? (id === 99 
-                                  ? 'bg-orange-600 text-white border-orange-500 hover:bg-orange-700' 
-                                  : 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700')
-                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                          onClick={() => handleSelectId(99)}
+                          className={`w-full p-4 rounded-lg font-bold transition-all duration-200 border-2 flex items-center justify-center gap-3 ${
+                            selectedTrackletId === 99
+                              ? 'bg-orange-600 text-white border-orange-400 shadow-lg'
+                              : 'bg-orange-900/30 hover:bg-orange-800/40 text-orange-300 border-orange-600/50'
                           }`}
                         >
-                          {id}
-                          {id === 99 && (
-                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full text-xs flex items-center justify-center text-white">
-                              ⚽
-                            </span>
+                          <span className="text-2xl">⚽</span>
+                          <span>Ball (ID: 99)</span>
+                          {ballAnnotationMode && selectedTrackletId === 99 && (
+                            <span className="text-xs bg-orange-700 px-2 py-1 rounded">ACTIVE</span>
                           )}
                         </button>
-                        <TimelineButton 
-                          trackletId={id} 
-                          variant="icon" 
-                          size="sm"
-                          className="flex-shrink-0"
-                        />
                       </div>
-                    ))}
+                    )}
+
+                    {/* All Player IDs - Unified Grid */}
+                    {availableIds.filter(id => id !== 99).length > 0 && (
+                      <div>
+                        <h4 className="text-sm text-gray-400 mb-3">Player IDs:</h4>
+                        <div className="grid grid-cols-6 gap-2">
+                          {availableIds
+                            .filter(id => id !== 99)
+                            .sort((a, b) => a - b)
+                            .map((id) => (
+                              <div key={id} className="flex flex-col gap-1">
+                                <button
+                                  onClick={() => handleSelectId(id)}
+                                  className={`p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative ${
+                                    selectedTrackletId === id
+                                      ? 'bg-blue-600 text-white border-blue-400 shadow-lg scale-105'
+                                      : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
+                                  }`}
+                                >
+                                  {id}
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full"></div>
+                                </button>
+                                <TimelineButton 
+                                  trackletId={id} 
+                                  variant="icon" 
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="text-gray-400 text-sm">{t('sidebar.noTrackletIds')}</div>
+                  <div className="text-center text-gray-400 text-sm py-6 bg-gray-800 rounded-lg">
+                    <span className="text-2xl block mb-2">🔢</span>
+                    No tracklet IDs available in current annotations
+                  </div>
                 )}
               </div>
 
@@ -732,9 +762,6 @@ export default function RightSidebar() {
                   </div>
                 )}
               </div>
-
-              {/* Ball Annotation Controls */}
-              <BallAnnotationSidebar />
 
               {/* Detailed Instructions */}
               <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg">

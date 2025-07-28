@@ -45,6 +45,7 @@ export default function MainCanvas() {
     ballAnnotationMode,
     addBallAnnotation,
     ballAnnotations,
+    removeBallAnnotation,
     canvasDimensions,
     setCanvasDimensions
   } = useAppStore();
@@ -194,16 +195,18 @@ export default function MainCanvas() {
           console.log('Available annotation frames:', uniqueFrames.slice(0, 5), '...');
         }
         
-        const boxes: BoundingBox[] = currentFrameAnnotations.map((ann, index) => ({
-          id: `annotation-${ann.frame}-${ann.tracklet_id}-${index}`,
-          tracklet_id: ann.tracklet_id,
-          x: ann.x,
-          y: ann.y,
-          width: ann.w,
-          height: ann.h,
-          team: ann.team,
-          selected: false
-        }));
+        const boxes: BoundingBox[] = currentFrameAnnotations
+          .filter(ann => ann.tracklet_id !== 99) // Exclude ball annotations (ID 99) from bounding boxes
+          .map((ann, index) => ({
+            id: `annotation-${ann.frame}-${ann.tracklet_id}-${index}`,
+            tracklet_id: ann.tracklet_id,
+            x: ann.x,
+            y: ann.y,
+            width: ann.w,
+            height: ann.h,
+            team: ann.team,
+            selected: false
+          }));
         
         console.log('Bounding boxes created from annotations:', boxes.length);
         console.log('Bounding boxes details:', boxes);
@@ -281,7 +284,8 @@ export default function MainCanvas() {
       ctx.strokeRect(box.x, box.y, box.width, box.height);
       
       // Draw tracklet ID and team label background at the bottom
-      if (showTrackletLabels) {
+      // Skip labels for ball annotations (tracklet_id === 99)
+      if (showTrackletLabels && box.tracklet_id !== 99) {
         const labelWidth = box.team ? 90 : 70;
         const labelHeight = 30;
         const darkColor = getTrackletDarkColor(box.tracklet_id);
@@ -767,6 +771,31 @@ export default function MainCanvas() {
   // Prevent context menu on right-click to allow right-click panning
   const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     event.preventDefault();
+    
+    // Check if right-clicking on a ball annotation for deletion
+    const coords = getCanvasCoordinates(event);
+    const rally = getCurrentRally();
+    if (!rally || !rally.imageFiles[currentFrameIndex]) return;
+    
+    const currentFrameNumber = parseInt(rally.imageFiles[currentFrameIndex].replace(/\D/g, ''), 10);
+    
+    // Check if clicked on a ball annotation (within radius)
+    const ballRadius = 6; // Same as used in drawing
+    const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
+      if (ballAnnotation.frame === currentFrameNumber) {
+        const distance = Math.sqrt(
+          Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
+        );
+        return distance <= ballRadius;
+      }
+      return false;
+    });
+    
+    if (clickedBallAnnotation) {
+      if (window.confirm('Delete this ball annotation?')) {
+        removeBallAnnotation(currentFrameNumber);
+      }
+    }
   };
 
   const updateAnnotationData = async (box: BoundingBox, newTrackletId: number) => {
@@ -884,6 +913,7 @@ export default function MainCanvas() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden">
       <div className="relative max-w-full max-h-full flex items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imageRef}
           alt="Frame"
