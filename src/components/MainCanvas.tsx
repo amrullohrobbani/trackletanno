@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -48,72 +49,11 @@ export default function MainCanvas() {
     removeBallAnnotation,
     canvasDimensions,
     setCanvasDimensions,
-    getCurrentFrameNumber
+    getCurrentFrameNumber,
+    visibleTrackletIds
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
-
-  // Generate consistent color based on tracklet ID
-  const getTrackletColor = useCallback((trackletId: number, isSelected: boolean = false) => {
-    // Predefined colors for tracklet IDs (20 colors for better variety)
-    const predefinedColors = [
-      { normal: '#EF4444', selected: '#DC2626', dark: '#7F1D1D' }, // Red
-      { normal: '#3B82F6', selected: '#2563EB', dark: '#1E3A8A' }, // Blue
-      { normal: '#10B981', selected: '#059669', dark: '#064E3B' }, // Green
-      { normal: '#F59E0B', selected: '#D97706', dark: '#78350F' }, // Orange
-      { normal: '#8B5CF6', selected: '#7C3AED', dark: '#581C87' }, // Purple
-      { normal: '#EC4899', selected: '#DB2777', dark: '#831843' }, // Pink
-      { normal: '#06B6D4', selected: '#0891B2', dark: '#164E63' }, // Cyan
-      { normal: '#84CC16', selected: '#65A30D', dark: '#365314' }, // Lime
-      { normal: '#F97316', selected: '#EA580C', dark: '#7C2D12' }, // Orange-Red
-      { normal: '#6366F1', selected: '#4F46E5', dark: '#312E81' }, // Indigo
-      { normal: '#14B8A6', selected: '#0F766E', dark: '#134E4A' }, // Teal
-      { normal: '#F59E0B', selected: '#D97706', dark: '#78350F' }, // Amber
-      { normal: '#EF4444', selected: '#B91C1C', dark: '#7F1D1D' }, // Red (variant)
-      { normal: '#8B5CF6', selected: '#6D28D9', dark: '#581C87' }, // Violet
-      { normal: '#06B6D4', selected: '#0E7490', dark: '#164E63' }, // Sky
-      { normal: '#10B981', selected: '#047857', dark: '#064E3B' }, // Emerald
-      { normal: '#F97316', selected: '#C2410C', dark: '#7C2D12' }, // Orange (variant)
-      { normal: '#EC4899', selected: '#BE185D', dark: '#831843' }, // Rose
-      { normal: '#6366F1', selected: '#3730A3', dark: '#312E81' }, // Indigo (variant)
-      { normal: '#84CC16', selected: '#4D7C0F', dark: '#365314' }, // Green (variant)
-    ];
-    
-    // Use tracklet ID to select color consistently (repeats every 20)
-    const colorIndex = (trackletId - 1) % predefinedColors.length;
-    const colors = predefinedColors[colorIndex];
-    
-    return isSelected ? colors.selected : colors.normal;
-  }, []);
-
-  // Get the dark version of the tracklet color for backgrounds
-  const getTrackletDarkColor = useCallback((trackletId: number) => {
-    const predefinedColors = [
-      { dark: '#7F1D1D' }, // Red
-      { dark: '#1E3A8A' }, // Blue
-      { dark: '#064E3B' }, // Green
-      { dark: '#78350F' }, // Orange
-      { dark: '#581C87' }, // Purple
-      { dark: '#831843' }, // Pink
-      { dark: '#164E63' }, // Cyan
-      { dark: '#365314' }, // Lime
-      { dark: '#7C2D12' }, // Orange-Red
-      { dark: '#312E81' }, // Indigo
-      { dark: '#134E4A' }, // Teal
-      { dark: '#78350F' }, // Amber
-      { dark: '#7F1D1D' }, // Red (variant)
-      { dark: '#581C87' }, // Violet
-      { dark: '#164E63' }, // Sky
-      { dark: '#064E3B' }, // Emerald
-      { dark: '#7C2D12' }, // Orange (variant)
-      { dark: '#831843' }, // Rose
-      { dark: '#312E81' }, // Indigo (variant)
-      { dark: '#365314' }, // Green (variant)
-    ];
-    
-    const colorIndex = (trackletId - 1) % predefinedColors.length;
-    return predefinedColors[colorIndex].dark;
-  }, []);
 
   // Check if a bounding box has an event annotation (synchronous)
   const getBoxEventAnnotation = useCallback((box: BoundingBox, frameNumber: number) => {
@@ -273,16 +213,31 @@ export default function MainCanvas() {
 
     // Draw existing bounding boxes
     boundingBoxes.forEach((box) => {
+      // Skip if this tracklet is hidden
+      if (!visibleTrackletIds.has(box.tracklet_id)) {
+        return;
+      }
+      
       const isSelected = selectedBoundingBox === box.id;
-      const boxColor = getTrackletColor(box.tracklet_id, isSelected);
+      const isSelectedTracklet = selectedTrackletId === box.tracklet_id;
+      const boxColor = getTrackletColor(box.tracklet_id, isSelected || isSelectedTracklet);
       
       ctx.strokeStyle = boxColor;
       // Keep line width constant regardless of zoom for better visibility
-      ctx.lineWidth = (isSelected ? 3 : 2) / zoomLevel;
+      // Make selected tracklet bounding boxes thicker
+      ctx.lineWidth = (isSelected ? 4 : isSelectedTracklet ? 3 : 2) / zoomLevel;
       // Use solid lines for all bounding boxes
       ctx.setLineDash([]);
       
-      ctx.strokeRect(box.x, box.y, box.width, box.height);
+      // Add glow effect for selected tracklet
+      if (isSelectedTracklet && !isSelected) {
+        ctx.shadowColor = boxColor;
+        ctx.shadowBlur = 10 / zoomLevel;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.shadowBlur = 0; // Reset shadow
+      } else {
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+      }
       
       // Draw tracklet ID and team label background at the bottom
       // Skip labels for ball annotations (tracklet_id === 99)
@@ -395,7 +350,7 @@ export default function MainCanvas() {
     });
 
     // Draw ball annotations as points
-    if (ballAnnotations && ballAnnotations.length > 0) {
+    if (ballAnnotations && ballAnnotations.length > 0 && visibleTrackletIds.has(99)) {
       ballAnnotations.forEach((ballAnnotation) => {
         // Only draw ball annotations for the current frame
         if (ballAnnotation.frame === currentFrameNumber) {
@@ -520,7 +475,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, currentRect, zoomLevel, panX, panY, getTrackletColor, getTrackletDarkColor, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, currentRect, zoomLevel, panX, panY, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -563,11 +518,53 @@ export default function MainCanvas() {
     if (ballAnnotationMode || selectedTrackletId === 99) {
       const rally = getCurrentRally();
       if (rally && rally.imageFiles[currentFrameIndex]) {
-        // Use consistent frame number calculation
         const frameNumber = getCurrentFrameNumber();
         if (frameNumber !== null) {
-          // Add ball annotation at the clicked point (always use tracklet ID 99)
-          addBallAnnotation(coords.x, coords.y, frameNumber, selectedEvent || undefined);
+          // Check if clicking on an existing ball annotation first
+          const ballRadius = 6;
+          const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
+            if (ballAnnotation.frame === frameNumber) {
+              const distance = Math.sqrt(
+                Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
+              );
+              return distance <= ballRadius;
+            }
+            return false;
+          });
+          
+          if (clickedBallAnnotation && selectedEvent) {
+            // Update the event for the existing ball annotation
+            const updatedAnnotations = annotations.map(ann => {
+              if (ann.frame === frameNumber && ann.tracklet_id === 99) {
+                return { ...ann, event: selectedEvent };
+              }
+              return ann;
+            });
+            
+            const updatedBallAnnotations = ballAnnotations.map(ann => {
+              if (ann.frame === frameNumber) {
+                return { ...ann, event: selectedEvent };
+              }
+              return ann;
+            });
+            
+            setAnnotations(updatedAnnotations);
+            useAppStore.setState({ ballAnnotations: updatedBallAnnotations });
+            
+            // Save the changes
+            setTimeout(async () => {
+              try {
+                await useAppStore.getState().saveAnnotationsToFile();
+              } catch (error) {
+                console.error('Error saving ball annotation event:', error);
+              }
+            }, 50);
+            
+            return; // Exit early after updating event
+          } else {
+            // Add new ball annotation at the clicked point (always use tracklet ID 99)
+            addBallAnnotation(coords.x, coords.y, frameNumber, selectedEvent || undefined);
+          }
         }
       }
       return; // Exit early to prevent other handlers
@@ -901,6 +898,32 @@ export default function MainCanvas() {
     };
   }, [isDrawing, startPoint, panX, panY, zoomLevel, canvasDimensions.width, canvasDimensions.height, handleMouseUp]);
 
+  // Add keyboard shortcut for zoom reset
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check if the focus is on an input element to avoid conflicts
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement?.tagName === 'INPUT' || 
+                            activeElement?.tagName === 'TEXTAREA' || 
+                            activeElement?.tagName === 'SELECT';
+      
+      if (isInputFocused) return;
+
+      // Reset zoom to 100% with "0" key or "Ctrl+0"
+      if (event.key === '0' && (event.ctrlKey || event.metaKey || !event.ctrlKey)) {
+        event.preventDefault();
+        useAppStore.setState({ 
+          zoomLevel: 1.0, 
+          panX: 0, 
+          panY: 0 
+        });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (!imagePath) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
@@ -962,7 +985,23 @@ export default function MainCanvas() {
 
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {t('common.frame')} {currentFrameIndex + 1} • {boundingBoxes.length} boxes • {t('common.zoom')}: {Math.round(zoomLevel * 100)}%
+          {t('common.frame')} {currentFrameIndex + 1} • {boundingBoxes.length} boxes • 
+          <button
+            onClick={() => {
+              // Reset zoom to 100% and center the image
+              useAppStore.setState({ 
+                zoomLevel: 1.0, 
+                panX: 0, 
+                panY: 0 
+              });
+            }}
+            className={`ml-1 hover:bg-gray-600 px-1 rounded transition-colors ${
+              Math.abs(zoomLevel - 1.0) < 0.01 ? 'text-green-400' : 'text-white hover:text-green-300'
+            }`}
+            title="Click to reset zoom to 100%"
+          >
+            {t('common.zoom')}: {Math.round(zoomLevel * 100)}%
+          </button>
         </div>
       </div>
     </div>

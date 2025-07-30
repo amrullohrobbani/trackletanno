@@ -40,8 +40,13 @@ interface AppState {
   showTrackletLabels: boolean;
   // Event label visibility
   showEventLabels: boolean;
+  // Individual tracklet visibility
+  visibleTrackletIds: Set<number>;
   setShowTrackletLabels: (show: boolean) => void;
   setShowEventLabels: (show: boolean) => void;
+  setTrackletVisibility: (trackletId: number, visible: boolean) => void;
+  showAllTracklets: () => void;
+  hideAllTracklets: () => void;
   
   // Ball annotation state
   ballAnnotationMode: boolean;
@@ -149,6 +154,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   showEventLabels: false,
   setShowEventLabels: (show) => set({ showEventLabels: show }),
   
+  // Initial tracklet visibility (all visible by default)
+  visibleTrackletIds: new Set(),
+  setTrackletVisibility: (trackletId, visible) => {
+    const { visibleTrackletIds } = get();
+    const newVisibleIds = new Set(visibleTrackletIds);
+    if (visible) {
+      newVisibleIds.add(trackletId);
+    } else {
+      newVisibleIds.delete(trackletId);
+    }
+    set({ visibleTrackletIds: newVisibleIds });
+  },
+  showAllTracklets: () => {
+    const { getAvailableTrackletIds } = get();
+    const allIds = getAvailableTrackletIds();
+    set({ visibleTrackletIds: new Set(allIds) });
+  },
+  hideAllTracklets: () => {
+    set({ visibleTrackletIds: new Set() });
+  },
+  
   // Initial ball annotation state
   ballAnnotationMode: false,
   ballAnnotations: [],
@@ -187,7 +213,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       annotations: [],
       boundingBoxes: [],
       ballAnnotations: [],
-      hasBallAnnotations: false
+      hasBallAnnotations: false,
+      visibleTrackletIds: new Set() // Reset visibility
     });
 
     // Load annotations if available and we're in an Electron environment
@@ -204,6 +231,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           ballAnnotations,
           hasBallAnnotations: ballAnnotations.length > 0
         });
+        
+        // Initialize visibility for all tracklet IDs
+        const availableIds = [...new Set(annotations.map(ann => ann.tracklet_id))];
+        set({ visibleTrackletIds: new Set(availableIds) });
         
         console.log(`Loaded ${annotations.length} total annotations, ${ballAnnotations.length} ball annotations`);
       } catch (error) {

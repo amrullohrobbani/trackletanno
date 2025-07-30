@@ -7,6 +7,8 @@ import { parseAnnotations } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import TimelineButton from '@/components/TimelineButton';
+import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { getTrackletColor } from '@/utils/trackletColors';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -36,7 +38,12 @@ export default function RightSidebar() {
     showEventLabels,
     setShowEventLabels,
     ballAnnotationMode,
-    setBallAnnotationMode
+    setBallAnnotationMode,
+    visibleTrackletIds,
+    setTrackletVisibility,
+    showAllTracklets,
+    hideAllTracklets,
+    deleteAllAnnotationsWithTrackletId
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -274,11 +281,29 @@ export default function RightSidebar() {
                   🎯 {t('sidebar.availableIds')}
                   <span className="text-xs bg-blue-600 px-2 py-1 rounded-full">{availableIds.length}</span>
                 </h3>
+                
+                {/* Show/Hide All Controls */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={showAllTracklets}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    <EyeIcon className="w-4 h-4" />
+                    Show All
+                  </button>
+                  <button
+                    onClick={hideAllTracklets}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    <EyeSlashIcon className="w-4 h-4" />
+                    Hide All
+                  </button>
+                </div>
                 {availableIds.length > 0 ? (
                   <div className="space-y-4">
                     {/* Ball ID - Special treatment at top */}
                     {availableIds.includes(99) && (
-                      <div>
+                      <div className="relative">
                         <button
                           onClick={() => handleSelectId(99)}
                           className={`w-full p-4 rounded-lg font-bold transition-all duration-200 border-2 flex items-center justify-center gap-3 ${
@@ -293,6 +318,32 @@ export default function RightSidebar() {
                             <span className="text-xs bg-orange-700 px-2 py-1 rounded">ACTIVE</span>
                           )}
                         </button>
+                        <button
+                          onClick={() => setTrackletVisibility(99, !visibleTrackletIds.has(99))}
+                          className={`absolute flex items-center justify-center top-2 left-2 w-6 h-6 rounded-full transition-colors ${
+                            visibleTrackletIds.has(99) 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-500 text-gray-300'
+                          }`}
+                          title={visibleTrackletIds.has(99) ? 'Hide ball annotations' : 'Show ball annotations'}
+                        >
+                          {visibleTrackletIds.has(99) ? (
+                            <EyeIcon className="w-4 h-4" />
+                          ) : (
+                            <EyeSlashIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Delete all ball annotations for this rally?')) {
+                              deleteAllAnnotationsWithTrackletId(99);
+                            }
+                          }}
+                          className="absolute flex items-center justify-center top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                          title="Delete all ball annotations"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
                     )}
 
@@ -300,23 +351,54 @@ export default function RightSidebar() {
                     {availableIds.filter(id => id !== 99).length > 0 && (
                       <div>
                         <h4 className="text-sm text-gray-400 mb-3">Player IDs:</h4>
-                        <div className="grid grid-cols-6 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
                           {availableIds
                             .filter(id => id !== 99)
                             .sort((a, b) => a - b)
                             .map((id) => (
                               <div key={id} className="flex flex-col gap-1">
-                                <button
-                                  onClick={() => handleSelectId(id)}
-                                  className={`p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative ${
-                                    selectedTrackletId === id
-                                      ? 'bg-blue-600 text-white border-blue-400 shadow-lg scale-105'
-                                      : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
-                                  }`}
-                                >
-                                  {id}
-                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full"></div>
-                                </button>
+                                <div className="relative">
+                                  <button
+                                    onClick={() => handleSelectId(id)}
+                                    className={`w-full p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative ${
+                                      selectedTrackletId === id
+                                        ? 'bg-blue-600 text-white border-blue-400 shadow-lg scale-105'
+                                        : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
+                                    }`}
+                                  >
+                                    {id}
+                                    <div 
+                                      className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: getTrackletColor(id) }}
+                                    ></div>
+                                  </button>
+                                  <button
+                                    onClick={() => setTrackletVisibility(id, !visibleTrackletIds.has(id))}
+                                    className={`absolute flex items-center justify-center -bottom-1 -left-1 w-5 h-5 rounded-full transition-colors ${
+                                      visibleTrackletIds.has(id) 
+                                        ? 'bg-green-500 text-white' 
+                                        : 'bg-gray-500 text-gray-300'
+                                    }`}
+                                    title={visibleTrackletIds.has(id) ? 'Hide bounding box' : 'Show bounding box'}
+                                  >
+                                    {visibleTrackletIds.has(id) ? (
+                                      <EyeIcon className="w-3 h-3" />
+                                    ) : (
+                                      <EyeSlashIcon className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`Delete all annotations for tracklet ID ${id}?`)) {
+                                        deleteAllAnnotationsWithTrackletId(id);
+                                      }
+                                    }}
+                                    className="absolute flex items-center justify-center -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                                    title={`Delete all annotations for tracklet ${id}`}
+                                  >
+                                    <TrashIcon className="w-3 h-3" />
+                                  </button>
+                                </div>
                                 <TimelineButton 
                                   trackletId={id} 
                                   variant="icon" 

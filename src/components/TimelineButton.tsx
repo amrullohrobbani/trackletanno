@@ -45,7 +45,7 @@ export default function TimelineButton({
     ${sizeClasses[size]} 
     ${variantClasses[variant]} 
     rounded font-medium transition-all duration-200 
-    flex items-center gap-2 
+    flex justify-center items-center gap-2 
     ${className}
   `.trim();
 
