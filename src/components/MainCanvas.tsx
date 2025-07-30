@@ -392,12 +392,12 @@ export default function MainCanvas() {
           ctx.lineTo(ballCenterX, ballCenterY + 2);
           ctx.stroke();
           
-          // Draw tracklet ID label for ball (always 99)
+          // Draw tracklet ID label for ball (always 99) - Position above the ball
           if (showTrackletLabels) {
             const labelWidth = 50;
             const labelHeight = 25;
             const labelX = ballAnnotation.x - labelWidth / 2;
-            const labelY = ballAnnotation.y - ballRadius - labelHeight - 5;
+            const labelY = ballAnnotation.y - ballRadius - labelHeight - 10; // Moved up more to avoid overlap
             
             // Draw label background
             ctx.fillStyle = 'rgba(255, 107, 53, 0.9)'; // Semi-transparent orange
@@ -426,8 +426,8 @@ export default function MainCanvas() {
             ctx.textBaseline = 'alphabetic';
           }
           
-          // Draw event label for ball if enabled and event exists
-          if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '') {
+          // Draw event label for ball if enabled and event exists - Position above the ball label
+          if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '' && ballAnnotation.event !== 'no_event') {
             const eventText = ballAnnotation.event.toUpperCase();
             const indicatorHeight = Math.max(20, 20 / zoomLevel);
             const padding = 4 / zoomLevel;
@@ -437,9 +437,11 @@ export default function MainCanvas() {
             const textWidth = ctx.measureText(eventText).width;
             const indicatorWidth = textWidth + (padding * 2);
             
-            // Position indicator below the ball
+            // Position indicator above the ball label (or above ball if no label)
             const indicatorX = ballAnnotation.x - indicatorWidth / 2;
-            const indicatorY = ballAnnotation.y + ballRadius + 5;
+            const indicatorY = showTrackletLabels 
+              ? ballAnnotation.y - ballRadius - 25 - indicatorHeight - 15 // Above the tracklet label
+              : ballAnnotation.y - ballRadius - indicatorHeight - 10; // Above the ball if no tracklet label
             
             // Draw background rectangle
             ctx.fillStyle = '#FFD700'; // Gold for ball events
@@ -568,6 +570,58 @@ export default function MainCanvas() {
         }
       }
       return; // Exit early to prevent other handlers
+    }
+
+    // Handle clicking on ball annotation indicator for event annotation (when not in ball annotation mode)
+    if (!ballAnnotationMode && selectedTrackletId !== 99) {
+      const rally = getCurrentRally();
+      if (rally && rally.imageFiles[currentFrameIndex]) {
+        const frameNumber = getCurrentFrameNumber();
+        if (frameNumber !== null) {
+          // Check if clicking on an existing ball annotation
+          const ballRadius = 6;
+          const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
+            if (ballAnnotation.frame === frameNumber) {
+              const distance = Math.sqrt(
+                Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
+              );
+              return distance <= ballRadius;
+            }
+            return false;
+          });
+          
+          if (clickedBallAnnotation && selectedEvent) {
+            // Update the event for the existing ball annotation
+            const updatedAnnotations = annotations.map(ann => {
+              if (ann.frame === frameNumber && ann.tracklet_id === 99) {
+                return { ...ann, event: selectedEvent };
+              }
+              return ann;
+            });
+            
+            const updatedBallAnnotations = ballAnnotations.map(ann => {
+              if (ann.frame === frameNumber) {
+                return { ...ann, event: selectedEvent };
+              }
+              return ann;
+            });
+            
+            setAnnotations(updatedAnnotations);
+            useAppStore.setState({ ballAnnotations: updatedBallAnnotations });
+            
+            // Save the changes
+            setTimeout(async () => {
+              try {
+                await useAppStore.getState().saveAnnotationsToFile();
+              } catch (error) {
+                console.error('Error saving ball annotation event:', error);
+              }
+            }, 50);
+            
+            return; // Exit early after updating event
+          }
+        }
+      }
     }
 
     if (assignMode) {

@@ -680,7 +680,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       jersey_number: '',
       jersey_color: '',
       team: '',
-      event: event || ''
+      event: event || 'no_event'
     };
     
     const updatedAnnotations = [...filteredAnnotations, newBallAnnotation];
