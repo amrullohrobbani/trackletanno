@@ -923,9 +923,9 @@ export default function RightSidebar() {
                   <div>
                     <h5 className="text-white font-medium mb-2">🎨 {t('instructions.visualCues.title')}</h5>
                     <ul className="space-y-1">
-                      <li>• {t('instructions.visualCues.uniqueColors')}</li>
+                      {/* <li>• {t('instructions.visualCues.uniqueColors')}</li> */}
                       <li>• {t('instructions.visualCues.selectedBoxes')}</li>
-                      <li>• {t('instructions.visualCues.currentMode')}</li>
+                      {/* <li>• {t('instructions.visualCues.currentMode')}</li> */}
                       <li>• {t('instructions.visualCues.zoomLevel')}</li>
                     </ul>
                   </div>
