@@ -96,54 +96,71 @@
     "selectBoxToEdit": "Select a bounding box to edit its details"
   },
   "instructions": {
-    "howToUse": "How to Use This App",
+    "howToUse": "Quick Reference Guide",
     "navigation": {
-      "title": "Navigation",
+      "title": "🎯 Navigation & Controls",
       "prevNext": "Previous/Next frame",
-      "jumpFrame": "Click frame number input to jump to specific frame",
-      "zoom": "Mouse wheel - Zoom in/out on canvas",
-      "pan": "Right-click + drag - Pan around zoomed image"
+      "jumpFrame": "Click timeline to jump to specific frames",
+      "zoom": "Mouse wheel - Zoom in/out (Press 0 to reset to 100%)",
+      "pan": "Right-click + drag or Middle-click + drag to pan around image"
     },
     "drawing": {
-      "title": "Drawing & Assigning",
-      "selectId": "Select a tracklet ID from the list above",
-      "drawingMode": "Switch to Drawing mode",
-      "assignMode": "Switch to Assign mode",
-      "drawMode": "Draw mode: Click & drag to create new bounding boxes",
-      "assignModeDesc": "Assign mode: Click existing boxes to assign selected ID"
+      "title": "✏️ Player Annotation Modes",
+      "selectId": "1. Select tracklet ID (1-98) from grid above",
+      "drawingMode": "2. Press D or click 'Draw New Bounding Box'",
+      "assignMode": "3. Press A or click 'Assign Tracklet ID'",
+      "drawMode": "Drawing: Click & drag to create new bounding boxes",
+      "assignModeDesc": "Assignment: Click existing boxes to reassign tracklet IDs"
+    },
+    "ball": {
+      "title": "⚽ Ball Annotation", 
+      "ballMode": "Click 'Ball Annotation' or select tracklet 99",
+      "ballClick": "Click precise ball center position to place markers",
+      "ballEvent": "Select event first, then click ball for event tagging",
+      "ballDelete": "Right-click ball markers to delete them"
     },
     "editing": {
-      "title": "Editing Annotations",
-      "selectBox": "Click any bounding box to select it",
-      "editDetails": "Use \"Edit Details\" to modify player information",
-      "eventAnnotation": "Use \"Event Annotation\" section: select event (click or hotkey Q,W,E,R,T,Y,U,I), then click bounding box",
-      "playerDetails": "Player details apply to ALL frames with same tracklet ID",
-      "events": "Events apply only to the current frame",
-      "delete": "Delete individual boxes or entire tracklet IDs"
+      "title": "📝 Event & Detail Editing",
+      "selectBox": "Click bounding boxes to select them",
+      "editDetails": "Use 'Edit Details' to set player info (applies to all frames)",
+      "eventAnnotation": "Select event from dropdown, then click any annotation",
+      "eventHotkeys": "Use Q,W,E,R,T,Y,U,I,N keys for quick event selection",
+      "events": "Events apply per frame, details apply to entire tracklet",
+      "delete": "Use trash icons to delete individual tracklets or all frames"
+    },
+    "visibility": {
+      "title": "👁️ Visibility & Display Controls",
+      "trackletToggle": "Eye icons: Show/hide individual tracklets",
+      "labelToggle": "Toggle tracklet labels and event labels separately", 
+      "showAll": "Show All / Hide All buttons for bulk visibility control",
+      "ballToggle": "Special eye icon for ball annotations (ID 99)"
     },
     "fileManagement": {
-      "title": "File Management",
-      "autoSave": "All changes are automatically saved",
-      "csvSupport": "Supports 7-12 column CSV annotation format",
-      "switchRallies": "Switch between rallies using left sidebar",
-      "dataPreserved": "Original data is preserved and backed up"
+      "title": "💾 File Management",
+      "autoSave": "All changes automatically saved to CSV files",
+      "csvSupport": "Supports standard tracklet annotation CSV format",
+      "switchRallies": "Use left sidebar to navigate between rally folders",
+      "dataPreserved": "Original data preserved with automatic backups"
     },
     "visualCues": {
-      "title": "Visual Cues",
-      "uniqueColors": "Each tracklet ID has a unique color",
-      "selectedBoxes": "Selected boxes have thicker borders",
-      "currentMode": "Current mode shown in top-left corner",
-      "zoomLevel": "Zoom level displayed in bottom-right"
+      "title": "🎨 Visual System",
+      "teamColors": "Blue (Home), Red (Away), Gray (Others), Orange (Ball)",
+      "eventColors": "Red (Serve), Blue (Receive), Green (Dig), Yellow (Pass), etc.",
+      "selectedBoxes": "Selected items have thicker borders and glow effects",
+      "modeIndicator": "Current mode shown in top-left corner of canvas",
+      "zoomLevel": "Zoom percentage in bottom-right (click to reset)"
     }
   },
   "quickTips": {
-    "title": "Quick Tips",
-    "consistentIds": "Use consistent tracklet IDs across frames for tracking",
-    "zoomIn": "Zoom in for precise bounding box placement", 
-    "editOnce": "Edit player details once - applies to all frames",
-    "useHotkeys": "Use QWERTY hotkeys (Q,W,E,R,T,Y,U,I,N) for quick event selection, then click boxes",
-    "eventsPerFrame": "Events are assigned per frame, tracklet IDs apply to all frames",
-    "saveTime": "Save time by using assign mode for existing boxes"
+    "title": "💡 Pro Tips",
+    "workflow": "Efficient workflow: Draw all boxes first, then assign events",
+    "zoomIn": "Zoom in (mouse wheel) for precise annotation placement", 
+    "consistency": "Use consistent tracklet IDs across frames for proper tracking",
+    "useHotkeys": "Master hotkeys: Z/X (frames), D/A (modes), Q-N (events)",
+    "ballTracking": "Track ball continuously - use event tags for key moments",
+    "timeline": "Use timeline view to check annotation coverage and gaps",
+    "visibility": "Hide completed tracklets to focus on remaining work",
+    "eventsPerFrame": "Events are frame-specific, player details apply globally"
   },
   "modes": {
     "drawing": "Drawing",

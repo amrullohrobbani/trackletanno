@@ -873,6 +873,17 @@ export default function RightSidebar() {
                     </ul>
                   </div>
 
+                  {/* Ball Annotation */}
+                  <div>
+                    <h5 className="text-white font-medium mb-2">⚽ {t('instructions.ball.title')}</h5>
+                    <ul className="space-y-1">
+                      <li>• {t('instructions.ball.ballMode')}</li>
+                      <li>• {t('instructions.ball.ballClick')}</li>
+                      <li>• {t('instructions.ball.ballEvent')}</li>
+                      <li>• {t('instructions.ball.ballDelete')}</li>
+                    </ul>
+                  </div>
+
                   {/* Editing */}
                   <div>
                     <h5 className="text-white font-medium mb-2">📝 {t('instructions.editing.title')}</h5>
@@ -880,9 +891,20 @@ export default function RightSidebar() {
                       <li>• {t('instructions.editing.selectBox')}</li>
                       <li>• {t('instructions.editing.editDetails')}</li>
                       <li>• {t('instructions.editing.eventAnnotation')}</li>
-                      <li>• {t('instructions.editing.playerDetails')}</li>
+                      <li>• {t('instructions.editing.eventHotkeys')}</li>
                       <li>• {t('instructions.editing.events')}</li>
                       <li>• {t('instructions.editing.delete')}</li>
+                    </ul>
+                  </div>
+
+                  {/* Visibility Controls */}
+                  <div>
+                    <h5 className="text-white font-medium mb-2">👁️ {t('instructions.visibility.title')}</h5>
+                    <ul className="space-y-1">
+                      <li>• {t('instructions.visibility.trackletToggle')}</li>
+                      <li>• {t('instructions.visibility.labelToggle')}</li>
+                      <li>• {t('instructions.visibility.showAll')}</li>
+                      <li>• {t('instructions.visibility.ballToggle')}</li>
                     </ul>
                   </div>
 
@@ -915,12 +937,14 @@ export default function RightSidebar() {
               <div className="mt-4 p-3 bg-blue-900 border border-blue-700 rounded-lg">
                 <h4 className="text-sm font-medium mb-2 text-blue-200">💡 {t('quickTips.title')}</h4>
                 <ul className="text-xs text-blue-300 space-y-1">
-                  <li>• {t('quickTips.consistentIds')}</li>
+                  <li>• {t('quickTips.workflow')}</li>
                   <li>• {t('quickTips.zoomIn')}</li>
-                  <li>• {t('quickTips.editOnce')}</li>
+                  <li>• {t('quickTips.consistency')}</li>
                   <li>• {t('quickTips.useHotkeys')}</li>
+                  <li>• {t('quickTips.ballTracking')}</li>
+                  <li>• {t('quickTips.timeline')}</li>
+                  <li>• {t('quickTips.visibility')}</li>
                   <li>• {t('quickTips.eventsPerFrame')}</li>
-                  <li>• {t('quickTips.saveTime')}</li>
                 </ul>
               </div>
             </>

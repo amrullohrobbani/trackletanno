@@ -1,234 +1,482 @@
-# Tracklet Annotation Tool
+# Tracklet Annotation Tool - Complete User Manual
 
-A cross-platform desktop application for annotating tracklet IDs in video frames, built with Electron, Next.js, and Tailwind CSS.
+A comprehensive desktop application for annotating tracklet IDs and ball positions in video frames, built with Electron, Next.js, and Tailwind CSS.
 
-## Features
+## Table of Contents
 
-- **Three-column responsive layout** with intuitive navigation
-- **Real-time bounding box drawing and editing** on 1920x1080 image frames
-- **Team-based color coding** for bounding boxes based on team annotations
-- **Automatic file saving** with visual feedback indicators
-- **Keyboard shortcuts** for efficient workflow (Z/X for frame navigation, D/A for annotation modes)
-- **Directory tree navigation** for managing multiple rally datasets
-- **Tracklet ID management** with custom ID support
-- **Secure file system access** through Electron IPC
+1. [Quick Start](#quick-start)
+2. [Application Overview](#application-overview)
+3. [Data Format](#data-format)
+4. [Interface Guide](#interface-guide)
+5. [Annotation Modes](#annotation-modes)
+6. [Step-by-Step CRUD Operations](#step-by-step-crud-operations)
+7. [Keyboard Shortcuts](#keyboard-shortcuts)
+8. [Advanced Features](#advanced-features)
+9. [Troubleshooting](#troubleshooting)
+10. [Development](#development)
 
-## Architecture
+---
 
-- **Frontend**: Next.js with TypeScript and Tailwind CSS
-- **Desktop**: Electron for native functionality and file system access
-- **State Management**: Zustand for efficient global state management
-- **Canvas**: HTML5 Canvas for image display and bounding box interaction
-- **Icons**: Heroicons for consistent UI components
+## Quick Start
+
+### Installation & Launch
+1. **Clone and install:**
+   ```bash
+   git clone <repository-url>
+   cd trackletanno
+   npm install
+   ```
+
+2. **Run the application:**
+   ```bash
+   npm run electron-dev
+   ```
+
+3. **First time setup:**
+   - Click "Search Directory" to select your dataset folder
+   - Navigate through the directory tree to select a rally
+   - Start annotating!
+
+---
+
+## Application Overview
+
+The Tracklet Annotation Tool is designed for sports video analysis, specifically for annotating player tracklets and ball positions in volleyball matches. The application features a three-column layout optimized for efficient annotation workflows.
+
+### Key Features
+- **Player Bounding Box Annotation** - Draw and manage player tracklets with team assignments
+- **Ball Position Annotation** - Mark precise ball locations with event tagging
+- **Event Annotation** - Tag actions like "serve", "spike", "dig", etc.
+- **Real-time Visual Feedback** - Color-coded boxes, visibility controls, and progress indicators
+- **Automatic File Management** - Seamless saving and loading of annotation data
+- **Timeline Visualization** - See annotation coverage across frames
+- **Zoom & Pan Controls** - Navigate high-resolution frames with precision
+
+---
 
 ## Data Format
 
-The application expects annotation files in CSV format with the following columns (no header required):
+### CSV Annotation Structure
+Annotation files use CSV format without headers:
 ```
 frame,tracklet_id,x,y,w,h,score,role,jersey_number,jersey_color,team
 ```
 
-Each line represents one annotation with:
-- `frame`: Frame number (extracted from image filename, e.g., 000001.jpg = frame 1)
-- `tracklet_id`: Unique identifier for the tracklet
+**Field Descriptions:**
+- `frame`: Frame number (matches image filename: 000001.jpg = frame 1)
+- `tracklet_id`: Unique player identifier (1-98 for players, 99 for ball)
 - `x,y`: Top-left corner coordinates of bounding box
-- `w,h`: Width and height of bounding box
-- `score`: Confidence score (typically 1.0 for manual annotations)
-- `role`: Role/category (e.g., "player", can be empty)
-- `jersey_number`: Player's jersey number (can be empty)
-- `jersey_color`: Color of the jersey (can be empty)
-- `team`: Team identifier using numeric values: 0=home, 1=away, -1=others
-
-### Team Color System
-
-Bounding boxes are automatically color-coded based on the `team` field in annotations:
-
-- **Blue**: Home team (0)
-- **Red**: Away team (1)
-- **Gray**: Others (-1)
-
-The system also supports legacy text-based team values for backward compatibility.
+- `w,h`: Width and height of bounding box  
+- `score`: Confidence score (1.0 for manual annotations)
+- `role`: Player role (e.g., "player", can be empty)
+- `jersey_number`: Player's jersey number (optional)
+- `jersey_color`: Color of jersey (optional)
+- `team`: Team identifier (0=home, 1=away, -1=others)
+- `event`: Action/event type (e.g., "serve", "spike", "dig")
 
 ### Expected Directory Structure
-
 ```
-selected_directory/
-├── sets_1/
-│   ├── rally_1/
-│   │   ├── annotations.txt
-│   │   ├── 000001.jpg
+dataset/
+├── volleyball_tracking_data/
+│   ├── rally_001/
+│   │   ├── rally_001.txt        # Annotation file
+│   │   ├── 000001.jpg          # Frame images
 │   │   ├── 000002.jpg
 │   │   └── ...
-│   ├── rally_2/
+│   ├── rally_002/
 │   │   └── ...
 │   └── ...
-└── ...
 ```
 
-## Installation
+### Team Color System
+- **🔵 Blue**: Home team (team = 0)
+- **🔴 Red**: Away team (team = 1)  
+- **⚫ Gray**: Others/Referees (team = -1)
+- **🟠 Orange**: Ball annotations (tracklet_id = 99)
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd trackletanno
-   ```
+---
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+## Interface Guide
 
-## Development
+### Three-Column Layout
 
-### Web Development
-```bash
-npm run dev
-```
-This starts the Next.js development server at `http://localhost:3000`.
+#### Left Sidebar - Navigation & Controls
+- **Directory Tree**: Browse and select rally folders
+- **Frame Navigation**: Previous/Next frame controls
+- **Annotation Modes**: Drawing, Assignment, Ball Annotation buttons
+- **Visibility Controls**: Toggle tracklet labels and event labels
+- **Save Status**: Real-time save indicators
 
-### Electron Development
-```bash
-npm run electron-dev
-```
-This starts both the Next.js development server and Electron application.
+#### Main Canvas - Annotation Area  
+- **Image Display**: Current frame with zoom/pan controls
+- **Bounding Boxes**: Color-coded player annotations
+- **Ball Indicators**: Orange circular markers for ball positions
+- **Event Labels**: Colored tags showing assigned events
+- **Mode Indicators**: Current mode and zoom level display
 
-### Building for Production
-```bash
-npm run build-electron
-```
-This creates a production build and packages the Electron application.
+#### Right Sidebar - Tracklet Management
+- **Player ID Grid**: 5-column grid of tracklet IDs (1-98)
+- **Ball Controls**: Special ball annotation controls (ID 99)
+- **Event Selector**: Dropdown for event types (serve, spike, dig, etc.)
+- **Timeline View**: Visualization of annotation coverage
+- **Delete Functions**: Individual and bulk deletion options
 
-## Usage
+---
 
-### Getting Started
+## Annotation Modes
 
-1. **Launch the application** using one of the development commands above
-2. **Select a directory** containing your tracklet annotation data using the "Search Directory" button
-3. **Navigate the directory tree** in the left sidebar to select a rally folder
-4. **Select a tracklet ID** from the right sidebar before starting annotation
+The application operates in different modes for various annotation tasks:
 
-### Annotation Workflow
+### 1. 🎯 Selection Mode (Default)
+**Purpose**: Navigate and select existing annotations
+- **Visual**: Default cursor, no special indicators
+- **Function**: Click to select bounding boxes, view annotations
+- **Use case**: Reviewing existing work, preparing for editing
 
-#### Drawing New Bounding Boxes
-1. Select a tracklet ID from the right sidebar
-2. Click "Draw New Bounding Box" in the left sidebar (or press 'D')
-3. Click and drag on the main canvas to draw a new bounding box
-4. The bounding box will be automatically assigned to the selected tracklet ID
+### 2. ✏️ Drawing Mode
+**Purpose**: Create new player bounding boxes
+- **Visual**: Crosshair cursor, "Drawing - ID: X" indicator
+- **Function**: Click and drag to draw new boxes
+- **Use case**: Adding new player annotations
 
-#### Assigning Existing Bounding Boxes
-1. Select a tracklet ID from the right sidebar
-2. Click "Assign Tracklet ID" in the left sidebar (or press 'A')
-3. Click on an existing bounding box to reassign it to the selected tracklet ID
+### 3. 🔄 Assignment Mode  
+**Purpose**: Reassign existing bounding boxes to different tracklet IDs
+- **Visual**: Crosshair cursor, "Assign - ID: X" indicator
+- **Function**: Click existing boxes to change their tracklet ID
+- **Use case**: Correcting misassigned player IDs
 
-#### Navigation
-- **Z key**: Navigate to previous frame
-- **X key**: Navigate to next frame
-- **D key**: Toggle drawing mode
-- **A key**: Toggle assign mode
+### 4. ⚽ Ball Annotation Mode
+**Purpose**: Mark ball positions with precise center points
+- **Visual**: Crosshair cursor, "Ball Annotation Mode" indicator
+- **Function**: Click to place ball markers, auto-assigns ID 99
+- **Use case**: Tracking ball position throughout rally
 
-### File Management
+---
 
-- **Automatic saving**: All changes are automatically saved to the original annotation file
-- **Save indicators**: Visual feedback shows saving status (saving/saved/error)
-- **File validation**: The application validates annotation file format on load
+## Step-by-Step CRUD Operations
 
-## Component Overview
+### 🔷 Player Bounding Box Operations
 
-### Key Components
+#### CREATE - Adding New Player Annotation
+1. **Select Tracklet ID**
+   - Go to Right Sidebar → Player ID Grid
+   - Click on desired player ID (1-98)
+   - Selected ID becomes highlighted in blue
 
-- **DirectorySelector**: Initial screen for selecting annotation data directory
-- **LeftSidebar**: Contains annotation controls and directory tree navigation
-- **MainCanvas**: Handles image display, bounding box drawing, and annotation interactions
-- **RightSidebar**: Manages tracklet ID selection and display
-- **LoadingSpinner**: Shows loading state during file operations
-- **SaveIndicator**: Provides visual feedback for save operations
+2. **Enter Drawing Mode**
+   - Click "Draw New Bounding Box" in Left Sidebar, OR
+   - Press `D` key
+   - Canvas cursor changes to crosshair
+   - Mode indicator shows "Drawing - ID: X"
 
-### State Management
+3. **Draw Bounding Box**
+   - Position cursor at top-left corner of player
+   - Click and hold mouse button
+   - Drag to bottom-right corner
+   - Release mouse button
+   - Box automatically appears with tracklet ID assigned
 
-The application uses Zustand for state management with the following key stores:
+4. **Verify Creation**
+   - New annotation appears in team color
+   - Tracklet label shows "ID: X" (if labels enabled)
+   - File automatically saves with visual confirmation
 
-- **Directory and data management**: Selected directory, rally folders, current frame
-- **UI state**: Drawing mode, assign mode, selected elements, loading states
-- **Canvas state**: Bounding boxes, selections, annotations
-- **Actions**: Frame navigation, annotation operations, file operations
+#### READ - Viewing Player Annotations
+1. **Navigate Frames**
+   - Use Previous/Next buttons in Left Sidebar, OR
+   - Press `Z` (previous) / `X` (next) keys
 
-## Electron Integration
+2. **Toggle Visibility**
+   - Left Sidebar → "Show Tracklet Labels" checkbox
+   - Left Sidebar → "Show Event Labels" checkbox
+   - Right Sidebar → Eye icons for individual tracklet visibility
 
-The application uses Electron's IPC (Inter-Process Communication) for secure file operations:
+3. **View Timeline**
+   - Right Sidebar → Click "Timeline" button
+   - Modal shows annotation coverage across all frames
+   - Red blocks indicate frames with annotations
 
-- **Main process** (`electron/main.js`): Handles file I/O, directory selection, and native OS interactions
-- **Preload script** (`electron/preload.js`): Provides secure API bridge between main and renderer processes
-- **Renderer process** (Next.js app): Handles UI and user interactions
+#### UPDATE - Modifying Player Annotations
 
-### Security
+**Reassigning Tracklet ID:**
+1. **Select New Tracklet ID**
+   - Right Sidebar → Click desired new player ID
 
-- **Context isolation**: Renderer process cannot directly access Node.js APIs
-- **Preload script**: Provides controlled access to file system operations
-- **IPC validation**: All file operations are validated in the main process
+2. **Enter Assignment Mode**
+   - Click "Assign Tracklet ID" in Left Sidebar, OR
+   - Press `A` key
+   - Mode indicator shows "Assign - ID: X"
+
+3. **Reassign Box**
+   - Click on existing bounding box to reassign
+   - Box immediately changes to new ID and color
+   - File automatically saves
+
+**Adding Event Annotation:**
+1. **Select Event Type**
+   - Right Sidebar → Event dropdown → Choose event (serve, spike, etc.)
+
+2. **Assign to Bounding Box**
+   - Click directly on any existing bounding box
+   - Event label appears in top-right corner of box
+   - Color-coded by event type (red=serve, blue=receive, etc.)
+
+#### DELETE - Removing Player Annotations
+
+**Delete Single Annotation:**
+1. **Navigate to Target Frame**
+   - Use frame navigation to find annotation to delete
+
+2. **Delete Specific Tracklet**
+   - Right Sidebar → Find tracklet ID
+   - Click trash icon (🗑️) next to desired ID
+   - Confirm deletion in popup dialog
+   - Annotation removed from current frame only
+
+**Delete All Annotations for Tracklet:**
+1. **Select Tracklet to Delete**
+   - Right Sidebar → Find tracklet ID
+
+2. **Delete Across All Frames**
+   - Click trash icon (🗑️) next to tracklet ID
+   - Choose "Delete from all frames" option
+   - Confirm in dialog - removes ALL instances of this tracklet ID
+
+### 🟠 Ball Annotation Operations
+
+#### CREATE - Adding Ball Position
+1. **Enter Ball Mode**
+   - Right Sidebar → Click "Ball Annotation" button, OR
+   - Right Sidebar → Click on "Ball 99" button
+   - Mode indicator shows "Ball Annotation Mode"
+
+2. **Place Ball Marker**
+   - Click precisely at ball center position
+   - Orange circular marker appears with crosshair center
+   - Ball label shows "Ball 99" (if labels enabled)
+
+3. **Add Event (Optional)**
+   - Select event from dropdown before placing ball
+   - Ball automatically gets event assignment
+   - Event label appears above ball marker
+
+#### READ - Viewing Ball Annotations
+1. **Toggle Ball Visibility**
+   - Right Sidebar → Eye icon next to "Ball 99"
+   - Shows/hides all ball annotations
+
+2. **View Ball Timeline**
+   - Right Sidebar → Timeline button
+   - Ball annotations appear as orange indicators
+
+#### UPDATE - Modifying Ball Annotations
+
+**Moving Ball Position:**
+1. **Enter Ball Mode**
+   - Click "Ball Annotation" button
+
+2. **Replace Position**
+   - Click new position for ball
+   - Previous ball annotation on same frame is automatically replaced
+
+**Adding/Changing Ball Event:**
+1. **Select Event**
+   - Right Sidebar → Event dropdown → Choose event
+
+2. **Apply to Ball**
+   - Click directly on existing ball marker
+   - Event label appears above ball (gold background)
+
+#### DELETE - Removing Ball Annotations
+1. **Right-Click Ball Marker**
+   - Right-click directly on orange ball indicator
+   - Confirm deletion in popup dialog
+   - Ball annotation removed from current frame
+
+---
+
+## Keyboard Shortcuts
+
+| Key | Function | Description |
+|-----|----------|-------------|
+| `Z` | Previous Frame | Navigate to previous frame |
+| `X` | Next Frame | Navigate to next frame |
+| `D` | Drawing Mode | Toggle drawing mode on/off |
+| `A` | Assignment Mode | Toggle assignment mode on/off |
+| `0` | Reset Zoom | Reset zoom to 100% and center image |
+| `Ctrl+0` | Reset Zoom | Alternative zoom reset shortcut |
+
+### Mouse Controls
+| Action | Function |
+|--------|----------|
+| Left Click | Draw box / Select / Assign |
+| Right Click | Pan image / Delete ball (on ball marker) |
+| Middle Click | Pan image |
+| Mouse Wheel | Zoom in/out at cursor position |
+| Click + Drag | Draw bounding box (drawing mode) |
+
+---
+
+## Advanced Features
+
+### 🔍 Zoom & Pan System
+- **Zoom**: Mouse wheel to zoom in/out at cursor position
+- **Pan**: Right-click or middle-click and drag to move around image  
+- **Reset**: Press `0` to snap back to 100% zoom and center
+- **Visual Feedback**: Zoom percentage shown in bottom-right corner
+
+### 👁️ Visibility Controls
+- **Individual Tracklets**: Eye icons in right sidebar to show/hide specific player IDs
+- **Ball Toggle**: Special eye icon for ball annotations (ID 99)
+- **Label Types**: Separate toggles for tracklet labels and event labels
+- **Persistent Settings**: Visibility preferences maintained across frames
+
+### 📊 Timeline Visualization
+- **Coverage View**: Visual representation of annotation density
+- **Frame Navigation**: Click timeline to jump to specific frames
+- **Progress Tracking**: See completion status at a glance
+- **Multi-tracklet Display**: Different colors for different players
+
+### 🎨 Color Coding System
+**Bounding Box Colors:**
+- Blue: Home team players
+- Red: Away team players  
+- Gray: Others (referees, etc.)
+- Orange: Ball annotations
+
+**Event Label Colors:**
+- Red: Serve
+- Blue: Receive  
+- Green: Dig
+- Yellow: Pass
+- Purple: Set
+- Orange: Spike
+- Gray: Block
+- Dark Red: Kill
+
+### 💾 Automatic Saving
+- **Real-time Updates**: All changes saved immediately to CSV file
+- **Visual Feedback**: Save status indicator shows saving/saved/error states
+- **Data Integrity**: Automatic backup and validation
+- **No Manual Save**: Never worry about losing work
+
+---
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues & Solutions
 
-1. **"This feature is only available in the desktop application"**
-   - This message appears when running in web mode. Use `npm run electron-dev` for full functionality.
+#### "This feature is only available in the desktop application"
+- **Cause**: Running in web browser mode
+- **Solution**: Use `npm run electron-dev` instead of `npm run dev`
 
-2. **"No rally folders found"**
-   - Ensure your directory structure matches the expected format
-   - Check that annotation files are named with `.txt` extension
-   - Verify that image files have supported extensions (jpg, jpeg, png, bmp)
+#### Images not loading or appearing blank
+- **Cause**: File path or permission issues
+- **Solutions**:
+  - Check that image files are in same folder as annotation file
+  - Verify image formats are supported (jpg, jpeg, png, bmp)
+  - Ensure file permissions allow reading
+  - Try restarting the application
 
-3. **Images not loading**
-   - Check file paths and permissions
-   - Ensure image files are in the same directory as annotation files
-   - Verify image file formats are supported
+#### "No rally folders found" message
+- **Cause**: Directory structure doesn't match expected format
+- **Solutions**:
+  - Ensure annotation files have `.txt` extension
+  - Check that image files are present in rally folders
+  - Verify directory naming follows expected pattern
+  - Make sure both annotation file and images are in same subfolder
 
-## Development Notes
+#### Bounding boxes not appearing
+- **Cause**: Annotation data format issues or frame mismatch
+- **Solutions**:
+  - Check CSV format matches expected structure
+  - Verify frame numbers in annotations match image filenames
+  - Ensure tracklet IDs are within valid range (1-98 for players, 99 for ball)
+  - Check that tracklet visibility is enabled (eye icons)
 
-- The application is optimized for 1920x1080 image resolution
-- Canvas coordinates are automatically scaled for display
-- All file operations are performed through Electron's secure IPC mechanism
-- State management is centralized through Zustand for predictable updates
+#### Performance issues with large datasets
+- **Solutions**:
+  - Close unnecessary applications
+  - Work with smaller rally folders when possible
+  - Restart application periodically for long sessions
+  - Ensure sufficient disk space for saving
 
-## Contributing
+#### Drawing mode not working
+- **Check**:
+  - Valid tracklet ID is selected (1-98, not 99 for regular boxes)
+  - Drawing mode is actually enabled (check mode indicator)
+  - Mouse is being clicked and dragged (not just clicked)
+  - Minimum box size requirement (5x5 pixels)
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly with sample data
-5. Submit a pull request
+---
 
-## License
+## Development
 
-[Add your license information here]
+### System Requirements
+- Node.js 16+ 
+- npm or yarn package manager
+- Electron-compatible operating system (Windows, macOS, Linux)
 
+### Development Commands
 ```bash
+# Web development (limited functionality)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Full Electron development
+npm run electron-dev
+
+# Build for production
+npm run build
+npm run build-electron
+
+# Linting and code quality
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Architecture Overview
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
+- **Desktop**: Electron with secure IPC communication
+- **State Management**: Zustand for predictable state updates
+- **Canvas Rendering**: HTML5 Canvas with zoom/pan transformations
+- **File Handling**: Secure electron-based file system access
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Key Components
+- `MainCanvas.tsx`: Core annotation interface with drawing logic
+- `LeftSidebar.tsx`: Navigation and mode controls
+- `RightSidebar.tsx`: Tracklet management and timeline
+- `DirectorySelector.tsx`: Initial dataset selection
+- `appStore.ts`: Centralized state management with Zustand
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Security Features
+- Context isolation between main and renderer processes
+- Secure IPC communication for file operations
+- No direct file system access from renderer
+- Validated data sanitization for all user inputs
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Tips for Efficient Annotation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Workflow Optimization
+1. **Plan Your Session**: Review video first to understand player movements
+2. **Use Keyboard Shortcuts**: Memorize `Z`/`X` for frame navigation and `D`/`A` for modes
+3. **Leverage Visibility Controls**: Hide completed tracklets to focus on remaining work
+4. **Timeline Feedback**: Use timeline view to track progress and find gaps
+5. **Batch Similar Operations**: Do all drawing first, then assignments, then events
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Quality Control
+- **Regular Timeline Checks**: Ensure consistent tracklet coverage
+- **Event Validation**: Verify event assignments match actual actions
+- **Team Assignment**: Double-check team colors match player affiliations
+- **Ball Tracking**: Maintain continuous ball annotation throughout rallies
 
-## Deploy on Vercel
+### Performance Tips
+- **Work in Segments**: Complete annotation frame-by-frame rather than jumping around
+- **Use Zoom Effectively**: Zoom in for precise box placement, zoom out for context
+- **Save Frequently**: Though auto-save is enabled, manually verify save status
+- **Clean Workspace**: Close unused rallies and restart application for long sessions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*This manual covers the complete functionality of the Tracklet Annotation Tool. For technical support or feature requests, please refer to the project repository or contact the development team.*
+
