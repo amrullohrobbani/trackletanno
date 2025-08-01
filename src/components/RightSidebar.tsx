@@ -361,20 +361,27 @@ export default function RightSidebar() {
                     {availableIds.filter(id => id !== 99).length > 0 && (
                       <div>
                         <h4 className="text-sm text-gray-400 mb-3">Player IDs:</h4>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div 
+                          className="grid gap-2 w-full"
+                          style={{ 
+                            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                            display: 'grid'
+                          }}
+                        >
                           {availableIds
                             .filter(id => id !== 99)
                             .sort((a, b) => a - b)
                             .map((id) => (
-                              <div key={id} className="flex flex-col gap-1">
+                              <div key={id} className="flex flex-col gap-1 w-full">
                                 <div className="relative w-full">
                                   <button
                                     onClick={() => handleSelectId(id)}
-                                    className={`w-full aspect-square p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative flex items-center justify-center ${
+                                    className={`w-full p-2 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative flex items-center justify-center ${
                                       selectedTrackletId === id
                                         ? 'bg-blue-600 text-white border-blue-400 shadow-lg scale-105'
                                         : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
                                     }`}
+                                    style={{ aspectRatio: '1' }}
                                   >
                                     {id}
                                     <div 

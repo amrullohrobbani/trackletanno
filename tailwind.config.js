@@ -4,15 +4,30 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     './out/**/*.{html,js}',
   ],
+  mode: 'jit', // Ensure JIT mode is enabled
   safelist: [
-    // Backgrounds
+    // Backgrounds - ensuring all gray backgrounds are preserved
+    'bg-gray-500',
+    'bg-gray-600',
     'bg-gray-700',
     'bg-gray-800', 
     'bg-gray-900',
     'bg-blue-600',
+    'bg-green-500',
     'bg-green-600',
+    'bg-red-500',
     'bg-red-600',
     'bg-yellow-600',
+    'bg-orange-600',
+    'bg-orange-700',
+    'bg-orange-800',
+    'bg-orange-900',
+    // Hover states
+    'hover:bg-blue-700',
+    'hover:bg-gray-600',
+    'hover:bg-gray-700',
+    'hover:bg-green-700',
+    'hover:bg-red-600',
     // Text colors
     'text-white',
     'text-gray-300',
@@ -21,27 +36,52 @@ module.exports = {
     'text-blue-400',
     'text-red-400',
     'text-yellow-400',
-    // Borders
-    'border-gray-600',
-    'border-gray-700',
-    'border-blue-500',
-    'border-yellow-500',
-    // Hover states
-    'hover:bg-blue-700',
-    'hover:bg-gray-600',
-    'hover:bg-gray-700',
-    'hover:bg-green-700',
+    'text-orange-300',
+    'text-orange-400',
+    // Hover text states
     'hover:text-blue-300',
     'hover:text-red-300',
-    // Layout
+    // Borders
+    'border-gray-500',
+    'border-gray-600',
+    'border-gray-700',
+    'border-blue-400',
+    'border-blue-500',
+    'border-yellow-500',
+    'border-orange-400',
+    'border-orange-600',
+    'border-2',
+    // Layout and positioning
     'h-screen',
     'h-full',
+    'w-full',
     'flex',
     'flex-col',
+    'flex-shrink-0',
+    'items-center',
+    'justify-center',
     'overflow-hidden',
     'overflow-y-auto',
-    'rounded',
-    'rounded-lg',
+    'relative',
+    'absolute',
+    'z-10',
+    // Grid classes - explicitly preserving all grid utilities
+    'grid',
+    'grid-cols-1',
+    'grid-cols-2',
+    'grid-cols-3',
+    'grid-cols-4',
+    'grid-cols-5',
+    'grid-cols-6',
+    // Gap classes
+    'gap-1',
+    'gap-2',
+    'gap-3',
+    'gap-4',
+    // Aspect ratio
+    'aspect-square',
+    // Spacing
+    'p-2',
     'p-3',
     'p-4',
     'p-6',
@@ -51,6 +91,47 @@ module.exports = {
     'mb-6',
     'mt-4',
     'mt-6',
+    // Borders and radius
+    'rounded',
+    'rounded-lg',
+    'rounded-full',
+    // Dimensions
+    'w-3',
+    'w-4',
+    'w-5',
+    'w-6',
+    'h-3',
+    'h-4',
+    'h-5',
+    'h-6',
+    // Positioning offsets
+    '-top-1',
+    '-right-1',
+    '-left-1',
+    '-bottom-1',
+    'top-2',
+    'left-2',
+    'right-2',
+    // Transform and transition
+    'scale-105',
+    'transform',
+    'transition-all',
+    'transition-colors',
+    'duration-200',
+    // Typography
+    'text-sm',
+    'text-xs',
+    'font-bold',
+    'font-medium',
+    // Shadows
+    'shadow-lg',
+    // Grid pattern variations (to ensure they don't get purged)
+    {
+      pattern: /grid-cols-(1|2|3|4|5|6)/,
+    },
+    {
+      pattern: /gap-(1|2|3|4)/,
+    },
   ],
   theme: {
     extend: {
