@@ -202,6 +202,11 @@ export default function RightSidebar() {
     if (id === 99) {
       setBallAnnotationMode(true);
     }
+    
+    // Show the tracklet if it's hidden when selected
+    if (!visibleTrackletIds.has(id)) {
+      setTrackletVisibility(id, true);
+    }
   };
 
   const handleAddCustomId = () => {
@@ -214,6 +219,11 @@ export default function RightSidebar() {
       // Auto-enable ball annotation mode when selecting tracklet ID 99
       if (id === 99) {
         setBallAnnotationMode(true);
+      }
+      
+      // Show the tracklet if it's hidden when selected
+      if (!visibleTrackletIds.has(id)) {
+        setTrackletVisibility(id, true);
       }
     }
   };
@@ -357,10 +367,10 @@ export default function RightSidebar() {
                             .sort((a, b) => a - b)
                             .map((id) => (
                               <div key={id} className="flex flex-col gap-1">
-                                <div className="relative">
+                                <div className="relative w-full">
                                   <button
                                     onClick={() => handleSelectId(id)}
-                                    className={`w-full p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative ${
+                                    className={`w-full aspect-square p-3 rounded-lg text-sm font-bold transition-all duration-200 border-2 relative flex items-center justify-center ${
                                       selectedTrackletId === id
                                         ? 'bg-blue-600 text-white border-blue-400 shadow-lg scale-105'
                                         : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
@@ -368,13 +378,13 @@ export default function RightSidebar() {
                                   >
                                     {id}
                                     <div 
-                                      className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+                                      className="absolute -top-1 -right-1 w-3 h-3 rounded-full border border-gray-600"
                                       style={{ backgroundColor: getTrackletColor(id) }}
                                     ></div>
                                   </button>
                                   <button
                                     onClick={() => setTrackletVisibility(id, !visibleTrackletIds.has(id))}
-                                    className={`absolute flex items-center justify-center -bottom-1 -left-1 w-5 h-5 rounded-full transition-colors ${
+                                    className={`absolute flex items-center justify-center -bottom-1 -left-1 w-5 h-5 rounded-full transition-colors z-10 ${
                                       visibleTrackletIds.has(id) 
                                         ? 'bg-green-500 text-white' 
                                         : 'bg-gray-500 text-gray-300'
@@ -393,7 +403,7 @@ export default function RightSidebar() {
                                         deleteAllAnnotationsWithTrackletId(id);
                                       }
                                     }}
-                                    className="absolute flex items-center justify-center -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                                    className="absolute flex items-center justify-center -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors z-10"
                                     title={`Delete all annotations for tracklet ${id}`}
                                   >
                                     <TrashIcon className="w-3 h-3" />
@@ -403,7 +413,7 @@ export default function RightSidebar() {
                                   trackletId={id} 
                                   variant="icon" 
                                   size="sm"
-                                  className="flex-shrink-0"
+                                  className="flex-shrink-0 w-full"
                                 />
                               </div>
                             ))}
@@ -474,7 +484,13 @@ export default function RightSidebar() {
                         )}
                       </div>
                       <button
-                        onClick={() => setSelectedTrackletId(null)}
+                        onClick={() => {
+                          // Disable ball annotation mode when clearing tracklet ID 99
+                          if (selectedTrackletId === 99) {
+                            setBallAnnotationMode(false);
+                          }
+                          setSelectedTrackletId(null);
+                        }}
                         className="text-xs text-red-400 hover:text-red-300 transition-colors"
                       >
                         {t('sidebar.clear')}
