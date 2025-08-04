@@ -382,6 +382,7 @@ export default function RightSidebar() {
                                         : 'bg-gray-700 hover:bg-gray-600 text-white border-gray-500'
                                     }`}
                                     style={{ aspectRatio: '1' }}
+                                    title={`Select tracklet ID ${id}`}
                                   >
                                     {id}
                                     <div 
@@ -503,6 +504,7 @@ export default function RightSidebar() {
                         {t('sidebar.clear')}
                       </button>
                     </div>
+                    
                     {selectedTrackletId === 99 && ballAnnotationMode && (
                       <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
                         Ball annotation mode is active. Click on the canvas to place ball points.

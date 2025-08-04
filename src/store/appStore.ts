@@ -418,7 +418,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveAnnotationsToFile();
   },
   
-  setBoundingBoxes: (boxes) => set({ boundingBoxes: boxes }),
+  setBoundingBoxes: (boxes) => {
+    const state = get();
+    let newSelectedBoundingBox: string | null = null;
+    let newSelectedTrackletId: number | null = state.selectedTrackletId;
+    
+    // Try to preserve unified selection based on tracklet ID
+    if (state.selectedBoundingBox && state.selectedTrackletId !== null) {
+      const currentSelectedBox = state.boundingBoxes.find(box => box.id === state.selectedBoundingBox);
+      if (currentSelectedBox && currentSelectedBox.tracklet_id === state.selectedTrackletId) {
+        // Find a box with the same tracklet ID in the new boxes
+        const matchingBox = boxes.find(box => box.tracklet_id === state.selectedTrackletId);
+        if (matchingBox) {
+          newSelectedBoundingBox = matchingBox.id;
+          console.log(`🎯 Unified selection persisted: Tracklet ID ${state.selectedTrackletId} (${currentSelectedBox.id} → ${matchingBox.id})`);
+        } else {
+          // Clear both selections if tracklet doesn't exist on new frame
+          newSelectedTrackletId = null;
+          console.log(`⚠️ Unified selection cleared: Tracklet ID ${state.selectedTrackletId} not found in new frame`);
+        }
+      }
+    }
+    
+    set({ 
+      boundingBoxes: boxes,
+      selectedBoundingBox: newSelectedBoundingBox,
+      selectedTrackletId: newSelectedTrackletId
+    });
+  },
   setLoading: (loading) => set({ isLoading: loading }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   

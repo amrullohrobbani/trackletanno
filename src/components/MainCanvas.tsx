@@ -62,7 +62,9 @@ export default function MainCanvas() {
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
+    // Only consider visible tracklets - completely exclude hidden ones
     const overlappingBoxes = boundingBoxes.filter(box =>
+      visibleTrackletIds.has(box.tracklet_id) &&
       coords.x >= box.x &&
       coords.x <= box.x + box.width &&
       coords.y >= box.y &&
@@ -71,21 +73,17 @@ export default function MainCanvas() {
 
     if (overlappingBoxes.length === 0) return null;
 
-    // Smart selection priority:
-    // 1. Visible tracklets over hidden ones
-    const visibleBoxes = overlappingBoxes.filter(box => visibleTrackletIds.has(box.tracklet_id));
-    const hiddenBoxes = overlappingBoxes.filter(box => !visibleTrackletIds.has(box.tracklet_id));
-    
-    // 2. If a tracklet is selected, prefer boxes with that tracklet ID
-    let prioritizedBoxes = visibleBoxes.length > 0 ? visibleBoxes : hiddenBoxes;
+    // Smart selection priority among visible boxes:
+    // 1. If a tracklet is selected, prefer boxes with that tracklet ID
+    let prioritizedBoxes = overlappingBoxes;
     if (selectedTrackletId !== null) {
-      const matchingTrackletBoxes = prioritizedBoxes.filter(box => box.tracklet_id === selectedTrackletId);
+      const matchingTrackletBoxes = overlappingBoxes.filter(box => box.tracklet_id === selectedTrackletId);
       if (matchingTrackletBoxes.length > 0) {
         prioritizedBoxes = matchingTrackletBoxes;
       }
     }
     
-    // 3. If multiple boxes still remain, prefer smaller ones (more precise selection)
+    // 2. If multiple boxes still remain, prefer smaller ones (more precise selection)
     const sortBySize = (boxes: typeof overlappingBoxes) => 
       boxes.sort((a, b) => (a.width * a.height) - (b.width * b.height));
     
@@ -236,6 +234,23 @@ export default function MainCanvas() {
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw current drawing rectangle BEFORE transformations (in screen coordinates)
+    if (currentRect) {
+      ctx.save();
+      ctx.strokeStyle = '#10B981'; // Green for new drawing
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      
+      // Convert back to screen coordinates for drawing the current rectangle
+      const screenX = currentRect.x * zoomLevel + panX;
+      const screenY = currentRect.y * zoomLevel + panY;
+      const screenWidth = currentRect.width * zoomLevel;
+      const screenHeight = currentRect.height * zoomLevel;
+      
+      ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+      ctx.restore();
+    }
 
     // Save the current context state
     ctx.save();
@@ -504,14 +519,6 @@ export default function MainCanvas() {
       });
     }
 
-    // Draw current drawing rectangle
-    if (currentRect) {
-      ctx.strokeStyle = '#10B981'; // Green for new drawing
-      ctx.lineWidth = 2 / zoomLevel;
-      ctx.setLineDash([]);
-      ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
-    }
-
     // Restore the context state
     ctx.restore();
   }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds]);
@@ -690,6 +697,8 @@ export default function MainCanvas() {
       const clickedBox = getClickedBox(coords);
 
       if (clickedBox) {
+        // Unified selection: selecting a bounding box automatically selects its tracklet ID
+        setSelectedTrackletId(clickedBox.tracklet_id);
         setSelectedBoundingBox(clickedBox.id);
         
         // If an event is selected, assign it to the clicked bounding box
@@ -697,8 +706,10 @@ export default function MainCanvas() {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
         
-        console.log(`Selected box ID ${clickedBox.tracklet_id} (prioritized visible boxes)`);
+        console.log(`Selected tracklet ID ${clickedBox.tracklet_id} via bounding box`);
       } else {
+        // Clear both selections when clicking empty space
+        setSelectedTrackletId(null);
         setSelectedBoundingBox(null);
       }
     }
@@ -1007,7 +1018,7 @@ export default function MainCanvas() {
         setDrawingMode(false);
         setAssignMode(false);
         setBallAnnotationMode(false);
-        // Clear selections
+        // Clear selections (both tracklet and bounding box)
         setSelectedTrackletId(null);
         setSelectedBoundingBox(null);
         // Clear any current drawing state
