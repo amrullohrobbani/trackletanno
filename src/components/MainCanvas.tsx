@@ -235,23 +235,6 @@ export default function MainCanvas() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw current drawing rectangle BEFORE transformations (in screen coordinates)
-    if (currentRect) {
-      ctx.save();
-      ctx.strokeStyle = '#10B981'; // Green for new drawing
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      
-      // Convert back to screen coordinates for drawing the current rectangle
-      const screenX = currentRect.x * zoomLevel + panX;
-      const screenY = currentRect.y * zoomLevel + panY;
-      const screenWidth = currentRect.width * zoomLevel;
-      const screenHeight = currentRect.height * zoomLevel;
-      
-      ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
-      ctx.restore();
-    }
-
     // Save the current context state
     ctx.save();
 
@@ -261,6 +244,18 @@ export default function MainCanvas() {
 
     // Draw image at original size - the transformations will handle zoom/pan
     ctx.drawImage(image, 0, 0, canvasDimensions.width, canvasDimensions.height);
+
+    // Draw current drawing rectangle AFTER transformations (in canvas coordinates)
+    if (currentRect) {
+      ctx.save();
+      ctx.strokeStyle = '#10B981'; // Green for new drawing
+      ctx.lineWidth = 2 / zoomLevel; // Keep line width constant regardless of zoom
+      ctx.setLineDash([]);
+      
+      // Draw rectangle in canvas coordinates (already transformed)
+      ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+      ctx.restore();
+    }
 
     // Draw existing bounding boxes
     boundingBoxes.forEach((box) => {
