@@ -12,12 +12,13 @@ export default function MainCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const lastBoundingBoxesRef = useRef<BoundingBox[]>([]);
+  const currentFrameNumberRef = useRef<number>(1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [currentFrameNumber, setCurrentFrameNumber] = useState<number>(1);
+  const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
 
   const {
     getCurrentImagePath,
@@ -50,10 +51,46 @@ export default function MainCanvas() {
     canvasDimensions,
     setCanvasDimensions,
     getCurrentFrameNumber,
-    visibleTrackletIds
+    visibleTrackletIds,
+    setDrawingMode,
+    setAssignMode,
+    setBallAnnotationMode,
+    setSelectedTrackletId
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
+
+  // Helper function to determine which bounding box would be selected at given coordinates
+  const getClickedBox = useCallback((coords: { x: number; y: number }) => {
+    const overlappingBoxes = boundingBoxes.filter(box =>
+      coords.x >= box.x &&
+      coords.x <= box.x + box.width &&
+      coords.y >= box.y &&
+      coords.y <= box.y + box.height
+    );
+
+    if (overlappingBoxes.length === 0) return null;
+
+    // Smart selection priority:
+    // 1. Visible tracklets over hidden ones
+    const visibleBoxes = overlappingBoxes.filter(box => visibleTrackletIds.has(box.tracklet_id));
+    const hiddenBoxes = overlappingBoxes.filter(box => !visibleTrackletIds.has(box.tracklet_id));
+    
+    // 2. If a tracklet is selected, prefer boxes with that tracklet ID
+    let prioritizedBoxes = visibleBoxes.length > 0 ? visibleBoxes : hiddenBoxes;
+    if (selectedTrackletId !== null) {
+      const matchingTrackletBoxes = prioritizedBoxes.filter(box => box.tracklet_id === selectedTrackletId);
+      if (matchingTrackletBoxes.length > 0) {
+        prioritizedBoxes = matchingTrackletBoxes;
+      }
+    }
+    
+    // 3. If multiple boxes still remain, prefer smaller ones (more precise selection)
+    const sortBySize = (boxes: typeof overlappingBoxes) => 
+      boxes.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+    
+    return sortBySize(prioritizedBoxes)[0];
+  }, [boundingBoxes, visibleTrackletIds, selectedTrackletId]);
 
   // Check if a bounding box has an event annotation (synchronous)
   const getBoxEventAnnotation = useCallback((box: BoundingBox, frameNumber: number) => {
@@ -108,7 +145,6 @@ export default function MainCanvas() {
     }
 
     const getCurrentFrameNumber = async () => {
-      const imagePath = getCurrentImagePath();
       if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
         return;
       }
@@ -175,7 +211,7 @@ export default function MainCanvas() {
         console.log('setBoundingBoxes processing completed');
         
         // Store the current frame number for event annotation lookups
-        setCurrentFrameNumber(frameNumber);
+        currentFrameNumberRef.current = frameNumber;
       } catch (error) {
         console.error('Error getting frame number:', error);
         setBoundingBoxes([]);
@@ -183,7 +219,7 @@ export default function MainCanvas() {
     };
 
     getCurrentFrameNumber();
-  }, [getCurrentImagePath, annotations, setBoundingBoxes, currentFrameIndex, isDeletingBox]);
+  }, [imagePath, annotations, setBoundingBoxes, currentFrameIndex, isDeletingBox]);
 
   // Update ref when boundingBoxes change from store
   useEffect(() => {
@@ -220,19 +256,20 @@ export default function MainCanvas() {
       
       const isSelected = selectedBoundingBox === box.id;
       const isSelectedTracklet = selectedTrackletId === box.tracklet_id;
+      const isHovered = hoveredBoxId === box.id;
       const boxColor = getTrackletColor(box.tracklet_id, isSelected || isSelectedTracklet);
       
       ctx.strokeStyle = boxColor;
       // Keep line width constant regardless of zoom for better visibility
-      // Make selected tracklet bounding boxes thicker
-      ctx.lineWidth = (isSelected ? 4 : isSelectedTracklet ? 3 : 2) / zoomLevel;
+      // Make selected tracklet bounding boxes thicker, hovered boxes slightly thicker
+      ctx.lineWidth = (isSelected ? 4 : isSelectedTracklet ? 3 : isHovered ? 2.5 : 2) / zoomLevel;
       // Use solid lines for all bounding boxes
       ctx.setLineDash([]);
       
-      // Add glow effect for selected tracklet
-      if (isSelectedTracklet && !isSelected) {
+      // Add glow effect for selected tracklet or hovered box
+      if ((isSelectedTracklet && !isSelected) || isHovered) {
         ctx.shadowColor = boxColor;
-        ctx.shadowBlur = 10 / zoomLevel;
+        ctx.shadowBlur = isHovered ? 5 / zoomLevel : 10 / zoomLevel;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.shadowBlur = 0; // Reset shadow
       } else {
@@ -265,7 +302,7 @@ export default function MainCanvas() {
       // Draw event label indicator if enabled
       if (showEventLabels) {
         // Check if this bounding box has an event annotation and draw indicator
-        const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumber);
+        const eventAnnotation = getBoxEventAnnotation(box, currentFrameNumberRef.current);
         if (eventAnnotation && eventAnnotation.trim() !== '') {
           // Draw event indicator - show the actual event type
           const indicatorHeight = Math.max(20, 20 / zoomLevel);
@@ -353,7 +390,7 @@ export default function MainCanvas() {
     if (ballAnnotations && ballAnnotations.length > 0 && visibleTrackletIds.has(99)) {
       ballAnnotations.forEach((ballAnnotation) => {
         // Only draw ball annotations for the current frame
-        if (ballAnnotation.frame === currentFrameNumber) {
+        if (ballAnnotation.frame === currentFrameNumberRef.current) {
           const ballCenterX = ballAnnotation.x;
           const ballCenterY = ballAnnotation.y;
           
@@ -477,7 +514,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, currentRect, zoomLevel, panX, panY, canvasDimensions, currentFrameNumber, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -625,13 +662,8 @@ export default function MainCanvas() {
     }
 
     if (assignMode) {
-      // Check if clicking on an existing bounding box
-      const clickedBox = boundingBoxes.find(box =>
-        coords.x >= box.x &&
-        coords.x <= box.x + box.width &&
-        coords.y >= box.y &&
-        coords.y <= box.y + box.height
-      );
+      // Use smart selection logic for assignment
+      const clickedBox = getClickedBox(coords);
 
       if (clickedBox && selectedTrackletId !== null) {
         // Update the tracklet ID of the clicked box
@@ -645,6 +677,8 @@ export default function MainCanvas() {
         if (selectedEvent) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
+        
+        console.log(`Assigned tracklet ID ${selectedTrackletId} to box (prioritized visible boxes)`);
       }
     } else if (drawingMode && selectedTrackletId !== null && selectedTrackletId !== 99) {
       // Start drawing new bounding box
@@ -652,13 +686,8 @@ export default function MainCanvas() {
       setStartPoint(coords);
       setCurrentRect({ x: coords.x, y: coords.y, width: 0, height: 0 });
     } else {
-      // Selection mode - select existing bounding box
-      const clickedBox = boundingBoxes.find(box =>
-        coords.x >= box.x &&
-        coords.x <= box.x + box.width &&
-        coords.y >= box.y &&
-        coords.y <= box.y + box.height
-      );
+      // Selection mode - use smart selection logic
+      const clickedBox = getClickedBox(coords);
 
       if (clickedBox) {
         setSelectedBoundingBox(clickedBox.id);
@@ -667,6 +696,8 @@ export default function MainCanvas() {
         if (selectedEvent) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
+        
+        console.log(`Selected box ID ${clickedBox.tracklet_id} (prioritized visible boxes)`);
       } else {
         setSelectedBoundingBox(null);
       }
@@ -674,6 +705,12 @@ export default function MainCanvas() {
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoordinates(event);
+    
+    // Update hovered box for visual feedback
+    const hoveredBox = getClickedBox(coords);
+    setHoveredBoxId(hoveredBox?.id || null);
+
     if (isPanning && lastPanPoint) {
       // Handle panning
       const deltaX = event.clientX - lastPanPoint.x;
@@ -686,7 +723,6 @@ export default function MainCanvas() {
 
     if (!isDrawing || !startPoint) return;
 
-    const coords = getCanvasCoordinates(event);
     const width = coords.x - startPoint.x;
     const height = coords.y - startPoint.y;
 
@@ -698,11 +734,32 @@ export default function MainCanvas() {
     });
   };
 
+  const saveAnnotationFile = useCallback(async (annotationData: AnnotationData[]) => {
+    const rally = getCurrentRally();
+    if (!rally || typeof window === 'undefined' || !window.electronAPI) return;
+
+    setSaveStatus('saving');
+    
+    try {
+      // Use the annotation parser to convert to CSV format
+      const csvContent = annotationsToCSV(annotationData);
+
+      await window.electronAPI.saveAnnotationFile(rally.annotationFile, csvContent);
+      setSaveStatus('saved');
+      
+      // Clear saved status after 2 seconds
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Error saving annotation file:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  }, [getCurrentRally, setSaveStatus]);
+
   const addAnnotationData = useCallback(async (box: BoundingBox) => {
     if (typeof window === 'undefined' || !window.electronAPI) return;
 
     try {
-      const imagePath = getCurrentImagePath();
       if (!imagePath) return;
 
       const filename = imagePath.split('/').pop() || '';
@@ -734,7 +791,7 @@ export default function MainCanvas() {
     } catch (error) {
       console.error('Error adding annotation data:', error);
     }
-  }, [annotations, setAnnotations, getCurrentImagePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imagePath, annotations, setAnnotations, saveAnnotationFile]);
 
   const handleMouseUp = useCallback(() => {
     if (isPanning) {
@@ -784,6 +841,9 @@ export default function MainCanvas() {
   }, [isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
 
   const handleMouseLeave = () => {
+    // Clear hover state when mouse leaves canvas
+    setHoveredBoxId(null);
+    
     // Only cancel panning when cursor leaves canvas, but keep drawing active
     if (isPanning) {
       setIsPanning(false);
@@ -856,7 +916,6 @@ export default function MainCanvas() {
     if (typeof window === 'undefined' || !window.electronAPI) return;
 
     try {
-      const imagePath = getCurrentImagePath();
       if (!imagePath) return;
 
       const filename = imagePath.split('/').pop() || '';
@@ -875,28 +934,6 @@ export default function MainCanvas() {
       saveAnnotationFile(updatedAnnotations);
     } catch (error) {
       console.error('Error updating annotation data:', error);
-    }
-  };
-
-  const saveAnnotationFile = async (annotationData: AnnotationData[]) => {
-    const rally = getCurrentRally();
-    if (!rally || typeof window === 'undefined' || !window.electronAPI) return;
-
-    setSaveStatus('saving');
-    
-    try {
-      // Use the annotation parser to convert to CSV format
-      const csvContent = annotationsToCSV(annotationData);
-
-      await window.electronAPI.saveAnnotationFile(rally.annotationFile, csvContent);
-      setSaveStatus('saved');
-      
-      // Clear saved status after 2 seconds
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Error saving annotation file:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
 
@@ -952,7 +989,7 @@ export default function MainCanvas() {
     };
   }, [isDrawing, startPoint, panX, panY, zoomLevel, canvasDimensions.width, canvasDimensions.height, handleMouseUp]);
 
-  // Add keyboard shortcut for zoom reset
+  // Add keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check if the focus is on an input element to avoid conflicts
@@ -962,6 +999,24 @@ export default function MainCanvas() {
                             activeElement?.tagName === 'SELECT';
       
       if (isInputFocused) return;
+
+      // ESC key to deselect all modes and selections
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        // Deselect all modes
+        setDrawingMode(false);
+        setAssignMode(false);
+        setBallAnnotationMode(false);
+        // Clear selections
+        setSelectedTrackletId(null);
+        setSelectedBoundingBox(null);
+        // Clear any current drawing state
+        setIsDrawing(false);
+        setCurrentRect(null);
+        setStartPoint(null);
+        setHoveredBoxId(null);
+        console.log('ESC pressed - All modes and selections cleared');
+      }
 
       // Reset zoom to 100% with "0" key or "Ctrl+0"
       if (event.key === '0' && (event.ctrlKey || event.metaKey || !event.ctrlKey)) {
@@ -976,7 +1031,7 @@ export default function MainCanvas() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox]);
 
   if (!imagePath) {
     return (
@@ -992,7 +1047,7 @@ export default function MainCanvas() {
 
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden">
-      <div className="relative max-w-full max-h-full flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imageRef}
@@ -1015,10 +1070,8 @@ export default function MainCanvas() {
                 : 'cursor-default'
           }`}
           style={{ 
-            maxWidth: '100%',
-            maxHeight: '100%',
-            width: 'auto',
-            height: 'auto',
+            width: '100%',
+            height: '100%',
             objectFit: 'contain'
           }}
           onMouseDown={handleMouseDown}
@@ -1031,10 +1084,10 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point`}
-          {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId}`}
-          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId}`}
-          {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && t('modes.selection')}
+          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (ESC to exit)`}
+          {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
+          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} (ESC to exit)`}
+          {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}
         </div>
 
         {/* Frame info */}

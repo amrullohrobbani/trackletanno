@@ -35,6 +35,21 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     goToFrame
   } = useAppStore();
 
+  // Cleanup cached images when modal closes to prevent memory leaks
+  useEffect(() => {
+    if (!isOpen) {
+      // Revoke all blob URLs to free memory
+      setCroppedImages(prev => {
+        prev.forEach((url) => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        return new Map();
+      });
+    }
+  }, [isOpen]); // Removed croppedImages from dependencies to prevent infinite loop
+
   // Load frame data when modal opens or tracklet changes
   useEffect(() => {
     if (!isOpen || !trackletId) return;
@@ -57,8 +72,9 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
         for (let i = 0; i < rally.imageFiles.length; i++) {
           const imagePath = rally.imageFiles[i];
           
-          // Extract frame number from image filename (e.g., "002001.jpg" -> 2001)
-          const filename = imagePath.split('/').pop() || '';
+          // Extract frame number from image filename (cross-platform compatible)
+          // Handle both forward slashes (Linux) and backslashes (Windows)
+          const filename = imagePath.split(/[/\\]/).pop() || '';
           const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
           
           const annotation = trackletAnnotations.find(ann => ann.frame === frameNumber) || null;
@@ -107,46 +123,116 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     }
 
     try {
-      // Load the full image
-      const imageDataUrl = await window.electronAPI.getImageData(frame.imagePath);
+      // Load the full image with enhanced error handling
+      let imageDataUrl: string;
+      try {
+        imageDataUrl = await window.electronAPI.getImageData(frame.imagePath);
+      } catch (fileError) {
+        console.error('File system error loading image:', {
+          path: frame.imagePath,
+          frame: frame.frameNumber,
+          error: fileError,
+          platform: navigator.platform,
+          userAgent: navigator.userAgent
+        });
+        return null;
+      }
+      
+      // Debug logging for Windows compatibility
+      console.log('Loading image for timeline:', {
+        imagePath: frame.imagePath,
+        frameNumber: frame.frameNumber,
+        dataUrlLength: imageDataUrl?.length || 0,
+        pathSeparators: frame.imagePath.includes('\\') ? 'Windows' : 'Unix',
+        platform: navigator.platform
+      });
+      
+      if (!imageDataUrl || imageDataUrl.length === 0) {
+        console.warn('Empty or invalid image data received');
+        return null;
+      }
       
       // Create canvas for cropping
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
+      if (!ctx) {
+        console.error('Could not get 2D context from canvas');
+        return null;
+      }
 
       const img = new Image();
       img.src = imageDataUrl;
       
       return new Promise((resolve) => {
         img.onload = () => {
-          const { x, y, w, h } = frame.annotation!;
-          
-          // Add padding around the bounding box
-          const padding = 20;
-          const cropX = Math.max(0, x - padding);
-          const cropY = Math.max(0, y - padding);
-          const cropW = Math.min(img.width - cropX, w + 2 * padding);
-          const cropH = Math.min(img.height - cropY, h + 2 * padding);
-          
-          canvas.width = cropW;
-          canvas.height = cropH;
-          
-          // Draw the cropped image
-          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-          
-          // Draw bounding box overlay
-          ctx.strokeStyle = '#ef4444';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x - cropX, y - cropY, w, h);
-          
-          const croppedDataUrl = canvas.toDataURL();
-          setCroppedImages(prev => new Map(prev.set(cacheKey, croppedDataUrl)));
-          resolve(croppedDataUrl);
+          try {
+            const { x, y, w, h } = frame.annotation!;
+            
+            // Validate bounding box coordinates
+            if (x < 0 || y < 0 || w <= 0 || h <= 0 || x >= img.width || y >= img.height) {
+              console.warn('Invalid bounding box coordinates:', { x, y, w, h, imgWidth: img.width, imgHeight: img.height });
+              resolve(null);
+              return;
+            }
+            
+            // Add padding around the bounding box
+            const padding = 20;
+            const cropX = Math.max(0, x - padding);
+            const cropY = Math.max(0, y - padding);
+            const cropW = Math.min(img.width - cropX, w + 2 * padding);
+            const cropH = Math.min(img.height - cropY, h + 2 * padding);
+            
+            // Validate crop dimensions
+            if (cropW <= 0 || cropH <= 0) {
+              console.warn('Invalid crop dimensions:', { cropX, cropY, cropW, cropH });
+              resolve(null);
+              return;
+            }
+            
+            canvas.width = cropW;
+            canvas.height = cropH;
+            
+            // Draw the cropped image
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+            
+            // Draw bounding box overlay
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - cropX, y - cropY, w, h);
+            
+            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
+            setCroppedImages(prev => new Map(prev.set(cacheKey, croppedDataUrl)));
+            resolve(croppedDataUrl);
+          } catch (canvasError) {
+            console.error('Canvas drawing error:', {
+              error: canvasError,
+              frame: frame.frameNumber,
+              annotation: frame.annotation,
+              canvasSize: { width: canvas.width, height: canvas.height }
+            });
+            resolve(null);
+          }
+        };
+        
+        img.onerror = (imgError) => {
+          console.error('Image loading error:', {
+            error: imgError,
+            path: frame.imagePath,
+            frameNumber: frame.frameNumber,
+            dataUrlPreview: imageDataUrl.substring(0, 100) + '...',
+            dataUrlValid: imageDataUrl.startsWith('data:image/'),
+            platform: navigator.platform
+          });
+          resolve(null);
         };
       });
     } catch (error) {
-      console.error('Error generating cropped image:', error);
+      console.error('Error generating cropped image:', {
+        error,
+        frame: frame.frameNumber,
+        path: frame.imagePath,
+        platform: navigator.platform
+      });
       return null;
     }
   }, [trackletId, croppedImages]);
@@ -419,8 +505,39 @@ function TrackletFrameCard({
 }: TrackletFrameCardProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInView, setIsInView] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      {
+        rootMargin: '100px', // Start loading 100px before the card comes into view
+        threshold: 0.1
+      }
+    );
+
+    const currentCard = cardRef.current;
+    if (currentCard) {
+      observer.observe(currentCard);
+    }
+
+    return () => {
+      if (currentCard) {
+        observer.unobserve(currentCard);
+      }
+    };
+  }, []);
 
   useEffect(() => {
+    // Only load image when it's in view or active
+    if (!isInView && !isActive) {
+      return;
+    }
+
     const loadImage = async () => {
       setIsLoading(true);
       try {
@@ -428,11 +545,25 @@ function TrackletFrameCard({
           const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
           setImageUrl(placeholderUrl);
         } else {
+          console.log('Loading image for frame:', frame.frameNumber, 'Path:', frame.imagePath);
           const croppedUrl = await generateCroppedImage(frame);
-          setImageUrl(croppedUrl);
+          if (croppedUrl) {
+            setImageUrl(croppedUrl);
+            console.log('Successfully loaded image for frame:', frame.frameNumber);
+          } else {
+            console.warn('Failed to generate cropped image for frame:', frame.frameNumber);
+            const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
+            setImageUrl(placeholderUrl);
+          }
         }
       } catch (error) {
-        console.error('Error loading frame image:', error);
+        console.error('Error loading frame image:', {
+          error,
+          frameNumber: frame.frameNumber,
+          imagePath: frame.imagePath,
+          hasPlaceholder: frame.hasPlaceholder,
+          platform: navigator.platform
+        });
         const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
         setImageUrl(placeholderUrl);
       } finally {
@@ -440,11 +571,14 @@ function TrackletFrameCard({
       }
     };
 
-    loadImage();
-  }, [frame, generateCroppedImage, generatePlaceholderImage]);
+    // Debounce loading to prevent excessive requests
+    const timeoutId = setTimeout(loadImage, isActive ? 0 : 100);
+    return () => clearTimeout(timeoutId);
+  }, [frame, generateCroppedImage, generatePlaceholderImage, isInView, isActive]);
 
   return (
     <div
+      ref={cardRef}
       data-frame={frame.frameNumber}
       className={`flex-shrink-0 cursor-pointer transition-all duration-300 ease-out ${
         isActive 
@@ -459,16 +593,19 @@ function TrackletFrameCard({
         {/* Image */}
         <div className="w-32 h-32 flex items-center justify-center bg-gray-800">
           {isLoading ? (
-            <div className="text-gray-400 text-xs">Loading...</div>
+            <div className="text-gray-400 text-xs">
+              {isInView || isActive ? 'Loading...' : 'Waiting...'}
+            </div>
           ) : imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageUrl}
               alt={`Frame ${frame.frameNumber}`}
               className="max-w-full max-h-full object-contain"
+              loading="lazy"
             />
           ) : (
-            <div className="text-gray-400 text-xs">Error</div>
+            <div className="text-red-400 text-xs">Error</div>
           )}
         </div>
         

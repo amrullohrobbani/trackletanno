@@ -3,6 +3,22 @@ const path = require('path');
 const fs = require('fs').promises;
 const isDev = process.env.NODE_ENV === 'development';
 
+// Check Node.js version compatibility
+const nodeVersion = process.versions.node;
+const majorVersion = parseInt(nodeVersion.split('.')[0]);
+if (majorVersion < 14) {
+  console.error(`Node.js version ${nodeVersion} is not supported. Please use Node.js 14 or higher.`);
+  process.exit(1);
+}
+
+console.log('Platform info:', {
+  platform: process.platform,
+  arch: process.arch,
+  nodeVersion: process.versions.node,
+  electronVersion: process.versions.electron,
+  isDev
+});
+
 let mainWindow;
 
 function createWindow() {
@@ -315,8 +331,46 @@ ipcMain.handle('save-annotation-file', async (event, annotationFilePath, content
 // Get image as base64 data URL for secure loading in renderer
 ipcMain.handle('get-image-data', async (event, imagePath) => {
   try {
-    const imageBuffer = await fs.readFile(imagePath);
-    const ext = path.extname(imagePath).toLowerCase();
+    console.log('Reading image file:', imagePath);
+    console.log('Platform:', process.platform);
+    console.log('Path separators in path:', {
+      hasBackslash: imagePath.includes('\\'),
+      hasForwardSlash: imagePath.includes('/'),
+      normalizedPath: path.normalize(imagePath)
+    });
+    
+    // Normalize path for cross-platform compatibility
+    const normalizedPath = path.normalize(imagePath);
+    
+    // Check if file exists first
+    if (!await fs.access(normalizedPath).then(() => true).catch(() => false)) {
+      console.error('Image file does not exist:', normalizedPath);
+      console.error('Original path:', imagePath);
+      console.error('Working directory:', process.cwd());
+      
+      // Try to check if it's a path resolution issue
+      const isAbsolute = path.isAbsolute(normalizedPath);
+      console.error('Path is absolute:', isAbsolute);
+      
+      if (!isAbsolute) {
+        const absolutePath = path.resolve(normalizedPath);
+        console.error('Resolved absolute path:', absolutePath);
+        const absoluteExists = await fs.access(absolutePath).then(() => true).catch(() => false);
+        console.error('Absolute path exists:', absoluteExists);
+      }
+      
+      throw new Error(`Image file not found: ${normalizedPath}`);
+    }
+    
+    const imageBuffer = await fs.readFile(normalizedPath);
+    console.log('Image buffer size:', imageBuffer.length);
+    
+    // Validate image buffer
+    if (imageBuffer.length === 0) {
+      throw new Error('Image file is empty');
+    }
+    
+    const ext = path.extname(normalizedPath).toLowerCase();
     
     let mimeType;
     switch (ext) {
@@ -333,14 +387,31 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
       case '.bmp':
         mimeType = 'image/bmp';
         break;
+      case '.webp':
+        mimeType = 'image/webp';
+        break;
       default:
+        console.warn('Unknown image extension:', ext, 'defaulting to JPEG');
         mimeType = 'image/jpeg'; // Default fallback
     }
     
     const base64Data = imageBuffer.toString('base64');
-    return `data:${mimeType};base64,${base64Data}`;
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+    console.log('Generated data URL length:', dataUrl.length);
+    console.log('MIME type used:', mimeType);
+    
+    return dataUrl;
   } catch (error) {
     console.error('Error reading image file:', error);
+    console.error('Details:', {
+      path: imagePath,
+      platform: process.platform,
+      nodeVersion: process.version,
+      workingDir: process.cwd(),
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorStack: error.stack
+    });
     throw error;
   }
 });
