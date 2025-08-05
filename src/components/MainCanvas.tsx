@@ -19,6 +19,7 @@ export default function MainCanvas() {
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
 
   const {
     getCurrentImagePath,
@@ -238,6 +239,16 @@ export default function MainCanvas() {
     // Save the current context state
     ctx.save();
 
+    // Debug: Log canvas and context state before transformations (simplified)
+    if (drawingMode && (startPoint || cursorPosition) && isDrawing) {
+      console.log('🎯 Canvas State:', {
+        'Canvas Size': `${canvas.width}x${canvas.height}`,
+        'Display Size': `${canvas.clientWidth}x${canvas.clientHeight}`,
+        'Zoom': zoomLevel,
+        'Pan': { x: panX, y: panY }
+      });
+    }
+
     // Apply pan (translation) first, then zoom (scale)
     ctx.translate(panX, panY);
     ctx.scale(zoomLevel, zoomLevel);
@@ -252,8 +263,114 @@ export default function MainCanvas() {
       ctx.lineWidth = 2 / zoomLevel; // Keep line width constant regardless of zoom
       ctx.setLineDash([]);
       
-      // Draw rectangle in canvas coordinates (already transformed)
+      // Draw rectangle directly in canvas coordinates (no conversion needed)
       ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+      
+      // Add corner indicators for precise cursor alignment feedback
+      const cornerSize = 4 / zoomLevel;
+      ctx.fillStyle = '#10B981';
+      // Top-left corner (most important - should match start point exactly)
+      ctx.fillRect(currentRect.x - cornerSize/2, currentRect.y - cornerSize/2, cornerSize, cornerSize);
+      // Top-right corner
+      ctx.fillRect(currentRect.x + currentRect.width - cornerSize/2, currentRect.y - cornerSize/2, cornerSize, cornerSize);
+      // Bottom-left corner
+      ctx.fillRect(currentRect.x - cornerSize/2, currentRect.y + currentRect.height - cornerSize/2, cornerSize, cornerSize);
+      // Bottom-right corner
+      ctx.fillRect(currentRect.x + currentRect.width - cornerSize/2, currentRect.y + currentRect.height - cornerSize/2, cornerSize, cornerSize);
+      
+      // Debug: Verify that the rectangle's top-left corner matches the start point
+      if (startPoint && isDrawing) {
+        const topLeftMatches = Math.abs(currentRect.x - startPoint.x) < 0.01 && Math.abs(currentRect.y - startPoint.y) < 0.01;
+        if (!topLeftMatches) {
+          console.warn('⚠️ Rectangle top-left does not match start point!', {
+            rectTopLeft: { x: currentRect.x, y: currentRect.y },
+            startPoint: startPoint,
+            xDiff: Math.abs(currentRect.x - startPoint.x),
+            yDiff: Math.abs(currentRect.y - startPoint.y)
+          });
+        }
+      }
+      
+      ctx.restore();
+    }
+
+    // Draw cursor position indicator when actively drawing (for precise cursor feedback)
+    if (drawingMode && cursorPosition && isDrawing) {
+      ctx.save();
+      ctx.strokeStyle = '#FF4444'; // Subtle red cursor indicator
+      ctx.lineWidth = 1 / zoomLevel;
+      ctx.setLineDash([2 / zoomLevel, 2 / zoomLevel]); // Dashed line
+      
+      const crosshairSize = 8 / zoomLevel; // Slightly larger for better visibility during debugging
+      // Draw small crosshair at cursor position
+      ctx.beginPath();
+      // Horizontal line
+      ctx.moveTo(cursorPosition.x - crosshairSize, cursorPosition.y);
+      ctx.lineTo(cursorPosition.x + crosshairSize, cursorPosition.y);
+      // Vertical line
+      ctx.moveTo(cursorPosition.x, cursorPosition.y - crosshairSize);
+      ctx.lineTo(cursorPosition.x, cursorPosition.y + crosshairSize);
+      ctx.stroke();
+      
+      // Add a center dot for precise positioning
+      ctx.fillStyle = '#FF4444';
+      ctx.beginPath();
+      ctx.arc(cursorPosition.x, cursorPosition.y, 1 / zoomLevel, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      ctx.restore();
+      
+      // Debug: Log cursor position vs start point when actively drawing
+      if (startPoint) {
+        const distance = Math.sqrt(Math.pow(cursorPosition.x - startPoint.x, 2) + Math.pow(cursorPosition.y - startPoint.y, 2));
+        console.log('🎯 Drawing Debug - Cursor at:', cursorPosition, 'Start point:', startPoint, 'Distance:', distance);
+        
+        // Special focus on Y coordinate difference
+        console.log('🎯 Y Position Debug:', {
+          'Cursor Y': cursorPosition.y,
+          'Start Y': startPoint.y,
+          'Y Difference': Math.abs(cursorPosition.y - startPoint.y),
+          'Y Direction': cursorPosition.y > startPoint.y ? 'DOWN' : 'UP'
+        });
+      }
+    }
+
+    // Draw start point indicator when drawing (blue circle to show exact start position)
+    if (drawingMode && startPoint && isDrawing) {
+      ctx.save();
+      ctx.strokeStyle = '#0066FF'; // Blue for start point
+      ctx.fillStyle = '#0066FF';
+      ctx.lineWidth = 2 / zoomLevel;
+      
+      // Draw a small blue circle at the exact start point
+      ctx.beginPath();
+      ctx.arc(startPoint.x, startPoint.y, 3 / zoomLevel, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.fill();
+      
+      // Add a white center dot for contrast
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(startPoint.x, startPoint.y, 1 / zoomLevel, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw horizontal and vertical lines through the start point for precise alignment
+      ctx.strokeStyle = '#0066FF';
+      ctx.lineWidth = 1 / zoomLevel;
+      ctx.setLineDash([2 / zoomLevel, 2 / zoomLevel]);
+      
+      // Horizontal line through start point
+      ctx.beginPath();
+      ctx.moveTo(startPoint.x - 20 / zoomLevel, startPoint.y);
+      ctx.lineTo(startPoint.x + 20 / zoomLevel, startPoint.y);
+      ctx.stroke();
+      
+      // Vertical line through start point
+      ctx.beginPath();
+      ctx.moveTo(startPoint.x, startPoint.y - 20 / zoomLevel);
+      ctx.lineTo(startPoint.x, startPoint.y + 20 / zoomLevel);
+      ctx.stroke();
+      
       ctx.restore();
     }
 
@@ -516,7 +633,7 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -528,24 +645,76 @@ export default function MainCanvas() {
     if (!canvas) return { x: 0, y: 0 };
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    // Get mouse coordinates relative to canvas
-    const mouseX = (event.clientX - rect.left) * scaleX;
-    const mouseY = (event.clientY - rect.top) * scaleY;
-
-    // Account for zoom and pan transformations
-    const canvasX = (mouseX - panX) / zoomLevel;
-    const canvasY = (mouseY - panY) / zoomLevel;
+    
+    // STEP 1: Get basic mouse position relative to canvas element
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // STEP 2: The key insight - we need to account for the CSS object-fit: contain behavior
+    // The canvas element might be letterboxed/pillarboxed to maintain aspect ratio
+    
+    // Calculate the actual displayed image area within the canvas element
+    const canvasAspectRatio = canvasDimensions.width / canvasDimensions.height;
+    const displayAspectRatio = rect.width / rect.height;
+    
+    let actualImageWidth, actualImageHeight, offsetX, offsetY;
+    
+    if (canvasAspectRatio > displayAspectRatio) {
+      // Image is wider - letterboxed (black bars on top/bottom)
+      actualImageWidth = rect.width;
+      actualImageHeight = rect.width / canvasAspectRatio;
+      offsetX = 0;
+      offsetY = (rect.height - actualImageHeight) / 2;
+    } else {
+      // Image is taller - pillarboxed (black bars on left/right)
+      actualImageWidth = rect.height * canvasAspectRatio;
+      actualImageHeight = rect.height;
+      offsetX = (rect.width - actualImageWidth) / 2;
+      offsetY = 0;
+    }
+    
+    // STEP 3: Convert mouse coordinates to the actual image area
+    const imageRelativeX = mouseX - offsetX;
+    const imageRelativeY = mouseY - offsetY;
+    
+    // STEP 4: Scale to canvas internal coordinates
+    let canvasX = (imageRelativeX / actualImageWidth) * canvasDimensions.width;
+    let canvasY = (imageRelativeY / actualImageHeight) * canvasDimensions.height;
+    
+    // STEP 5: Apply zoom/pan transformations if they're not at defaults
+    if (zoomLevel !== 1.0 || panX !== 0 || panY !== 0) {
+      // Apply inverse transformations
+      canvasX = (canvasX - panX) / zoomLevel;
+      canvasY = (canvasY - panY) / zoomLevel;
+    }
+    
+    // STEP 6: Clamp to canvas bounds
+    const clampedX = Math.max(0, Math.min(canvasDimensions.width, canvasX));
+    const clampedY = Math.max(0, Math.min(canvasDimensions.height, canvasY));
+    
+    // Debug: Focus on the Y-coordinate fix
+    if (drawingMode && isDrawing) {
+      console.log('🎯 Y-Coordinate Fix Debug:', {
+        'Mouse Position': { x: mouseX, y: mouseY },
+        'Canvas Display Size': { width: rect.width, height: rect.height },
+        'Canvas Internal Size': { width: canvasDimensions.width, height: canvasDimensions.height },
+        'Aspect Ratios': { canvas: canvasAspectRatio.toFixed(3), display: displayAspectRatio.toFixed(3) },
+        'Actual Image Area': { width: actualImageWidth, height: actualImageHeight },
+        'Image Offset': { x: offsetX, y: offsetY },
+        'Image Relative Position': { x: imageRelativeX, y: imageRelativeY },
+        'Final Coordinates': { x: clampedX, y: clampedY },
+        'Y-Coordinate Issues?': Math.abs(canvasAspectRatio - displayAspectRatio) > 0.01 ? 'YES - Aspect ratio mismatch!' : 'No aspect ratio issues'
+      });
+    }
 
     return {
-      x: canvasX,
-      y: canvasY
+      x: Math.round(clampedX * 100) / 100,
+      y: Math.round(clampedY * 100) / 100
     };
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // For selection/assignment modes, we still need canvas coordinates immediately
     const coords = getCanvasCoordinates(event);
 
     // Check for middle mouse button or right mouse button for panning
@@ -683,10 +852,33 @@ export default function MainCanvas() {
         console.log(`Assigned tracklet ID ${selectedTrackletId} to box (prioritized visible boxes)`);
       }
     } else if (drawingMode && selectedTrackletId !== null && selectedTrackletId !== 99) {
-      // Start drawing new bounding box
+      // Start drawing new bounding box using CANVAS coordinates (consistent with final result)
+      console.log('🖊️ === NEW DRAWING SESSION ===');
+      console.log('🖊️ Previous state:', {
+        wasDrawing: isDrawing,
+        hadStartPoint: !!startPoint,
+        hadCurrentRect: !!currentRect
+      });
+      
+      // Force clear any lingering state from previous drawing session FIRST
+      if (isDrawing || startPoint || currentRect) {
+        console.log('🖊️ WARNING: Previous drawing state detected, force clearing...');
+      }
+      
+      console.log('🖊️ Starting to draw at coordinates:', coords);
+      console.log('🖊️ Mouse event details:', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        button: event.button
+      });
+      
+      // Set new drawing state - this should override any previous state
       setIsDrawing(true);
-      setStartPoint(coords);
+      setStartPoint(coords); // Store canvas coordinates during drawing
       setCurrentRect({ x: coords.x, y: coords.y, width: 0, height: 0 });
+      
+      console.log('🖊️ Initial drawing rectangle:', { x: coords.x, y: coords.y, width: 0, height: 0 });
+      console.log('🖊️ === DRAWING SESSION STARTED ===');
     } else {
       // Selection mode - use smart selection logic
       const clickedBox = getClickedBox(coords);
@@ -711,7 +903,13 @@ export default function MainCanvas() {
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // For hover effects, we need canvas coordinates
     const coords = getCanvasCoordinates(event);
+    
+    // Track cursor position only when in drawing mode for performance
+    if (drawingMode) {
+      setCursorPosition(coords);
+    }
     
     // Update hovered box for visual feedback
     const hoveredBox = getClickedBox(coords);
@@ -729,15 +927,29 @@ export default function MainCanvas() {
 
     if (!isDrawing || !startPoint) return;
 
+    // Debug: Log mouse move during drawing
+    if (isDrawing) {
+      console.log('🖊️ Mouse move during drawing:', {
+        coords,
+        startPoint,
+        isDrawing,
+        hasStartPoint: !!startPoint
+      });
+    }
+
+    // During drawing, use CANVAS coordinates for consistent behavior
     const width = coords.x - startPoint.x;
     const height = coords.y - startPoint.y;
 
-    setCurrentRect({
+    const newRect = {
       x: width < 0 ? coords.x : startPoint.x,
       y: height < 0 ? coords.y : startPoint.y,
       width: Math.abs(width),
       height: Math.abs(height)
-    });
+    };
+
+    console.log('🖊️ Updating current rect:', newRect);
+    setCurrentRect(newRect);
   };
 
   const saveAnnotationFile = useCallback(async (annotationData: AnnotationData[]) => {
@@ -800,16 +1012,29 @@ export default function MainCanvas() {
   }, [imagePath, annotations, setAnnotations, saveAnnotationFile]);
 
   const handleMouseUp = useCallback(() => {
+    console.log('🖊️ === MOUSE UP EVENT ===');
+    console.log('🖊️ Current state:', {
+      isPanning,
+      isDrawing,
+      hasCurrentRect: !!currentRect,
+      hasStartPoint: !!startPoint,
+      selectedTrackletId
+    });
+    
     if (isPanning) {
+      console.log('🖊️ Ending panning');
       setIsPanning(false);
       setLastPanPoint(null);
       return;
     }
 
     if (isDrawing && currentRect && selectedTrackletId !== null && startPoint) {
+      console.log('🖊️ Processing drawing completion...');
+      
       // Check if the drawn rectangle is large enough (minimum 5x5 pixels to avoid single dots)
       const minSize = 5;
       if (currentRect.width < minSize || currentRect.height < minSize) {
+        console.log('🖊️ Rectangle too small, canceling:', currentRect);
         // Don't create a bounding box for very small rectangles (single dots)
         setCurrentRect(null);
         setIsDrawing(false);
@@ -817,21 +1042,33 @@ export default function MainCanvas() {
         return;
       }
 
+      console.log('🖊️ Creating bounding box with rect:', currentRect);
+
+      // Canvas coordinates are already stored in currentRect, no conversion needed
+      const canvasRect = {
+        x: currentRect.x,
+        y: currentRect.y,
+        width: currentRect.width,
+        height: currentRect.height
+      };
+
       // Remove any existing bounding box with the same tracklet ID on the current frame
       const currentFrameBoundingBoxes = boundingBoxes.filter(box => 
         box.tracklet_id !== selectedTrackletId
       );
 
-      // Add the new bounding box
+      // Add the new bounding box with CANVAS coordinates
       const newBox: BoundingBox = {
         id: `new-${Date.now()}`,
         tracklet_id: selectedTrackletId,
-        x: currentRect.x,
-        y: currentRect.y,
-        width: currentRect.width,
-        height: currentRect.height,
+        x: canvasRect.x,
+        y: canvasRect.y,
+        width: canvasRect.width,
+        height: canvasRect.height,
         team: '' // Start with empty team, can be assigned later
       };
+
+      console.log('🖊️ New bounding box created:', newBox);
 
       // Update bounding boxes to replace any existing box with same tracklet ID
       setBoundingBoxes([...currentFrameBoundingBoxes, newBox]);
@@ -842,13 +1079,16 @@ export default function MainCanvas() {
       setCurrentRect(null);
     }
     
+    console.log('🖊️ Clearing drawing state...');
     setIsDrawing(false);
     setStartPoint(null);
+    console.log('🖊️ === DRAWING SESSION ENDED ===');
   }, [isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
 
   const handleMouseLeave = () => {
     // Clear hover state when mouse leaves canvas
     setHoveredBoxId(null);
+    setCursorPosition(null); // Clear cursor position indicator
     
     // Only cancel panning when cursor leaves canvas, but keep drawing active
     if (isPanning) {
@@ -945,23 +1185,58 @@ export default function MainCanvas() {
 
   // Add global mouse listeners when drawing to handle cursor outside canvas
   useEffect(() => {
-    if (!isDrawing) return;
+    // Only set up listeners when we START drawing, not on every state change
+    if (!isDrawing || !startPoint) {
+      return; // Don't set up listeners if not actively drawing with a start point
+    }
+
+    console.log('🖊️ Setting up global mouse listeners for drawing session');
 
     const handleGlobalMouseMove = (event: MouseEvent) => {
       const canvas = canvasRef.current;
-      if (!canvas || !startPoint) return;
+      if (!canvas || !startPoint) {
+        return;
+      }
 
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-
-      // Get mouse coordinates relative to canvas with proper scaling
-      const mouseX = (event.clientX - rect.left) * scaleX;
-      const mouseY = (event.clientY - rect.top) * scaleY;
-
-      // Convert screen coordinates to canvas coordinates with zoom and pan
-      const canvasX = (mouseX - panX) / zoomLevel;
-      const canvasY = (mouseY - panY) / zoomLevel;
+      
+      // Use the same coordinate calculation as getCanvasCoordinates
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      
+      // Account for CSS object-fit: contain behavior
+      const canvasAspectRatio = canvasDimensions.width / canvasDimensions.height;
+      const displayAspectRatio = rect.width / rect.height;
+      
+      let actualImageWidth, actualImageHeight, offsetX, offsetY;
+      
+      if (canvasAspectRatio > displayAspectRatio) {
+        // Image is wider - letterboxed
+        actualImageWidth = rect.width;
+        actualImageHeight = rect.width / canvasAspectRatio;
+        offsetX = 0;
+        offsetY = (rect.height - actualImageHeight) / 2;
+      } else {
+        // Image is taller - pillarboxed
+        actualImageWidth = rect.height * canvasAspectRatio;
+        actualImageHeight = rect.height;
+        offsetX = (rect.width - actualImageWidth) / 2;
+        offsetY = 0;
+      }
+      
+      // Convert to image-relative coordinates
+      const imageRelativeX = mouseX - offsetX;
+      const imageRelativeY = mouseY - offsetY;
+      
+      // Scale to canvas internal coordinates
+      let canvasX = (imageRelativeX / actualImageWidth) * canvasDimensions.width;
+      let canvasY = (imageRelativeY / actualImageHeight) * canvasDimensions.height;
+      
+      // Apply zoom/pan if they're not at defaults
+      if (zoomLevel !== 1.0 || panX !== 0 || panY !== 0) {
+        canvasX = (canvasX - panX) / zoomLevel;
+        canvasY = (canvasY - panY) / zoomLevel;
+      }
 
       // Clamp coordinates to canvas bounds
       const coords = {
@@ -969,6 +1244,7 @@ export default function MainCanvas() {
         y: Math.max(0, Math.min(canvasDimensions.height, canvasY))
       };
 
+      // Calculate rectangle from canvas coordinates
       const width = coords.x - startPoint.x;
       const height = coords.y - startPoint.y;
 
@@ -981,6 +1257,7 @@ export default function MainCanvas() {
     };
 
     const handleGlobalMouseUp = () => {
+      console.log('🖊️ Global mouse up triggered');
       handleMouseUp();
     };
 
@@ -990,6 +1267,7 @@ export default function MainCanvas() {
 
     // Cleanup listeners when drawing stops or component unmounts
     return () => {
+      console.log('🖊️ Cleaning up global mouse listeners');
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
