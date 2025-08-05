@@ -662,7 +662,7 @@ export default function MainCanvas() {
     };
   };
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // For selection/assignment modes, we still need canvas coordinates immediately
     const coords = getCanvasCoordinates(event);
 
@@ -737,19 +737,49 @@ export default function MainCanvas() {
       const clickedBox = getClickedBox(coords);
 
       if (clickedBox && selectedTrackletId !== null) {
-        // Update the tracklet ID of the clicked box
-        updateBoundingBox(clickedBox.id, { tracklet_id: selectedTrackletId });
-        setSelectedBoundingBox(clickedBox.id);
+        // Smart ID switching: If the target ID already exists in the current frame, swap the IDs
+        const existingBoxWithTargetId = boundingBoxes.find(box => 
+          box.tracklet_id === selectedTrackletId && box.id !== clickedBox.id
+        );
         
-        // Update the annotation data
-        updateAnnotationData(clickedBox, selectedTrackletId);
+        if (existingBoxWithTargetId) {
+          // Swap the tracklet IDs between the two boxes
+          const clickedBoxOriginalId = clickedBox.tracklet_id;
+          
+          console.log(`🔄 Smart ID swap: Box "${clickedBox.id}" (ID ${clickedBoxOriginalId}) ↔ Box "${existingBoxWithTargetId.id}" (ID ${selectedTrackletId})`);
+          
+          // Update both bounding boxes immediately for visual feedback
+          updateBoundingBox(clickedBox.id, { tracklet_id: selectedTrackletId });
+          updateBoundingBox(existingBoxWithTargetId.id, { tracklet_id: clickedBoxOriginalId });
+          
+          // Update annotation data for both boxes in a single operation
+          try {
+            await swapAnnotationIds(clickedBox, existingBoxWithTargetId, selectedTrackletId, clickedBoxOriginalId);
+            console.log(`✅ ID swap completed successfully`);
+          } catch (error) {
+            console.error('Error during ID swap annotation update:', error);
+          }
+          
+          // Select the clicked box
+          setSelectedBoundingBox(clickedBox.id);
+        } else {
+          // Normal assignment - no existing box with target ID
+          updateBoundingBox(clickedBox.id, { tracklet_id: selectedTrackletId });
+          setSelectedBoundingBox(clickedBox.id);
+          
+          // Update the annotation data
+          try {
+            await updateAnnotationData(clickedBox, selectedTrackletId);
+            console.log(`✅ Assigned tracklet ID ${selectedTrackletId} to box "${clickedBox.id}"`);
+          } catch (error) {
+            console.error('Error updating annotation data:', error);
+          }
+        }
         
-        // If an event is also selected, assign it to the box
+        // If an event is also selected, assign it to the clicked box
         if (selectedEvent) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
-        
-        console.log(`Assigned tracklet ID ${selectedTrackletId} to box (prioritized visible boxes)`);
       }
     } else if (drawingMode && selectedTrackletId !== null && selectedTrackletId !== 99) {
       // Start drawing new bounding box using CANVAS coordinates (consistent with final result)
@@ -1036,6 +1066,39 @@ export default function MainCanvas() {
     }
   };
 
+  // Specialized function for swapping tracklet IDs between two boxes in a single operation
+  const swapAnnotationIds = async (box1: BoundingBox, box2: BoundingBox, newId1: number, newId2: number) => {
+    if (typeof window === 'undefined' || !window.electronAPI) return;
+
+    try {
+      if (!imagePath) return;
+
+      const filename = imagePath.split('/').pop() || '';
+      const frameNumber = await window.electronAPI.getFrameNumber(filename);
+
+      const updatedAnnotations = annotations.map(ann => {
+        if (ann.frame === frameNumber) {
+          // Update annotation for box1
+          if (ann.x === box1.x && ann.y === box1.y && 
+              ann.w === box1.width && ann.h === box1.height) {
+            return { ...ann, tracklet_id: newId1 };
+          }
+          // Update annotation for box2
+          if (ann.x === box2.x && ann.y === box2.y && 
+              ann.w === box2.width && ann.h === box2.height) {
+            return { ...ann, tracklet_id: newId2 };
+          }
+        }
+        return ann;
+      });
+      
+      setAnnotations(updatedAnnotations);
+      saveAnnotationFile(updatedAnnotations);
+    } catch (error) {
+      console.error('Error swapping annotation IDs:', error);
+    }
+  };
+
   // Add global mouse listeners when drawing to handle cursor outside canvas
   useEffect(() => {
     // Only set up listeners when we START drawing, not on every state change
@@ -1221,7 +1284,7 @@ export default function MainCanvas() {
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
           {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (ESC to exit)`}
           {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
-          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} (ESC to exit)`}
+          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} 🔄 Smart Swap (ESC to exit)`}
           {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}
         </div>
 

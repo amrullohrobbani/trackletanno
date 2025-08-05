@@ -402,6 +402,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
                     key={frame.frameNumber}
                     frame={frame}
                     isActive={frame.frameNumber === (frameData[currentFrameIndex]?.frameNumber)}
+                    globalFrameIndex={globalFrameIndex}
                     onNavigate={navigateToFrame}
                     generateCroppedImage={generateCroppedImage}
                     generatePlaceholderImage={generatePlaceholderImage}
@@ -463,6 +464,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
 interface TrackletFrameCardProps {
   frame: FrameData;
   isActive: boolean;
+  globalFrameIndex: number;
   onNavigate: (frameNumber: number) => void;
   generateCroppedImage: (frame: FrameData) => Promise<string | null>;
   generatePlaceholderImage: (frameNumber: number) => string;
@@ -471,6 +473,7 @@ interface TrackletFrameCardProps {
 function TrackletFrameCard({ 
   frame, 
   isActive, 
+  globalFrameIndex,
   onNavigate, 
   generateCroppedImage, 
   generatePlaceholderImage
@@ -539,7 +542,7 @@ function TrackletFrameCard({
         {/* Frame Info */}
         <div className="p-2 text-center">
           <div className="text-white text-sm font-medium">
-            {isActive ? `Current - ${frame.frameNumber}` : `Frame ${frame.frameNumber}`}
+            {isActive ? `Frame ${globalFrameIndex + 1} - ${frame.frameNumber}` : `Frame ${frame.frameNumber}`}
           </div>
           {frame.annotation && (
             <div className="text-gray-400 text-xs mt-1">
