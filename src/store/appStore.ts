@@ -57,6 +57,9 @@ interface AppState {
   canvasDimensions: { width: number; height: number };
   setCanvasDimensions: (dimensions: { width: number; height: number }) => void;
   
+  // Force redraw timestamp for Windows compatibility
+  forceRedrawTimestamp: number;
+  
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
   setRallyFolders: (folders: RallyFolder[]) => void;
@@ -106,6 +109,7 @@ interface AppState {
   addBallAnnotation: (x: number, y: number, frameNumber: number, event?: string) => void;
   removeBallAnnotation: (frameNumber: number) => void;
   clearBallAnnotations: () => void;
+  updateBallAnnotationEvent: (frameNumber: number, event: string) => void;
   getCurrentFrameBallAnnotation: () => AnnotationData | null;
   removeCurrentFrameBallAnnotation: () => void;
   getCurrentFrameNumber: () => number | null;
@@ -183,6 +187,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Initial canvas dimensions (default 1920x1080)
   canvasDimensions: { width: 1920, height: 1080 },
   setCanvasDimensions: (dimensions) => set({ canvasDimensions: dimensions }),
+  
+  // Force redraw timestamp for Windows compatibility
+  forceRedrawTimestamp: 0,
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -745,8 +752,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       annotations: filteredAnnotations,
       ballAnnotations: filteredBallAnnotations,
       hasBallAnnotations: filteredBallAnnotations.length > 0,
-      // Force a re-render by updating a timestamp if needed
-      saveStatus: 'saving'
+      // Force a re-render by updating timestamp for Windows compatibility
+      forceRedrawTimestamp: Date.now()
     });
     
     console.log(`Removed ball annotation for frame ${frameNumber}. Remaining ball annotations:`, filteredBallAnnotations.length);
@@ -763,6 +770,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     }, 100);
   },
   
+  updateBallAnnotationEvent: (frameNumber: number, event: string) => {
+    const { annotations, ballAnnotations } = get();
+    
+    // Update the event in both annotation arrays
+    const updatedAnnotations = annotations.map(ann => {
+      if (ann.frame === frameNumber && ann.tracklet_id === BALL_TRACKLET_ID) {
+        return { ...ann, event };
+      }
+      return ann;
+    });
+    
+    const updatedBallAnnotations = ballAnnotations.map(ann => {
+      if (ann.frame === frameNumber) {
+        return { ...ann, event };
+      }
+      return ann;
+    });
+    
+    // Update state immediately
+    set({ 
+      annotations: updatedAnnotations,
+      ballAnnotations: updatedBallAnnotations
+    });
+    
+    // Save to file after state update (async, non-blocking)
+    setTimeout(async () => {
+      try {
+        await get().saveAnnotationsToFile();
+      } catch (error) {
+        console.error('Error saving ball annotation event:', error);
+      }
+    }, 50);
+  },
+  
   clearBallAnnotations: () => {
     const { annotations } = get();
     
@@ -773,7 +814,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ 
       annotations: nonBallAnnotations,
       ballAnnotations: [],
-      hasBallAnnotations: false
+      hasBallAnnotations: false,
+      forceRedrawTimestamp: Date.now()
     });
     
     // Save to file after state update

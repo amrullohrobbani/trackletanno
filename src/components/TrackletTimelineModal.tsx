@@ -50,67 +50,6 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     }
   }, [isOpen]); // Removed croppedImages from dependencies to prevent infinite loop
 
-  // Load frame data when modal opens or tracklet changes
-  useEffect(() => {
-    if (!isOpen || !trackletId) return;
-
-    const loadFrameData = async () => {
-      setIsLoading(true);
-      const rally = getCurrentRally();
-      if (!rally) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const frames: FrameData[] = [];
-        
-        // Get all annotations for this tracklet
-        const trackletAnnotations = annotations.filter(ann => ann.tracklet_id === trackletId);
-        
-        // Create frame data for all frames in the rally
-        for (let i = 0; i < rally.imageFiles.length; i++) {
-          const imagePath = rally.imageFiles[i];
-          
-          // Extract frame number from image filename (cross-platform compatible)
-          // Handle both forward slashes (Linux) and backslashes (Windows)
-          const filename = imagePath.split(/[/\\]/).pop() || '';
-          const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
-          
-          const annotation = trackletAnnotations.find(ann => ann.frame === frameNumber) || null;
-          
-          frames.push({
-            frameNumber,
-            imagePath,
-            annotation,
-            hasPlaceholder: !annotation
-          });
-        }
-
-        setFrameData(frames);
-        
-        // Set current frame index to the global frame index
-        setCurrentFrameIndex(globalFrameIndex);
-        
-        // Debug logging
-        console.log('=== Timeline Debug Info ===');
-        console.log('Tracklet ID:', trackletId);
-        console.log('Total frames loaded:', frames.length);
-        console.log('Tracklet annotations found:', trackletAnnotations.length);
-        console.log('Frames with annotations:', frames.filter(f => !f.hasPlaceholder).length);
-        console.log('Sample frame data:', frames.slice(0, 3));
-        console.log('Current frame index:', globalFrameIndex);
-        
-      } catch (error) {
-        console.error('Error loading frame data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadFrameData();
-  }, [isOpen, trackletId, annotations, getCurrentRally, globalFrameIndex]);
-
   // Generate cropped image for a frame
   const generateCroppedImage = useCallback(async (frame: FrameData): Promise<string | null> => {
     if (!frame.annotation || typeof window === 'undefined' || !window.electronAPI) {
@@ -131,21 +70,10 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
         console.error('File system error loading image:', {
           path: frame.imagePath,
           frame: frame.frameNumber,
-          error: fileError,
-          platform: navigator.platform,
-          userAgent: navigator.userAgent
+          error: fileError
         });
         return null;
       }
-      
-      // Debug logging for Windows compatibility
-      console.log('Loading image for timeline:', {
-        imagePath: frame.imagePath,
-        frameNumber: frame.frameNumber,
-        dataUrlLength: imageDataUrl?.length || 0,
-        pathSeparators: frame.imagePath.includes('\\') ? 'Windows' : 'Unix',
-        platform: navigator.platform
-      });
       
       if (!imageDataUrl || imageDataUrl.length === 0) {
         console.warn('Empty or invalid image data received');
@@ -204,38 +132,82 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             setCroppedImages(prev => new Map(prev.set(cacheKey, croppedDataUrl)));
             resolve(croppedDataUrl);
           } catch (canvasError) {
-            console.error('Canvas drawing error:', {
-              error: canvasError,
-              frame: frame.frameNumber,
-              annotation: frame.annotation,
-              canvasSize: { width: canvas.width, height: canvas.height }
-            });
+            console.error('Canvas drawing error:', canvasError);
             resolve(null);
           }
         };
         
         img.onerror = (imgError) => {
-          console.error('Image loading error:', {
-            error: imgError,
-            path: frame.imagePath,
-            frameNumber: frame.frameNumber,
-            dataUrlPreview: imageDataUrl.substring(0, 100) + '...',
-            dataUrlValid: imageDataUrl.startsWith('data:image/'),
-            platform: navigator.platform
-          });
+          console.error('Image loading error:', imgError);
           resolve(null);
         };
       });
     } catch (error) {
-      console.error('Error generating cropped image:', {
-        error,
-        frame: frame.frameNumber,
-        path: frame.imagePath,
-        platform: navigator.platform
-      });
+      console.error('Error generating cropped image:', error);
       return null;
     }
   }, [trackletId, croppedImages]);
+
+  // Load frame data when modal opens or tracklet changes
+  useEffect(() => {
+    if (!isOpen || !trackletId) return;
+
+    const loadFrameData = async () => {
+      setIsLoading(true);
+      const rally = getCurrentRally();
+      if (!rally) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const frames: FrameData[] = [];
+        
+        // Get all annotations for this tracklet
+        const trackletAnnotations = annotations.filter(ann => ann.tracklet_id === trackletId);
+        
+        // Create frame data for all frames in the rally
+        for (let i = 0; i < rally.imageFiles.length; i++) {
+          const imagePath = rally.imageFiles[i];
+          
+          // Extract frame number from image filename (cross-platform compatible)
+          // Handle both forward slashes (Linux) and backslashes (Windows)
+          const filename = imagePath.split(/[/\\]/).pop() || '';
+          const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+          
+          const annotation = trackletAnnotations.find(ann => ann.frame === frameNumber) || null;
+          
+          frames.push({
+            frameNumber,
+            imagePath,
+            annotation,
+            hasPlaceholder: !annotation
+          });
+        }
+
+        setFrameData(frames);
+        
+        // Set current frame index to the global frame index
+        setCurrentFrameIndex(globalFrameIndex);
+        
+        // Load all images immediately after loading frame data
+        setTimeout(() => {
+          frames.forEach(async (frame) => {
+            if (frame.annotation) {
+              await generateCroppedImage(frame);
+            }
+          });
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error loading frame data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadFrameData();
+  }, [isOpen, trackletId, annotations, getCurrentRally, globalFrameIndex, generateCroppedImage]);
 
   // Generate placeholder image
   const generatePlaceholderImage = useCallback((frameNumber: number): string => {
@@ -505,39 +477,8 @@ function TrackletFrameCard({
 }: TrackletFrameCardProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInView, setIsInView] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Intersection Observer for lazy loading
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsInView(entry.isIntersecting);
-      },
-      {
-        rootMargin: '100px', // Start loading 100px before the card comes into view
-        threshold: 0.1
-      }
-    );
-
-    const currentCard = cardRef.current;
-    if (currentCard) {
-      observer.observe(currentCard);
-    }
-
-    return () => {
-      if (currentCard) {
-        observer.unobserve(currentCard);
-      }
-    };
-  }, []);
 
   useEffect(() => {
-    // Only load image when it's in view or active
-    if (!isInView && !isActive) {
-      return;
-    }
-
     const loadImage = async () => {
       setIsLoading(true);
       try {
@@ -545,25 +486,16 @@ function TrackletFrameCard({
           const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
           setImageUrl(placeholderUrl);
         } else {
-          console.log('Loading image for frame:', frame.frameNumber, 'Path:', frame.imagePath);
           const croppedUrl = await generateCroppedImage(frame);
           if (croppedUrl) {
             setImageUrl(croppedUrl);
-            console.log('Successfully loaded image for frame:', frame.frameNumber);
           } else {
-            console.warn('Failed to generate cropped image for frame:', frame.frameNumber);
             const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
             setImageUrl(placeholderUrl);
           }
         }
       } catch (error) {
-        console.error('Error loading frame image:', {
-          error,
-          frameNumber: frame.frameNumber,
-          imagePath: frame.imagePath,
-          hasPlaceholder: frame.hasPlaceholder,
-          platform: navigator.platform
-        });
+        console.error('Error loading frame image:', error);
         const placeholderUrl = generatePlaceholderImage(frame.frameNumber);
         setImageUrl(placeholderUrl);
       } finally {
@@ -571,14 +503,11 @@ function TrackletFrameCard({
       }
     };
 
-    // Debounce loading to prevent excessive requests
-    const timeoutId = setTimeout(loadImage, isActive ? 0 : 100);
-    return () => clearTimeout(timeoutId);
-  }, [frame, generateCroppedImage, generatePlaceholderImage, isInView, isActive]);
+    loadImage();
+  }, [frame, generateCroppedImage, generatePlaceholderImage]);
 
   return (
     <div
-      ref={cardRef}
       data-frame={frame.frameNumber}
       className={`flex-shrink-0 cursor-pointer transition-all duration-300 ease-out ${
         isActive 
@@ -593,9 +522,7 @@ function TrackletFrameCard({
         {/* Image */}
         <div className="w-32 h-32 flex items-center justify-center bg-gray-800">
           {isLoading ? (
-            <div className="text-gray-400 text-xs">
-              {isInView || isActive ? 'Loading...' : 'Waiting...'}
-            </div>
+            <div className="text-gray-400 text-xs">Loading...</div>
           ) : imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -612,7 +539,7 @@ function TrackletFrameCard({
         {/* Frame Info */}
         <div className="p-2 text-center">
           <div className="text-white text-sm font-medium">
-            Frame {frame.frameNumber}
+            {isActive ? `Current - ${frame.frameNumber}` : `Frame ${frame.frameNumber}`}
           </div>
           {frame.annotation && (
             <div className="text-gray-400 text-xs mt-1">

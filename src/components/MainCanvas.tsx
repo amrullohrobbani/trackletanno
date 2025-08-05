@@ -47,6 +47,7 @@ export default function MainCanvas() {
     showEventLabels,
     ballAnnotationMode,
     addBallAnnotation,
+    updateBallAnnotationEvent,
     ballAnnotations,
     removeBallAnnotation,
     canvasDimensions,
@@ -56,7 +57,8 @@ export default function MainCanvas() {
     setDrawingMode,
     setAssignMode,
     setBallAnnotationMode,
-    setSelectedTrackletId
+    setSelectedTrackletId,
+    forceRedrawTimestamp
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -153,23 +155,8 @@ export default function MainCanvas() {
         const filename = imagePath.split('/').pop() || '';
         const frameNumber = await window.electronAPI.getFrameNumber(filename);
         
-        console.log('=== Frame Change Debug ===');
-        console.log('Image:', filename);
-        console.log('Frame index:', currentFrameIndex, '→ Frame number:', frameNumber);
-        console.log('Total annotations:', annotations.length);
-        
         // Filter annotations for this specific frame number
         const currentFrameAnnotations = annotations.filter(ann => ann.frame === frameNumber);
-        console.log('Bounding boxes for frame', frameNumber, ':', currentFrameAnnotations.length);
-        
-        if (currentFrameAnnotations.length > 0) {
-          console.log('First annotation:', currentFrameAnnotations[0]);
-          console.log('All annotations for this frame:', currentFrameAnnotations);
-        } else {
-          // Show available frames for debugging
-          const uniqueFrames = [...new Set(annotations.map(ann => ann.frame))].sort();
-          console.log('Available annotation frames:', uniqueFrames.slice(0, 5), '...');
-        }
         
         const boxes: BoundingBox[] = currentFrameAnnotations
           .filter(ann => ann.tracklet_id !== 99) // Exclude ball annotations (ID 99) from bounding boxes
@@ -184,10 +171,6 @@ export default function MainCanvas() {
             selected: false
           }));
         
-        console.log('Bounding boxes created from annotations:', boxes.length);
-        console.log('Bounding boxes details:', boxes);
-        console.log('About to call setBoundingBoxes...');
-        
         // Only update bounding boxes if they are actually different
         // This prevents unnecessary re-renders and potential conflicts with deletion
         const currentBoxes = lastBoundingBoxesRef.current;
@@ -200,14 +183,11 @@ export default function MainCanvas() {
           });
         
         if (boxesChanged) {
-          console.log('Bounding boxes changed, updating...');
           setBoundingBoxes(boxes);
           lastBoundingBoxesRef.current = boxes;
         } else {
-          console.log('Bounding boxes unchanged, skipping update...');
+          // Bounding boxes unchanged, skipping update
         }
-        
-        console.log('setBoundingBoxes processing completed');
         
         // Store the current frame number for event annotation lookups
         currentFrameNumberRef.current = frameNumber;
@@ -238,16 +218,6 @@ export default function MainCanvas() {
 
     // Save the current context state
     ctx.save();
-
-    // Debug: Log canvas and context state before transformations (simplified)
-    if (drawingMode && (startPoint || cursorPosition) && isDrawing) {
-      console.log('🎯 Canvas State:', {
-        'Canvas Size': `${canvas.width}x${canvas.height}`,
-        'Display Size': `${canvas.clientWidth}x${canvas.clientHeight}`,
-        'Zoom': zoomLevel,
-        'Pan': { x: panX, y: panY }
-      });
-    }
 
     // Apply pan (translation) first, then zoom (scale)
     ctx.translate(panX, panY);
@@ -319,20 +289,6 @@ export default function MainCanvas() {
       ctx.fill();
       
       ctx.restore();
-      
-      // Debug: Log cursor position vs start point when actively drawing
-      if (startPoint) {
-        const distance = Math.sqrt(Math.pow(cursorPosition.x - startPoint.x, 2) + Math.pow(cursorPosition.y - startPoint.y, 2));
-        console.log('🎯 Drawing Debug - Cursor at:', cursorPosition, 'Start point:', startPoint, 'Distance:', distance);
-        
-        // Special focus on Y coordinate difference
-        console.log('🎯 Y Position Debug:', {
-          'Cursor Y': cursorPosition.y,
-          'Start Y': startPoint.y,
-          'Y Difference': Math.abs(cursorPosition.y - startPoint.y),
-          'Y Direction': cursorPosition.y > startPoint.y ? 'DOWN' : 'UP'
-        });
-      }
     }
 
     // Draw start point indicator when drawing (blue circle to show exact start position)
@@ -515,6 +471,13 @@ export default function MainCanvas() {
 
     // Draw ball annotations as points
     if (ballAnnotations && ballAnnotations.length > 0 && visibleTrackletIds.has(99)) {
+      console.log('Drawing ball annotations:', {
+        ballAnnotationsCount: ballAnnotations.length,
+        currentFrame: currentFrameNumberRef.current,
+        visibleTrackletIds: Array.from(visibleTrackletIds),
+        ballAnnotationsForCurrentFrame: ballAnnotations.filter(b => b.frame === currentFrameNumberRef.current)
+      });
+      
       ballAnnotations.forEach((ballAnnotation) => {
         // Only draw ball annotations for the current frame
         if (ballAnnotation.frame === currentFrameNumberRef.current) {
@@ -633,7 +596,8 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -692,21 +656,6 @@ export default function MainCanvas() {
     const clampedX = Math.max(0, Math.min(canvasDimensions.width, canvasX));
     const clampedY = Math.max(0, Math.min(canvasDimensions.height, canvasY));
     
-    // Debug: Focus on the Y-coordinate fix
-    if (drawingMode && isDrawing) {
-      console.log('🎯 Y-Coordinate Fix Debug:', {
-        'Mouse Position': { x: mouseX, y: mouseY },
-        'Canvas Display Size': { width: rect.width, height: rect.height },
-        'Canvas Internal Size': { width: canvasDimensions.width, height: canvasDimensions.height },
-        'Aspect Ratios': { canvas: canvasAspectRatio.toFixed(3), display: displayAspectRatio.toFixed(3) },
-        'Actual Image Area': { width: actualImageWidth, height: actualImageHeight },
-        'Image Offset': { x: offsetX, y: offsetY },
-        'Image Relative Position': { x: imageRelativeX, y: imageRelativeY },
-        'Final Coordinates': { x: clampedX, y: clampedY },
-        'Y-Coordinate Issues?': Math.abs(canvasAspectRatio - displayAspectRatio) > 0.01 ? 'YES - Aspect ratio mismatch!' : 'No aspect ratio issues'
-      });
-    }
-
     return {
       x: Math.round(clampedX * 100) / 100,
       y: Math.round(clampedY * 100) / 100
@@ -730,6 +679,7 @@ export default function MainCanvas() {
       if (rally && rally.imageFiles[currentFrameIndex]) {
         const frameNumber = getCurrentFrameNumber();
         if (frameNumber !== null) {
+          console.log('Ball annotation mode - frameNumber:', frameNumber, 'coords:', coords, 'selectedEvent:', selectedEvent);
           // Check if clicking on an existing ball annotation first
           const ballRadius = 6;
           const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
@@ -743,33 +693,8 @@ export default function MainCanvas() {
           });
           
           if (clickedBallAnnotation && selectedEvent) {
-            // Update the event for the existing ball annotation
-            const updatedAnnotations = annotations.map(ann => {
-              if (ann.frame === frameNumber && ann.tracklet_id === 99) {
-                return { ...ann, event: selectedEvent };
-              }
-              return ann;
-            });
-            
-            const updatedBallAnnotations = ballAnnotations.map(ann => {
-              if (ann.frame === frameNumber) {
-                return { ...ann, event: selectedEvent };
-              }
-              return ann;
-            });
-            
-            setAnnotations(updatedAnnotations);
-            useAppStore.setState({ ballAnnotations: updatedBallAnnotations });
-            
-            // Save the changes
-            setTimeout(async () => {
-              try {
-                await useAppStore.getState().saveAnnotationsToFile();
-              } catch (error) {
-                console.error('Error saving ball annotation event:', error);
-              }
-            }, 50);
-            
+            // Update the event for the existing ball annotation using store action
+            updateBallAnnotationEvent(frameNumber, selectedEvent);
             return; // Exit early after updating event
           } else {
             // Add new ball annotation at the clicked point (always use tracklet ID 99)
@@ -799,33 +724,8 @@ export default function MainCanvas() {
           });
           
           if (clickedBallAnnotation && selectedEvent) {
-            // Update the event for the existing ball annotation
-            const updatedAnnotations = annotations.map(ann => {
-              if (ann.frame === frameNumber && ann.tracklet_id === 99) {
-                return { ...ann, event: selectedEvent };
-              }
-              return ann;
-            });
-            
-            const updatedBallAnnotations = ballAnnotations.map(ann => {
-              if (ann.frame === frameNumber) {
-                return { ...ann, event: selectedEvent };
-              }
-              return ann;
-            });
-            
-            setAnnotations(updatedAnnotations);
-            useAppStore.setState({ ballAnnotations: updatedBallAnnotations });
-            
-            // Save the changes
-            setTimeout(async () => {
-              try {
-                await useAppStore.getState().saveAnnotationsToFile();
-              } catch (error) {
-                console.error('Error saving ball annotation event:', error);
-              }
-            }, 50);
-            
+            // Update the event for the existing ball annotation using store action
+            updateBallAnnotationEvent(frameNumber, selectedEvent);
             return; // Exit early after updating event
           }
         }
@@ -853,32 +753,15 @@ export default function MainCanvas() {
       }
     } else if (drawingMode && selectedTrackletId !== null && selectedTrackletId !== 99) {
       // Start drawing new bounding box using CANVAS coordinates (consistent with final result)
-      console.log('🖊️ === NEW DRAWING SESSION ===');
-      console.log('🖊️ Previous state:', {
-        wasDrawing: isDrawing,
-        hadStartPoint: !!startPoint,
-        hadCurrentRect: !!currentRect
-      });
-      
       // Force clear any lingering state from previous drawing session FIRST
       if (isDrawing || startPoint || currentRect) {
-        console.log('🖊️ WARNING: Previous drawing state detected, force clearing...');
+        // Previous drawing state detected, force clearing
       }
-      
-      console.log('🖊️ Starting to draw at coordinates:', coords);
-      console.log('🖊️ Mouse event details:', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        button: event.button
-      });
       
       // Set new drawing state - this should override any previous state
       setIsDrawing(true);
       setStartPoint(coords); // Store canvas coordinates during drawing
       setCurrentRect({ x: coords.x, y: coords.y, width: 0, height: 0 });
-      
-      console.log('🖊️ Initial drawing rectangle:', { x: coords.x, y: coords.y, width: 0, height: 0 });
-      console.log('🖊️ === DRAWING SESSION STARTED ===');
     } else {
       // Selection mode - use smart selection logic
       const clickedBox = getClickedBox(coords);
@@ -927,16 +810,6 @@ export default function MainCanvas() {
 
     if (!isDrawing || !startPoint) return;
 
-    // Debug: Log mouse move during drawing
-    if (isDrawing) {
-      console.log('🖊️ Mouse move during drawing:', {
-        coords,
-        startPoint,
-        isDrawing,
-        hasStartPoint: !!startPoint
-      });
-    }
-
     // During drawing, use CANVAS coordinates for consistent behavior
     const width = coords.x - startPoint.x;
     const height = coords.y - startPoint.y;
@@ -948,7 +821,6 @@ export default function MainCanvas() {
       height: Math.abs(height)
     };
 
-    console.log('🖊️ Updating current rect:', newRect);
     setCurrentRect(newRect);
   };
 
@@ -1012,37 +884,22 @@ export default function MainCanvas() {
   }, [imagePath, annotations, setAnnotations, saveAnnotationFile]);
 
   const handleMouseUp = useCallback(() => {
-    console.log('🖊️ === MOUSE UP EVENT ===');
-    console.log('🖊️ Current state:', {
-      isPanning,
-      isDrawing,
-      hasCurrentRect: !!currentRect,
-      hasStartPoint: !!startPoint,
-      selectedTrackletId
-    });
-    
     if (isPanning) {
-      console.log('🖊️ Ending panning');
       setIsPanning(false);
       setLastPanPoint(null);
       return;
     }
 
     if (isDrawing && currentRect && selectedTrackletId !== null && startPoint) {
-      console.log('🖊️ Processing drawing completion...');
-      
       // Check if the drawn rectangle is large enough (minimum 5x5 pixels to avoid single dots)
       const minSize = 5;
       if (currentRect.width < minSize || currentRect.height < minSize) {
-        console.log('🖊️ Rectangle too small, canceling:', currentRect);
         // Don't create a bounding box for very small rectangles (single dots)
         setCurrentRect(null);
         setIsDrawing(false);
         setStartPoint(null);
         return;
       }
-
-      console.log('🖊️ Creating bounding box with rect:', currentRect);
 
       // Canvas coordinates are already stored in currentRect, no conversion needed
       const canvasRect = {
@@ -1068,8 +925,6 @@ export default function MainCanvas() {
         team: '' // Start with empty team, can be assigned later
       };
 
-      console.log('🖊️ New bounding box created:', newBox);
-
       // Update bounding boxes to replace any existing box with same tracklet ID
       setBoundingBoxes([...currentFrameBoundingBoxes, newBox]);
       
@@ -1079,10 +934,8 @@ export default function MainCanvas() {
       setCurrentRect(null);
     }
     
-    console.log('🖊️ Clearing drawing state...');
     setIsDrawing(false);
     setStartPoint(null);
-    console.log('🖊️ === DRAWING SESSION ENDED ===');
   }, [isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
 
   const handleMouseLeave = () => {
@@ -1189,8 +1042,6 @@ export default function MainCanvas() {
     if (!isDrawing || !startPoint) {
       return; // Don't set up listeners if not actively drawing with a start point
     }
-
-    console.log('🖊️ Setting up global mouse listeners for drawing session');
 
     const handleGlobalMouseMove = (event: MouseEvent) => {
       const canvas = canvasRef.current;
