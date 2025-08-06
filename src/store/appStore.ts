@@ -640,26 +640,64 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!selectedDirectory) return;
     
     set({ isLoading: true });
+    
+    // Windows-compatible loading with retry mechanism
+    const loadWithRetry = async (retryCount = 0) => {
+      try {
+        const ballAnnotations = await loadJsonBallAnnotations(selectedDirectory, canvasDimensions.width, canvasDimensions.height);
+        
+        // Merge ball annotations with existing annotations, removing any existing ball annotations first
+        const { annotations } = get();
+        const mergedAnnotations = [...annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID), ...ballAnnotations];
+        
+        set({ 
+          annotations: mergedAnnotations,
+          ballAnnotations,
+          hasBallAnnotations: ballAnnotations.length > 0,
+          // Force canvas redraw for Windows compatibility
+          forceRedrawTimestamp: Date.now()
+        });
+        
+        // Save to TXT file after importing with Windows-compatible delay
+        const state = get();
+        
+        // Platform-specific save delay
+        const saveDelay = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? 200 : 100;
+        setTimeout(async () => {
+          try {
+            await state.saveAnnotationsToFile();
+            set({ saveStatus: 'saved' });
+            setTimeout(() => {
+              if (get().saveStatus === 'saved') set({ saveStatus: 'idle' });
+            }, 2000);
+          } catch (saveError) {
+            console.error('Error saving after ball annotation import:', saveError);
+            set({ saveStatus: 'error' });
+            setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+          }
+        }, saveDelay);
+        
+        console.log(`Loaded ${ballAnnotations.length} ball annotations from JSON files (coordinates scaled from 224x224 to ${canvasDimensions.width}x${canvasDimensions.height})`);
+        
+      } catch (error) {
+        console.error(`Error loading ball annotations (attempt ${retryCount + 1}):`, error);
+        
+        // Windows-specific retry logic for file system issues
+        const isWindows = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win');
+        if (retryCount < 2 && isWindows) {
+          setTimeout(() => loadWithRetry(retryCount + 1), 500 * (retryCount + 1));
+        } else {
+          throw error; // Re-throw if all retries failed
+        }
+      }
+    };
+    
     try {
-      const ballAnnotations = await loadJsonBallAnnotations(selectedDirectory, canvasDimensions.width, canvasDimensions.height);
-      
-      // Merge ball annotations with existing annotations, removing any existing ball annotations first
-      const { annotations } = get();
-      const mergedAnnotations = [...annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID), ...ballAnnotations];
-      
-      set({ 
-        annotations: mergedAnnotations,
-        ballAnnotations,
-        hasBallAnnotations: ballAnnotations.length > 0
-      });
-      
-      // Save to TXT file after importing
-      const state = get();
-      await state.saveAnnotationsToFile();
-      
-      console.log(`Loaded ${ballAnnotations.length} ball annotations from JSON files (coordinates scaled from 224x224 to ${canvasDimensions.width}x${canvasDimensions.height})`);
+      await loadWithRetry();
     } catch (error) {
-      console.error('Error loading ball annotations:', error);
+      console.error('Failed to load ball annotations after retries:', error);
+      set({ saveStatus: 'error' });
+      setTimeout(() => set({ saveStatus: 'idle' }), 3000);
     } finally {
       set({ isLoading: false });
     }
@@ -672,22 +710,55 @@ export const useAppStore = create<AppState>((set, get) => ({
     const rally = getCurrentRally();
     if (!rally) return false;
     
-    const outputPath = filePath || `${selectedDirectory}/${rally.name}_export.json`;
+    // Cross-platform path handling
+    const sanitizedRallyName = rally.name.replace(/[<>:"/\\|?*]/g, '_'); // Remove invalid filename characters
+    const outputPath = filePath || `${selectedDirectory}${typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? '\\' : '/'}${sanitizedRallyName}_export.json`;
+    
+    // Windows-compatible export with retry mechanism
+    const exportWithRetry = async (retryCount = 0): Promise<boolean> => {
+      try {
+        set({ saveStatus: 'saving' });
+        
+        // Enhanced relative path handling for cross-platform compatibility
+        const relativePath = `..${typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? '\\' : '/'}${sanitizedRallyName}`;
+        const success = await exportAnnotationsToJson(annotations, outputPath, relativePath, canvasDimensions.width, canvasDimensions.height);
+        
+        if (success) {
+          set({ saveStatus: 'saved' });
+          setTimeout(() => {
+            if (get().saveStatus === 'saved') set({ saveStatus: 'idle' });
+          }, 2000);
+          return true;
+        } else {
+          throw new Error('Export operation returned false');
+        }
+        
+      } catch (error) {
+        console.error(`Error exporting to JSON (attempt ${retryCount + 1}):`, error);
+        
+        // Windows-specific retry logic for file system issues
+        const isWindows = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win');
+        if (retryCount < 2 && isWindows) {
+          // Progressive delay for Windows file system stability
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              exportWithRetry(retryCount + 1).then(resolve);
+            }, 600 * (retryCount + 1));
+          });
+        } else {
+          set({ saveStatus: 'error' });
+          setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+          return false;
+        }
+      }
+    };
     
     try {
-      set({ saveStatus: 'saving' });
-      const success = await exportAnnotationsToJson(annotations, outputPath, `../${rally.name}`, canvasDimensions.width, canvasDimensions.height);
-      set({ saveStatus: success ? 'saved' : 'error' });
-      
-      if (success) {
-        setTimeout(() => set({ saveStatus: 'idle' }), 2000);
-      }
-      
-      return success;
+      return await exportWithRetry();
     } catch (error) {
-      console.error('Error exporting to JSON:', error);
+      console.error('Failed to export annotations after retries:', error);
       set({ saveStatus: 'error' });
-      setTimeout(() => set({ saveStatus: 'idle' }), 2000);
+      setTimeout(() => set({ saveStatus: 'idle' }), 3000);
       return false;
     }
   },
@@ -705,8 +776,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newBallAnnotation: AnnotationData = {
       frame: frameNumber,
       tracklet_id: BALL_TRACKLET_ID,
-      x,
-      y,
+      x: Math.round(x), // Ensure integer coordinates for cross-platform consistency
+      y: Math.round(y),
       w: 8, // Small fixed size for ball point
       h: 8,
       score: 1.0,
@@ -720,22 +791,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updatedAnnotations = [...filteredAnnotations, newBallAnnotation];
     const updatedBallAnnotations = [...filteredBallAnnotations, newBallAnnotation];
     
-    // Update state immediately for instant visual feedback
+    // Update state immediately for instant visual feedback with Windows compatibility
     set({ 
       annotations: updatedAnnotations,
       ballAnnotations: updatedBallAnnotations,
-      hasBallAnnotations: true
+      hasBallAnnotations: true,
+      // Force Windows canvas redraw by updating timestamp
+      forceRedrawTimestamp: Date.now()
     });
     
-    // Save to file after state update (async, non-blocking)
-    setTimeout(async () => {
+    // Windows-compatible async save with proper error handling and retry logic
+    const saveWithRetry = async (retryCount = 0) => {
       try {
         await get().saveAnnotationsToFile();
+        set({ saveStatus: 'saved' });
       } catch (error) {
-        console.error('Error saving ball annotation:', error);
-        // On save error, could implement rollback here if needed
+        console.error(`Error saving ball annotation (attempt ${retryCount + 1}):`, error);
+        
+        // Windows file system may need retry for file locking issues
+        if (retryCount < 2 && typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win')) {
+          setTimeout(() => saveWithRetry(retryCount + 1), 200 * (retryCount + 1));
+        } else {
+          set({ saveStatus: 'error' });
+          // Optionally implement rollback for failed saves
+        }
       }
-    }, 50);
+    };
+    
+    // Delayed save with Windows-friendly timing
+    setTimeout(() => saveWithRetry(), typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? 100 : 50);
   },
   
   removeBallAnnotation: (frameNumber: number) => {
@@ -747,27 +831,42 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
     
-    // Update state immediately for instant UI feedback - this should trigger canvas redraw
+    // Update state immediately for instant UI feedback with Windows compatibility
     set({ 
       annotations: filteredAnnotations,
       ballAnnotations: filteredBallAnnotations,
       hasBallAnnotations: filteredBallAnnotations.length > 0,
-      // Force a re-render by updating timestamp for Windows compatibility
+      // Force canvas redraw timestamp for cross-platform compatibility
       forceRedrawTimestamp: Date.now()
     });
     
     console.log(`Removed ball annotation for frame ${frameNumber}. Remaining ball annotations:`, filteredBallAnnotations.length);
     
-    // Save to file after state update (non-blocking)
-    setTimeout(async () => {
+    // Windows-compatible async save with retry mechanism
+    const saveWithRetry = async (retryCount = 0) => {
       try {
         await get().saveAnnotationsToFile();
         set({ saveStatus: 'saved' });
+        // Clear status after Windows-friendly delay
+        setTimeout(() => {
+          if (get().saveStatus === 'saved') set({ saveStatus: 'idle' });
+        }, 1500);
       } catch (error) {
-        console.error('Error saving after ball annotation removal:', error);
-        set({ saveStatus: 'error' });
+        console.error(`Error saving after ball annotation removal (attempt ${retryCount + 1}):`, error);
+        
+        // Retry logic for Windows file system issues
+        if (retryCount < 2 && typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win')) {
+          setTimeout(() => saveWithRetry(retryCount + 1), 300 * (retryCount + 1));
+        } else {
+          set({ saveStatus: 'error' });
+          setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+        }
       }
-    }, 100);
+    };
+    
+    // Platform-specific timing for save operation
+    const saveDelay = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? 150 : 100;
+    setTimeout(() => saveWithRetry(), saveDelay);
   },
   
   updateBallAnnotationEvent: (frameNumber: number, event: string) => {
@@ -788,20 +887,39 @@ export const useAppStore = create<AppState>((set, get) => ({
       return ann;
     });
     
-    // Update state immediately
+    // Update state immediately with Windows compatibility
     set({ 
       annotations: updatedAnnotations,
-      ballAnnotations: updatedBallAnnotations
+      ballAnnotations: updatedBallAnnotations,
+      // Ensure canvas redraw on Windows
+      forceRedrawTimestamp: Date.now()
     });
     
-    // Save to file after state update (async, non-blocking)
-    setTimeout(async () => {
+    // Cross-platform async save with retry mechanism
+    const saveWithRetry = async (retryCount = 0) => {
       try {
         await get().saveAnnotationsToFile();
+        set({ saveStatus: 'saved' });
+        setTimeout(() => {
+          if (get().saveStatus === 'saved') set({ saveStatus: 'idle' });
+        }, 1500);
       } catch (error) {
-        console.error('Error saving ball annotation event:', error);
+        console.error(`Error saving ball annotation event (attempt ${retryCount + 1}):`, error);
+        
+        // Windows-specific retry logic for file system delays
+        const isWindows = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win');
+        if (retryCount < (isWindows ? 3 : 2) && isWindows) {
+          setTimeout(() => saveWithRetry(retryCount + 1), 250 * (retryCount + 1));
+        } else {
+          set({ saveStatus: 'error' });
+          setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+        }
       }
-    }, 50);
+    };
+    
+    // Platform-aware delay timing
+    const saveDelay = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? 75 : 50;
+    setTimeout(() => saveWithRetry(), saveDelay);
   },
   
   clearBallAnnotations: () => {
@@ -810,22 +928,44 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Remove all ball annotations (tracklet_id 99) from annotations
     const nonBallAnnotations = annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID);
     
-    // Update state immediately
+    // Update state immediately with cross-platform compatibility
     set({ 
       annotations: nonBallAnnotations,
       ballAnnotations: [],
       hasBallAnnotations: false,
+      // Force canvas redraw for all platforms, especially Windows
       forceRedrawTimestamp: Date.now()
     });
     
-    // Save to file after state update
-    setTimeout(async () => {
+    // Cross-platform async save with enhanced error handling
+    const saveWithRetry = async (retryCount = 0) => {
       try {
         await get().saveAnnotationsToFile();
+        set({ saveStatus: 'saved' });
+        setTimeout(() => {
+          if (get().saveStatus === 'saved') set({ saveStatus: 'idle' });
+        }, 1500);
       } catch (error) {
-        console.error('Error saving after clearing ball annotations:', error);
+        console.error(`Error saving after clearing ball annotations (attempt ${retryCount + 1}):`, error);
+        
+        // Enhanced retry logic for Windows file system issues
+        const isWindows = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win');
+        const maxRetries = isWindows ? 3 : 2;
+        
+        if (retryCount < maxRetries) {
+          // Progressive delay for Windows stability
+          const retryDelay = isWindows ? 400 * (retryCount + 1) : 200 * (retryCount + 1);
+          setTimeout(() => saveWithRetry(retryCount + 1), retryDelay);
+        } else {
+          set({ saveStatus: 'error' });
+          setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+        }
       }
-    }, 50);
+    };
+    
+    // Platform-specific initial delay
+    const initialDelay = typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('win') ? 100 : 50;
+    setTimeout(() => saveWithRetry(), initialDelay);
   },
   
   getCurrentFrameBallAnnotation: () => {
@@ -837,7 +977,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
-    const frameNumber = parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
+    // Cross-platform path handling - handle both forward and back slashes
+    const fileName = imageFileName.split(/[/\\]/).pop();
+    const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);
+    
+    // Validate frame number for cross-platform safety
+    if (isNaN(frameNumber)) {
+      console.warn(`Invalid frame number extracted from: ${imageFileName}`);
+      return null;
+    }
     
     return ballAnnotations.find(ann => ann.frame === frameNumber) || null;
   },
@@ -851,10 +999,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
-    const frameNumber = parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
+    // Cross-platform path handling - handle both forward and back slashes
+    const fileName = imageFileName.split(/[/\\]/).pop();
+    const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);
     
-    // Log only for debugging ball deletion issues
-    console.log(`Removing ball annotation for frame ${frameNumber}. Total ball annotations: ${ballAnnotations.length}`);
+    // Validate frame number for cross-platform safety
+    if (isNaN(frameNumber)) {
+      console.warn(`Invalid frame number extracted from: ${imageFileName}`);
+      return;
+    }
+    
+    // Enhanced logging for debugging across platforms
+    console.log(`Removing ball annotation for frame ${frameNumber} (from ${imageFileName}). Total ball annotations: ${ballAnnotations.length}`);
     
     get().removeBallAnnotation(frameNumber);
   },
@@ -868,6 +1024,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const imageFileName = rally.imageFiles[currentFrameIndex];
-    return parseInt(imageFileName.split('/').pop()?.replace('.jpg', '') || '', 10);
+    // Cross-platform path handling - handle both forward and back slashes
+    const fileName = imageFileName.split(/[/\\]/).pop();
+    const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);
+    
+    // Validate frame number for cross-platform safety
+    if (isNaN(frameNumber)) {
+      console.warn(`Invalid frame number extracted from: ${imageFileName}`);
+      return null;
+    }
+    
+    return frameNumber;
   },
 }));
