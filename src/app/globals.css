@@ -54,6 +54,16 @@ body {
   height: 8px;
 }
 
+/* Hide scrollbar completely */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
 /* Ensure grid works consistently across platforms */
 .grid-cols-5 {
   grid-template-columns: repeat(5, minmax(0, 1fr)) !important;

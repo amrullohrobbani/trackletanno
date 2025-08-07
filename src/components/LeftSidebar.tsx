@@ -14,14 +14,17 @@ import {
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
   PlayIcon,
-  StopIcon
+  StopIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/contexts/LanguageContext';
+import AdvancedTrackletModal from './AdvancedTrackletModal';
 
 export default function LeftSidebar() {
   const { t } = useLanguage();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   
   const {
     selectedDirectory,
@@ -310,6 +313,17 @@ export default function LeftSidebar() {
               Delete Selected
             </button>
           </div>
+
+          {/* Advanced Operations */}
+          <div className="pt-2 border-t border-gray-600">
+            <button
+              onClick={() => setShowAdvancedModal(true)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-colors bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <CogIcon className="w-5 h-5" />
+              Advanced Modifications
+            </button>
+          </div>
         </div>
 
         {/* Status Messages */}
@@ -543,6 +557,12 @@ export default function LeftSidebar() {
       </div>
       {/* End of scrollable content container */}
       </div>
+
+      {/* Advanced Tracklet Modal */}
+      <AdvancedTrackletModal
+        isOpen={showAdvancedModal}
+        onClose={() => setShowAdvancedModal(false)}
+      />
     </div>
   );
 }
