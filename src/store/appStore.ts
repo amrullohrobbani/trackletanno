@@ -296,14 +296,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       hasBallAnnotations: ballAnnotations.length > 0
     });
   },
-  setSelectedTrackletId: (id) => set({ selectedTrackletId: id }),
+  setSelectedTrackletId: (id) => {
+    const { ballAnnotationMode } = get();
+    // Prevent selecting tracklet 99 when not in ball mode, and prevent selecting other tracklets in ball mode
+    if (id === BALL_TRACKLET_ID && !ballAnnotationMode) {
+      return; // Don't allow selecting ball tracklet when not in ball mode
+    }
+    if (id !== BALL_TRACKLET_ID && ballAnnotationMode) {
+      return; // Don't allow selecting other tracklets when in ball mode
+    }
+    set({ selectedTrackletId: id });
+  },
   setDrawingMode: (enabled) => set({ 
     drawingMode: enabled,
-    assignMode: enabled ? false : get().assignMode
+    assignMode: enabled ? false : get().assignMode,
+    selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering drawing mode
   }),
   setAssignMode: (enabled) => set({ 
     assignMode: enabled,
-    drawingMode: enabled ? false : get().drawingMode
+    drawingMode: enabled ? false : get().drawingMode,
+    selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering assign mode
   }),
   setSelectedBoundingBox: (id) => set({ selectedBoundingBox: id }),
   
@@ -628,10 +640,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Ball annotation actions
   setBallAnnotationMode: (enabled: boolean) => {
-    set({ ballAnnotationMode: enabled });
+    set({ 
+      ballAnnotationMode: enabled,
+      selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering ball mode
+    });
     // When enabling ball mode, auto-select ball tracklet ID
     if (enabled) {
       set({ selectedTrackletId: BALL_TRACKLET_ID });
+    } else {
+      // When disabling ball mode, deselect tracklet 99 if it's selected
+      const { selectedTrackletId } = get();
+      if (selectedTrackletId === BALL_TRACKLET_ID) {
+        set({ selectedTrackletId: null });
+      }
     }
   },
   

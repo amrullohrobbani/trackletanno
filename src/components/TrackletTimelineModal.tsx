@@ -19,14 +19,22 @@ interface FrameData {
   hasPlaceholder: boolean;
 }
 
+interface LoadingProgress {
+  loaded: number;
+  total: number;
+  isComplete: boolean;
+}
+
 export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: TrackletTimelineModalProps) {
   const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [frameData, setFrameData] = useState<FrameData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState<LoadingProgress>({ loaded: 0, total: 0, isComplete: false });
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [showPlaceholders, setShowPlaceholders] = useState(true);
   const [croppedImages, setCroppedImages] = useState<Map<string, string>>(new Map());
+  const croppedImagesRef = useRef<Map<string, string>>(new Map());
 
   const {
     annotations,
@@ -47,8 +55,14 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
         });
         return new Map();
       });
+      croppedImagesRef.current.clear();
     }
   }, [isOpen]); // Removed croppedImages from dependencies to prevent infinite loop
+
+  // Sync ref with state
+  useEffect(() => {
+    croppedImagesRef.current = croppedImages;
+  }, [croppedImages]);
 
   // Generate cropped image for a frame
   const generateCroppedImage = useCallback(async (frame: FrameData): Promise<string | null> => {
@@ -57,8 +71,11 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     }
 
     const cacheKey = `${frame.frameNumber}-${trackletId}`;
-    if (croppedImages.has(cacheKey)) {
-      return croppedImages.get(cacheKey)!;
+    
+    // Check if image is already cached using ref to avoid dependency issues
+    const cachedImage = croppedImagesRef.current.get(cacheKey);
+    if (cachedImage) {
+      return cachedImage;
     }
 
     try {
@@ -129,7 +146,10 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             ctx.strokeRect(x - cropX, y - cropY, w, h);
             
             const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
+            
+            // Update cache using setState to avoid stale closure
             setCroppedImages(prev => new Map(prev.set(cacheKey, croppedDataUrl)));
+            
             resolve(croppedDataUrl);
           } catch (canvasError) {
             console.error('Canvas drawing error:', canvasError);
@@ -146,7 +166,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
       console.error('Error generating cropped image:', error);
       return null;
     }
-  }, [trackletId, croppedImages]);
+  }, [trackletId]); // Removed croppedImages from dependencies
 
   // Load frame data when modal opens or tracklet changes
   useEffect(() => {
@@ -190,14 +210,21 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
         // Set current frame index to the global frame index
         setCurrentFrameIndex(globalFrameIndex);
         
-        // Load all images immediately after loading frame data
-        setTimeout(() => {
-          frames.forEach(async (frame) => {
-            if (frame.annotation) {
-              await generateCroppedImage(frame);
-            }
-          });
-        }, 100);
+        // Load all cropped images with progress tracking
+        const framesToLoad = frames.filter(frame => frame.annotation);
+        if (framesToLoad.length > 0) {
+          setLoadingProgress({ loaded: 0, total: framesToLoad.length, isComplete: false });
+          
+          // Load images one by one to track progress
+          let loaded = 0;
+          for (const frame of framesToLoad) {
+            await generateCroppedImage(frame);
+            loaded++;
+            setLoadingProgress({ loaded, total: framesToLoad.length, isComplete: loaded === framesToLoad.length });
+          }
+        } else {
+          setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
+        }
         
       } catch (error) {
         console.error('Error loading frame data:', error);
@@ -338,11 +365,12 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowPlaceholders(!showPlaceholders)}
+                disabled={isLoading || !loadingProgress.isComplete}
                 className={`flex items-center gap-2 px-3 py-1 rounded text-sm transition-all duration-200 ${
                   showPlaceholders 
                     ? 'bg-blue-600 text-white shadow-lg' 
                     : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                }`}
+                } ${(isLoading || !loadingProgress.isComplete) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {showPlaceholders ? <EyeIcon className="w-4 h-4" /> : <EyeSlashIcon className="w-4 h-4" />}
                 {t('tracklet.showPlaceholders')}
@@ -383,20 +411,36 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
 
         {/* Timeline Container */}
         <div className="flex-1 overflow-hidden bg-gray-850">
-          {isLoading ? (
+          {isLoading || !loadingProgress.isComplete ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <div className="text-white text-lg">Loading timeline...</div>
                 <div className="text-gray-400 text-sm">Analyzing {trackletId} annotations</div>
+                {loadingProgress.total > 0 && (
+                  <div className="mt-4 w-64 mx-auto">
+                    <div className="flex justify-between text-sm text-gray-300 mb-1">
+                      <span>Loading images</span>
+                      <span>{loadingProgress.loaded} / {loadingProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-gray-600 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(loadingProgress.loaded / loadingProgress.total) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <div 
               ref={scrollContainerRef}
-              className="h-full overflow-x-auto overflow-y-hidden p-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+              className="h-full overflow-x-auto overflow-y-hidden p-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
             >
-              <div className="flex gap-3 h-full items-center min-w-max">
+              <div className="flex gap-1 h-full items-center min-w-max">
                 {filteredFrames.map((frame) => (
                   <TrackletFrameCard
                     key={frame.frameNumber}
@@ -424,7 +468,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
                     if (prevFrame) navigateToFrame(prevFrame.frameNumber);
                   }
                 }}
-                disabled={currentFrameIndex === 0}
+                disabled={currentFrameIndex === 0 || isLoading || !loadingProgress.isComplete}
                 className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
@@ -437,7 +481,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
                     if (nextFrame) navigateToFrame(nextFrame.frameNumber);
                   }
                 }}
-                disabled={currentFrameIndex >= frameData.length - 1}
+                disabled={currentFrameIndex >= frameData.length - 1 || isLoading || !loadingProgress.isComplete}
                 className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm"
               >
                 Next
@@ -446,7 +490,8 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             </div>
             <button
               onClick={scrollToCurrentFrame}
-              className="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm"
+              disabled={isLoading || !loadingProgress.isComplete}
+              className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white rounded text-sm"
             >
               Scroll to Current
             </button>

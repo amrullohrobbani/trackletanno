@@ -1216,6 +1216,26 @@ export default function MainCanvas() {
         console.log('ESC pressed - All modes and selections cleared');
       }
 
+      // Home key to go to first frame
+      if (event.key === 'Home') {
+        event.preventDefault();
+        const { getCurrentRally, goToFrame } = useAppStore.getState();
+        const rally = getCurrentRally();
+        if (rally && rally.imageFiles.length > 0) {
+          goToFrame(1); // Go to first frame (1-based)
+        }
+      }
+
+      // End key to go to last frame
+      if (event.key === 'End') {
+        event.preventDefault();
+        const { getCurrentRally, goToFrame } = useAppStore.getState();
+        const rally = getCurrentRally();
+        if (rally && rally.imageFiles.length > 0) {
+          goToFrame(rally.imageFiles.length); // Go to last frame (1-based)
+        }
+      }
+
       // Reset zoom to 100% with "0" key or "Ctrl+0"
       if (event.key === '0' && (event.ctrlKey || event.metaKey || !event.ctrlKey)) {
         event.preventDefault();
