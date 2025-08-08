@@ -14,9 +14,11 @@ import {
 } from '@heroicons/react/24/outline';
 import AdvancedTrackletModal from './AdvancedTrackletModal';
 import BallAnnotationSidebar from './BallAnnotationSidebar';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { showAlert, showError } from '@/utils/dialogUtils';
 
 export default function LeftSidebar() {
+  const { t } = useLanguage();
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   
   const {
@@ -55,7 +57,7 @@ export default function LeftSidebar() {
 
   const handleDrawMode = async () => {
     if (!selectedTrackletId) {
-      await showAlert('Please select a tracklet ID first.');
+      await showAlert(t('dialogs.selectTrackletFirst'));
       return;
     }
     setDrawingMode(!drawingMode);
@@ -64,7 +66,7 @@ export default function LeftSidebar() {
 
   const handleAssignMode = async () => {
     if (!selectedTrackletId) {
-      await showAlert('Please select a tracklet ID first.');
+      await showAlert(t('dialogs.selectTrackletFirst'));
       return;
     }
     setAssignMode(!assignMode);
@@ -73,7 +75,7 @@ export default function LeftSidebar() {
 
   const handleChangeDirectory = async () => {
     if (typeof window === 'undefined' || !window.electronAPI) {
-      await showAlert('This feature is only available in the desktop application.');
+      await showAlert(t('dialogs.featureDesktopOnly'));
       return;
     }
 
@@ -87,14 +89,14 @@ export default function LeftSidebar() {
         const rallyFolders = await window.electronAPI.getRallyFolders(selectedPath);
         
         if (rallyFolders.length === 0) {
-          await showAlert('No rally folders with annotation data found in the selected directory.');
+          await showAlert(t('dialogs.noRallyFoldersFound'));
         } else {
           setRallyFolders(rallyFolders);
         }
       }
     } catch (error) {
       console.error('Error selecting directory:', error);
-      await showError('Error accessing the selected directory.');
+      await showError(t('dialogs.errorAccessingDirectory'));
     }
   };
 
@@ -106,7 +108,7 @@ export default function LeftSidebar() {
         {getCurrentRally() && (
           <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <h2 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-            🎬 Frame Navigation
+            🎬 {t('ui.frameNavigation')}
           </h2>
           
           <div className="space-y-4">
@@ -132,7 +134,7 @@ export default function LeftSidebar() {
                 }`}
               >
                 <ChevronLeftIcon className="w-5 h-5" />
-                Previous
+                {t('ui.previous')}
               </button>
               
               <button
@@ -144,20 +146,20 @@ export default function LeftSidebar() {
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
-                Next
+                {t('ui.next')}
                 <ChevronRightIcon className="w-5 h-5" />
               </button>
             </div>
             
             {/* Go to Frame */}
             <div className="space-y-2">
-              <label className="text-sm text-gray-300 font-medium">Jump to frame:</label>
+              <label className="text-sm text-gray-300 font-medium">{t('ui.jumpToFrame')}:</label>
               <input
                 type="number"
                 min="1"
                 max={getCurrentRally()?.imageFiles.length || 0}
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
-                placeholder="Enter frame number"
+                placeholder={t('ui.enterFrameNumber')}
                 onKeyDown={async (e) => {
                   if (e.key === 'Enter') {
                     const frameNumber = parseInt((e.target as HTMLInputElement).value);
@@ -165,7 +167,7 @@ export default function LeftSidebar() {
                       goToFrame(frameNumber);
                       (e.target as HTMLInputElement).value = '';
                     } else {
-                      await showAlert(`Please enter a frame number between 1 and ${getCurrentRally()?.imageFiles.length || 0}`);
+                      await showAlert(t('dialogs.enterFrameNumber', { max: getCurrentRally()?.imageFiles.length || 0 }));
                     }
                   }
                 }}
@@ -178,7 +180,7 @@ export default function LeftSidebar() {
       {/* Annotation Controls - Simplified */}
       <div className="p-4 border-b border-gray-700 flex-shrink-0">
         <h2 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-          ✏️ Annotation Tools
+          ✏️ {t('ui.annotationTools')}
         </h2>
         
         <div className="space-y-3">
@@ -192,7 +194,7 @@ export default function LeftSidebar() {
             } ${(!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <PencilIcon className="w-5 h-5" />
-            Draw Bounding Box
+            {t('ui.drawBoundingBox')}
           </button>
           
           <button
@@ -205,7 +207,7 @@ export default function LeftSidebar() {
             } ${(!selectedTrackletId || ballAnnotationMode || selectedTrackletId === 99) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <CursorArrowRaysIcon className="w-5 h-5" />
-            Assign ID to Box
+            {t('ui.assignIdToBox')}
           </button>
 
           {/* Quick Delete Actions */}
@@ -220,7 +222,7 @@ export default function LeftSidebar() {
               }`}
             >
               <TrashIcon className="w-5 h-5" />
-              Delete Selected
+              {t('ui.deleteSelected')}
             </button>
           </div>
 
@@ -231,7 +233,7 @@ export default function LeftSidebar() {
               className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-colors bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               <CogIcon className="w-5 h-5" />
-              Advanced Modifications
+              {t('ui.advancedModifications')}
             </button>
           </div>
         </div>
@@ -240,7 +242,7 @@ export default function LeftSidebar() {
         {!selectedTrackletId && !ballAnnotationMode && (
           <div className="mt-3 p-3 bg-yellow-900/30 border border-yellow-600/30 rounded-lg">
             <p className="text-xs text-yellow-400">
-              💡 Select a tracklet ID from the right panel to enable tools
+              {t('ui.selectTrackletToEnable')}
             </p>
           </div>
         )}
@@ -248,7 +250,7 @@ export default function LeftSidebar() {
         {(ballAnnotationMode || selectedTrackletId === 99) && (
           <div className="mt-3 p-3 bg-orange-900/30 border border-orange-600/30 rounded-lg">
             <p className="text-xs text-orange-400">
-              🎯 Ball annotation mode active. Click canvas to place ball markers.
+              {t('ui.ballAnnotationModeActive')}
             </p>
           </div>
         )}
@@ -262,13 +264,13 @@ export default function LeftSidebar() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <FolderIcon className="w-5 h-5 text-yellow-400" />
-            Rally Datasets
+            {t('ui.rallyDatasets')}
           </h2>
           <button
             onClick={handleChangeDirectory}
             className="text-xs text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 bg-blue-900/30 rounded-lg"
           >
-            Browse
+            {t('ui.browse')}
           </button>
         </div>
         
@@ -310,7 +312,7 @@ export default function LeftSidebar() {
                           <div className="flex-1 min-w-0">
                             <span className="text-sm font-medium block truncate">{rally.name}</span>
                             <span className="text-xs text-gray-400">
-                              {rally.imageFiles.length} frames
+                              {rally.imageFiles.length} {t('ui.framesCount')}
                             </span>
                           </div>
                           {index === currentRallyIndex && (
@@ -323,11 +325,11 @@ export default function LeftSidebar() {
                           <div className="ml-6 mt-2 space-y-1 border-l border-gray-500 pl-3">
                             <div className="flex items-center gap-2 p-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
                               <DocumentIcon className="w-3 h-3" />
-                              <span>📄 annotations.txt</span>
+                              <span>{t('ui.annotationsFile')}</span>
                             </div>
                             <div className="flex items-center gap-2 p-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
                               <DocumentIcon className="w-3 h-3" />
-                              <span>🖼️ {rally.imageFiles.length} image files</span>
+                              <span>🖼️ {rally.imageFiles.length} {t('ui.imageFiles')}</span>
                             </div>
                           </div>
                         )}
@@ -336,9 +338,9 @@ export default function LeftSidebar() {
                   ) : (
                     <div className="text-center text-gray-500 text-sm py-6 bg-gray-800 rounded-lg border border-gray-700">
                       <FolderIcon className="w-8 h-8 mx-auto mb-3 opacity-50" />
-                      <p className="font-medium">No rally datasets found</p>
+                      <p className="font-medium">{t('ui.noRallyDatasets')}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        Make sure the directory contains folders with both images and .txt files
+                        {t('ui.makeSureDirectory')}
                       </p>
                     </div>
                   )}
@@ -349,16 +351,16 @@ export default function LeftSidebar() {
             <div className="text-center text-gray-500 py-8 bg-gray-800 rounded-lg border border-gray-700">
               <FolderIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <div className="space-y-3">
-                <p className="text-sm font-medium">No directory selected</p>
+                <p className="text-sm font-medium">{t('ui.noDirectorySelected')}</p>
                 <button
                   onClick={handleChangeDirectory}
                   className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors px-4 py-2 bg-blue-900/30 hover:bg-blue-900/50 rounded-lg border border-blue-600/30"
                 >
                   <FolderIcon className="w-4 h-4" />
-                  Select Directory
+                  {t('ui.selectDirectory')}
                 </button>
                 <p className="text-xs text-gray-600">
-                  Choose a directory containing rally folders with annotation data
+                  {t('ui.chooseDirectory')}
                 </p>
               </div>
             </div>

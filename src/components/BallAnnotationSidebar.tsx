@@ -40,15 +40,14 @@ export default function BallAnnotationSidebar() {
 
   const handleImportJson = async () => {
     if (!selectedDirectory) {
-      await showAlert('Please select a directory first.');
+      await showAlert(t('dialogs.selectDirectoryFirst'));
       return;
     }
 
     // Check if ball annotations already exist and prompt for overwrite
     if (hasBallAnnotations) {
       const shouldOverwrite = await showConfirm(
-        'Ball annotations already exist. Do you want to overwrite them with imported data?\n\n' +
-        'This will replace all current ball annotations (tracklet ID 99).'
+        t('dialogs.ballAnnotationsExist')
       );
       
       if (!shouldOverwrite) {
@@ -59,10 +58,10 @@ export default function BallAnnotationSidebar() {
     setIsImporting(true);
     try {
       await loadBallAnnotationsFromJson();
-      await showSuccess('Successfully imported ball annotations!');
+      await showSuccess(t('dialogs.importSuccess'));
     } catch (error) {
       console.error('Import error:', error);
-      await showError('Error importing ball annotations from JSON files.');
+      await showError(t('dialogs.importError'));
     } finally {
       setIsImporting(false);
     }
@@ -71,7 +70,7 @@ export default function BallAnnotationSidebar() {
   const handleExportAllAnnotations = async () => {
     const rally = getCurrentRally();
     if (!rally) {
-      await showAlert('No rally selected.');
+      await showAlert(t('dialogs.noRallySelected'));
       return;
     }
 
@@ -79,20 +78,20 @@ export default function BallAnnotationSidebar() {
     try {
       const success = await exportAnnotationsAsJson();
       if (success) {
-        await showSuccess('Successfully exported ALL annotations (players + ball) to JSON!');
+        await showSuccess(t('dialogs.exportSuccess'));
       } else {
-        await showError('Error exporting annotations to JSON.');
+        await showError(t('dialogs.exportError'));
       }
     } catch (error) {
       console.error('Export error:', error);
-      await showError('Error exporting annotations.');
+      await showError(t('dialogs.exportErrorGeneral'));
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleClearBallAnnotations = async () => {
-    const shouldClear = await showConfirm('Are you sure you want to clear all ball annotations?');
+    const shouldClear = await showConfirm(t('dialogs.clearBallConfirm'));
     if (shouldClear) {
       clearBallAnnotations();
     }
@@ -102,12 +101,12 @@ export default function BallAnnotationSidebar() {
     const currentBallAnnotation = getCurrentFrameBallAnnotation();
     
     if (currentBallAnnotation) {
-      const shouldDelete = await showConfirm('Delete ball annotation for current frame?');
+      const shouldDelete = await showConfirm(t('dialogs.deleteBallFrameConfirm'));
       if (shouldDelete) {
         removeCurrentFrameBallAnnotation();
       }
     } else {
-      await showAlert('No ball annotation found for current frame.');
+      await showAlert(t('dialogs.noBallAnnotationFound'));
     }
   };
 
@@ -154,22 +153,22 @@ export default function BallAnnotationSidebar() {
 
       {/* Annotation Statistics */}
       <div className="mb-4 p-3 bg-gray-800 rounded border border-gray-600">
-        <div className="text-sm text-gray-300 space-y-1">
-          <div className="flex justify-between items-center">
-            <span>Total Annotations:</span>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="flex justify-between">
+            <span>{t('ball.totalAnnotations')}:</span>
             <span className="text-blue-400 font-medium">{totalAnnotations}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <span>Player Annotations:</span>
+          <div className="flex justify-between">
+            <span>{t('ball.playerAnnotations')}:</span>
             <span className="text-green-400 font-medium">{playerAnnotationsCount}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <span>Ball Annotations:</span>
+          <div className="flex justify-between">
+            <span>{t('ball.ballAnnotations')}:</span>
             <span className="text-orange-400 font-medium">{ballAnnotationsCount}</span>
           </div>
-          {hasBallAnnotations && (
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-600">
-              <span>Ball Tracklet ID:</span>
+          {ballAnnotationsCount > 0 && (
+            <div className="flex justify-between col-span-2">
+              <span>{t('ball.ballTrackletId')}:</span>
               <span className="text-orange-400 font-medium">99</span>
             </div>
           )}
@@ -193,7 +192,7 @@ export default function BallAnnotationSidebar() {
           className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
         >
           <ArrowUpTrayIcon className="w-4 h-4" />
-          {isExporting ? 'Exporting All...' : 'Export All to JSON'}
+          {isExporting ? t('ui.exportingAll') : t('ui.exportAllToJson')}
         </button>
 
         {hasBallAnnotations && (
@@ -203,7 +202,7 @@ export default function BallAnnotationSidebar() {
               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition-colors"
             >
               <TrashIcon className="w-4 h-4" />
-              Delete Current Frame
+              {t('ball.deleteCurrentFrame')}
             </button>
             
             <button
@@ -211,7 +210,7 @@ export default function BallAnnotationSidebar() {
               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
             >
               <TrashIcon className="w-4 h-4" />
-              Clear Ball Annotations
+              {t('ball.clearAllBall')}
             </button>
           </>
         )}
@@ -225,9 +224,9 @@ export default function BallAnnotationSidebar() {
             saveStatus === 'saved' ? 'bg-green-100 text-green-800' :
             'bg-red-100 text-red-800'
           }`}>
-            {saveStatus === 'saving' && '💾 Saving...'}
-            {saveStatus === 'saved' && '✅ Saved'}
-            {saveStatus === 'error' && '❌ Error'}
+            {saveStatus === 'saving' && t('ui.saving')}
+            {saveStatus === 'saved' && t('ui.saved')}
+            {saveStatus === 'error' && t('ui.saveError')}
           </div>
         </div>
       )}
@@ -242,13 +241,13 @@ export default function BallAnnotationSidebar() {
       {/* Help Text */}
       <div className="text-xs text-gray-400 space-y-2">
         <div className="mb-2 p-2 bg-gray-800 border border-gray-600 rounded">
-          <p className="font-medium text-gray-300 mb-1">Instructions:</p>
-          <p>• Import: Load ball annotations from JSON files</p>
-          <p>• Ball Mode: Toggle ball annotation mode OR select tracklet ID 99</p>
-          <p>• Click Canvas: Once ball mode is active, click to annotate ball positions</p>
-          <p>• Delete Frame: Remove ball annotation for current frame</p>
-          <p>• Export: Save ALL annotations to JSON format</p>
-          <p>• Y-coordinates are automatically corrected for canvas</p>
+          <p className="font-medium text-gray-300 mb-1">{t('ball.instructions')}:</p>
+          <p>• {t('ball.instructionImport')}</p>
+          <p>• {t('ball.instructionBallMode')}</p>
+          <p>• {t('ball.instructionClickCanvas')}</p>
+          <p>• {t('ball.instructionDeleteFrame')}</p>
+          <p>• {t('ball.instructionExport')}</p>
+          <p>• {t('ball.instructionYCoordinates')}</p>
         </div>
       </div>
     </div>

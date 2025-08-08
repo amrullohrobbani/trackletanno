@@ -2,6 +2,7 @@
 
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useAppStore } from '@/store/appStore';
+import { useLanguage } from '@/contexts/LanguageContext';
 import DirectorySelector from '@/components/DirectorySelector';
 import LeftSidebar from '@/components/LeftSidebar';
 import MainCanvas from '@/components/MainCanvas';
@@ -10,6 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import SaveIndicator from '@/components/SaveIndicator';
 
 export default function Home() {
+  const { t } = useLanguage();
   const { 
     selectedDirectory, 
     isLoading, 
@@ -90,7 +92,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col h-full min-h-0">
         <div className="bg-gray-800 border-b border-gray-700 p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">Tracklet Annotation Tool</h1>
+            <h1 className="text-xl font-bold">{t('app.title')}</h1>
             <div className="flex items-center gap-4">
               <SaveIndicator />
               <div className="text-sm text-gray-400">

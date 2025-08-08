@@ -300,14 +300,14 @@ export default function RightSidebar() {
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
                   >
                     <EyeIcon className="w-4 h-4" />
-                    Show All
+                    {t('ui.showAll')}
                   </button>
                   <button
                     onClick={hideAllTracklets}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
                   >
                     <EyeSlashIcon className="w-4 h-4" />
-                    Hide All
+                    {t('ui.hideAll')}
                   </button>
                 </div>
                 {availableIds.length > 0 ? (
@@ -346,13 +346,13 @@ export default function RightSidebar() {
                         </button>
                         <button
                           onClick={async () => {
-                            const shouldDelete = await showConfirm('Delete all ball annotations for this rally?');
+                            const shouldDelete = await showConfirm(t('dialogs.deleteAllBallAnnotations'));
                             if (shouldDelete) {
                               deleteAllAnnotationsWithTrackletId(99);
                             }
                           }}
                           className="absolute flex items-center justify-center top-2 right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
-                          title="Delete all ball annotations"
+                          title={t('ui.deleteAllBallAnnotationsTitle')}
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
@@ -362,7 +362,7 @@ export default function RightSidebar() {
                     {/* All Player IDs - Unified Grid */}
                     {availableIds.filter(id => id !== 99).length > 0 && (
                       <div>
-                        <h4 className="text-sm text-gray-400 mb-3">Player IDs:</h4>
+                        <h4 className="text-sm text-gray-400 mb-3">{t('ui.playerIds')}:</h4>
                         <div 
                           className="grid gap-2 w-full"
                           style={{ 
@@ -409,7 +409,7 @@ export default function RightSidebar() {
                                   </button>
                                   <button
                                     onClick={async () => {
-                                      const shouldDelete = await showConfirm(`Delete all annotations for tracklet ID ${id}?`);
+                                      const shouldDelete = await showConfirm(t('dialogs.deleteAllTrackletAnnotations', { id }));
                                       if (shouldDelete) {
                                         deleteAllAnnotationsWithTrackletId(id);
                                       }
@@ -435,7 +435,7 @@ export default function RightSidebar() {
                 ) : (
                   <div className="text-center text-gray-400 text-sm py-6 bg-gray-800 rounded-lg">
                     <span className="text-2xl block mb-2">🔢</span>
-                    No tracklet IDs available in current annotations
+                    {t('dialogs.noTrackletIdsAvailable')}
                   </div>
                 )}
               </div>
@@ -472,7 +472,7 @@ export default function RightSidebar() {
                       </button>
                     </div>
                     <p className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
-                      💡 Tip: Use ID 99 for ball annotation (automatically enables ball mode)
+                      {t('dialogs.ballAnnotationTip')}
                     </p>
                   </div>
                 )}
@@ -510,7 +510,7 @@ export default function RightSidebar() {
                     
                     {selectedTrackletId === 99 && ballAnnotationMode && (
                       <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
-                        Ball annotation mode is active. Click on the canvas to place ball points.
+                        {t('dialogs.ballAnnotationModeActiveCanvas')}
                       </div>
                     )}
                     <TimelineButton 
@@ -575,7 +575,7 @@ export default function RightSidebar() {
                       )}
                     </p>
                     <p>• {t('eventAnnotation.hotkeyTip')}</p>
-                    <p>• Events apply only to the current frame</p>
+                    <p>• {t('ui.eventsApplyCurrentFrame')}</p>
                   </div>
                 </div>
               </div>
@@ -754,7 +754,7 @@ export default function RightSidebar() {
                         onClick={clearAnalysis}
                         className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
                       >
-                        Clear
+                        {t('dialogs.clearAnalysis')}
                       </button>
                     )}
                   </div>
@@ -821,7 +821,7 @@ export default function RightSidebar() {
                                   </div>
                                   {tracklet.dominantColors.length > 0 && (
                                     <div className="mt-2">
-                                      <div className="text-xs text-gray-400 mb-1">Sampled Colors:</div>
+                                      <div className="text-xs text-gray-400 mb-1">{t('ui.sampledColors')}:</div>
                                       <div className="flex flex-wrap gap-1">
                                         {tracklet.dominantColors.slice(0, 8).map((colorData, idx) => (
                                           <div
@@ -838,7 +838,7 @@ export default function RightSidebar() {
                                   )}
                                   {tracklet.missingFrames.length > 0 && tracklet.missingFrames.length <= 10 && (
                                     <div className="mt-2 text-xs text-yellow-400">
-                                      Missing: {tracklet.missingFrames.join(', ')}
+                                      {t('dialogs.missingFramesLabel')}: {tracklet.missingFrames.join(', ')}
                                     </div>
                                   )}
                                 </div>

@@ -1036,7 +1036,7 @@ export default function MainCanvas() {
     });
     
     if (clickedBallAnnotation) {
-      const shouldDelete = await showConfirm('Delete this ball annotation?');
+      const shouldDelete = await showConfirm(t('dialogs.deleteBallAnnotation'));
       if (shouldDelete) {
         removeBallAnnotation(currentFrameNumber);
       }
@@ -1258,8 +1258,8 @@ export default function MainCanvas() {
       <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
         <div className="text-center">
           <div className="text-6xl mb-4">🖼️</div>
-          <h3 className="text-xl font-semibold mb-2">No Frame Selected</h3>
-          <p className="text-gray-400">Select a rally from the left sidebar to start annotating</p>
+          <h3 className="text-xl font-semibold mb-2">{t('ui.noFrameSelected')}</h3>
+          <p className="text-gray-400">{t('ui.selectRallyToStart')}</p>
         </div>
       </div>
     );
@@ -1325,7 +1325,7 @@ export default function MainCanvas() {
             className={`ml-1 hover:bg-gray-600 px-1 rounded transition-colors ${
               Math.abs(zoomLevel - 1.0) < 0.01 ? 'text-green-400' : 'text-white hover:text-green-300'
             }`}
-            title="Click to reset zoom to 100%"
+            title={t('ui.clickToResetZoom')}
           >
             {t('common.zoom')}: {Math.round(zoomLevel * 100)}%
           </button>

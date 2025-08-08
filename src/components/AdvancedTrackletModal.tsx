@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import { XMarkIcon, ArrowsRightLeftIcon, MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { AnnotationData } from '@/types/electron';
 import { ConfirmDialog, AlertDialog } from '@/components/ui/CustomDialogs';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AdvancedTrackletModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface LoadingProgress {
 type OperationType = 'merge' | 'switch';
 
 export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrackletModalProps) {
+  const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Form states
@@ -249,7 +251,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     const hasId2 = annotations.some(ann => ann.tracklet_id === id2);
     
     if (!hasId1 && !hasId2) {
-      showAlert(`Neither tracklet ${id1} nor tracklet ${id2} found in annotations`);
+      showAlert(t('dialogs.neitherTrackletFound', { id1, id2 }));
       return;
     }
     
@@ -358,11 +360,11 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
     } catch (error) {
       console.error('Error generating preview:', error);
-      showAlert('Error generating preview', 'destructive');
+      showAlert(t('ui.errorGeneratingPreview'), 'destructive');
     } finally {
       setIsLoadingPreviews(false);
     }
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t]);
 
   // Perform the actual operation
   const performOperation = useCallback(async (id1: number, id2: number) => {
@@ -408,9 +410,9 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
     } catch (error) {
       console.error('Error applying operation:', error);
-      showAlert('Error applying operation', 'destructive');
+      showAlert(t('ui.errorApplyingOperation'), 'destructive');
     }
-  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose]);
+  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t]);
 
   // Apply the operation - first validation step
   const validateAndStartOperation = useCallback(() => {
@@ -418,7 +420,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     const id2 = parseInt(trackletId2);
     
     if (isNaN(id1) || isNaN(id2) || id1 === id2) {
-      showAlert('Please enter two different valid tracklet IDs');
+      showAlert(t('dialogs.enterTwoDifferentIds'));
       return;
     }
 
@@ -442,29 +444,34 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     }
 
     if (affectedCount === 0) {
-      showAlert('No annotations will be affected by this operation. Please check your settings.');
+      showAlert(t('dialogs.noAnnotationsAffected'));
       return;
     }
 
     const confirmMessage = operationType === 'merge' 
-      ? `⚠️ MERGE OPERATION CONFIRMATION ⚠️\n\n` +
-        `This will merge tracklet ${id2} into tracklet ${id1}.\n` +
-        `${affectedCount} annotations with ID ${id2} will be changed to ID ${id1}.\n\n` +
-        `This action cannot be undone automatically. Continue?`
-      : `⚠️ SWITCH OPERATION CONFIRMATION ⚠️\n\n` +
-        `This will switch IDs between tracklet ${id1} and tracklet ${id2}.\n` +
-        `${affectedCount} annotations will be affected in ${frameRange1 || 'all frames'}.\n\n` +
-        `This action cannot be undone automatically. Continue?`;
+      ? `${t('dialogs.mergeConfirmationTitle')}\n\n` +
+        t('dialogs.mergeConfirmationMessage', { 
+          sourceId: id2, 
+          targetId: id1, 
+          count: affectedCount 
+        })
+      : `${t('dialogs.switchConfirmationTitle')}\n\n` +
+        t('dialogs.switchConfirmationMessage', { 
+          id1, 
+          id2, 
+          count: affectedCount, 
+          frames: frameRange1 || t('dialogs.allFrames')
+        });
       
     showConfirm(confirmMessage, () => {
       // Second confirmation for destructive operations
       const secondConfirm = operationType === 'merge'
-        ? `Final confirmation: Merge ${affectedCount} annotations from tracklet ${id2} into tracklet ${id1}?`
-        : `Final confirmation: Switch IDs for ${affectedCount} annotations?`;
+        ? t('dialogs.finalMergeConfirmation', { count: affectedCount, sourceId: id2, targetId: id1 })
+        : t('dialogs.finalSwitchConfirmation', { count: affectedCount });
         
       showConfirm(secondConfirm, () => performOperation(id1, id2), 'destructive');
     }, 'destructive');
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t]);
 
   if (!isOpen) return null;
 
@@ -491,7 +498,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           <div className="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
             {/* Operation Type */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Operation Type</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.operationType')}</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setOperationType('merge')}
@@ -519,30 +526,30 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
 
             {/* Tracklet IDs */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Tracklet IDs</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.trackletIds')}</label>
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">
-                    {operationType === 'merge' ? 'Target Tracklet ID' : 'Tracklet ID 1'}
+                    {operationType === 'merge' ? t('ui.targetTrackletId') : t('ui.trackletId1')}
                   </label>
                   <input
                     type="number"
                     value={trackletId1}
                     onChange={(e) => setTrackletId1(e.target.value)}
                     className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                    placeholder="Enter tracklet ID"
+                    placeholder={t('ui.enterTrackletId')}
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">
-                    {operationType === 'merge' ? 'Source Tracklet ID (will be merged)' : 'Tracklet ID 2'}
+                    {operationType === 'merge' ? t('ui.sourceTrackletId') : t('ui.trackletId2')}
                   </label>
                   <input
                     type="number"
                     value={trackletId2}
                     onChange={(e) => setTrackletId2(e.target.value)}
                     className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                    placeholder="Enter tracklet ID"
+                    placeholder={t('ui.enterTrackletId')}
                   />
                 </div>
               </div>
@@ -551,18 +558,18 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
             {/* Frame Range (only for switch) */}
             {operationType === 'switch' && (
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-300 mb-2">Frame Range to Switch</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.frameRangeToSwitch')}</label>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Frames where tracklets will switch IDs
+                      {t('ui.framesWhereSwitchIds')}
                     </label>
                     <input
                       type="text"
                       value={frameRange1}
                       onChange={(e) => setFrameRange1(e.target.value)}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                      placeholder="e.g., 1-10 or 1,3,5 or 15 (leave empty for all frames)"
+                      placeholder={t('ui.frameRangeExample')}
                     />
                   </div>
                 </div>
@@ -570,14 +577,14 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   Format: Single frame (5), Range (1-10), List (1,3,5), or leave empty to switch all frames
                 </p>
                 <p className="text-xs text-orange-400 mt-1">
-                  Note: Will switch IDs for both tracklets in the specified frames, even if only one has annotations
+                  {t('ui.switchIdsBothTracklets')}
                 </p>
               </div>
             )}
 
             {/* Available Tracklets */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Available Tracklet IDs</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.availableTrackletIds')}</label>
               <div className="bg-gray-700 rounded p-3 max-h-32 overflow-y-auto">
                 <div className="flex flex-wrap gap-1">
                   {availableIds.map(id => (
@@ -604,7 +611,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                 className="w-full flex items-center justify-center gap-2 p-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
                 <MagnifyingGlassIcon className="w-4 h-4" />
-                {isLoadingPreviews ? 'Generating...' : 'Generate Preview'}
+                {isLoadingPreviews ? t('ui.generating') : t('ui.generatePreview')}
               </button>
               
               <button
@@ -613,7 +620,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                 className="w-full flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
                 {operationType === 'merge' ? '🔗' : <ArrowsRightLeftIcon className="w-4 h-4" />}
-                Apply {operationType === 'merge' ? 'Merge' : 'Switch'}
+                {t('ui.applyOperation', { operation: operationType === 'merge' ? t('ui.merge') : t('ui.switch') })}
               </button>
             </div>
           </div>
@@ -624,15 +631,15 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <EyeIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No Preview Generated</p>
-                  <p className="text-sm">Configure settings and click &quot;Generate Preview&quot;</p>
+                  <p className="text-lg font-medium">{t('ui.noPreviewGenerated')}</p>
+                  <p className="text-sm">{t('ui.configureAndGenerate')}</p>
                 </div>
               </div>
             ) : isLoadingPreviews || !loadingProgress.isComplete ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <div className="text-white text-lg">Loading Preview...</div>
+                  <div className="text-white text-lg">{t('ui.loadingPreview')}</div>
                   {loadingProgress.total > 0 && (
                     <div className="mt-4 w-64 mx-auto">
                       <div className="flex justify-between text-sm text-gray-300 mb-1">
@@ -655,12 +662,12 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               <div className="flex-1 p-4 flex flex-col overflow-hidden">
                 <div className="mb-4 flex-shrink-0">
                   <h3 className="text-lg font-semibold text-white mb-2">
-                    Preview: {operationType === 'merge' ? 'Merged Tracklet' : 'ID Switch'}
+                    {t('ui.preview')}: {operationType === 'merge' ? t('ui.previewMergedTracklet') : t('ui.previewIdSwitch')}
                   </h3>
                   <p className="text-sm text-gray-400">
                     {operationType === 'merge' 
-                      ? `Showing combined tracklet (${previews.length} annotations)`
-                      : `Showing annotations that will switch IDs (${previews.length} annotations)`
+                      ? t('dialogs.showingCombinedTracklet', { count: previews.length })
+                      : t('ui.showingAnnotationsSwitch', { count: previews.length })
                     }
                   </p>
                 </div>

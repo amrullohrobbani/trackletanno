@@ -259,11 +259,11 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     ctx.fillStyle = '#9ca3af';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('No annotation', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.fillText(`Frame ${frameNumber}`, canvas.width / 2, canvas.height / 2 + 10);
+    ctx.fillText(t('ui.noAnnotation'), canvas.width / 2, canvas.height / 2 - 10);
+    ctx.fillText(`${t('ui.frame')} ${frameNumber}`, canvas.width / 2, canvas.height / 2 + 10);
     
     return canvas.toDataURL();
-  }, []);
+  }, [t]);
 
   // Navigate to frame in main canvas
   const navigateToFrame = useCallback((frameNumber: number) => {
@@ -415,12 +415,12 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <div className="text-white text-lg">Loading timeline...</div>
-                <div className="text-gray-400 text-sm">Analyzing {trackletId} annotations</div>
+                <div className="text-white text-lg">{t('ui.loadingTimeline')}</div>
+                <div className="text-gray-400 text-sm">{t('dialogs.analyzingAnnotations', { trackletId })}</div>
                 {loadingProgress.total > 0 && (
                   <div className="mt-4 w-64 mx-auto">
                     <div className="flex justify-between text-sm text-gray-300 mb-1">
-                      <span>Loading images</span>
+                      <span>{t('ui.loadingImages')}</span>
                       <span>{loadingProgress.loaded} / {loadingProgress.total}</span>
                     </div>
                     <div className="w-full bg-gray-600 rounded-full h-2">
