@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { XMarkIcon, ArrowsRightLeftIcon, MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { AnnotationData } from '@/types/electron';
+import { ConfirmDialog, AlertDialog } from '@/components/ui/CustomDialogs';
 
 interface AdvancedTrackletModalProps {
   isOpen: boolean;
@@ -34,7 +35,22 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
   const [trackletId1, setTrackletId1] = useState<string>('');
   const [trackletId2, setTrackletId2] = useState<string>('');
   const [frameRange1, setFrameRange1] = useState<string>('');
-  const [frameRange2, setFrameRange2] = useState<string>('');
+  
+  // Dialog states
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant?: 'default' | 'destructive';
+  }>({ isOpen: false, title: '', description: '' });
+  
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant?: 'default' | 'destructive';
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', description: '', onConfirm: () => {} });
   
   // Preview states
   const [previews, setPreviews] = useState<TrackletPreview[]>([]);
@@ -53,6 +69,28 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     setAnnotations,
     saveAnnotationsToFile
   } = useAppStore();
+
+  // Helper functions for dialogs
+  const showAlert = (message: string, variant: 'default' | 'destructive' = 'default') => {
+    const lines = message.split('\n');
+    setAlertDialog({
+      isOpen: true,
+      title: lines[0] || 'Alert',
+      description: lines.slice(1).join('\n') || lines[0],
+      variant
+    });
+  };
+
+  const showConfirm = (message: string, onConfirm: () => void, variant: 'default' | 'destructive' = 'default') => {
+    const lines = message.split('\n');
+    setConfirmDialog({
+      isOpen: true,
+      title: lines[0] || 'Confirm',
+      description: lines.slice(1).join('\n') || lines[0],
+      variant,
+      onConfirm
+    });
+  };
 
   // Sync ref with state
   useEffect(() => {
@@ -77,7 +115,6 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       setTrackletId1('');
       setTrackletId2('');
       setFrameRange1('');
-      setFrameRange2('');
     }
   }, [isOpen]);
 
@@ -204,35 +241,20 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       return;
     }
 
-    // Validate switch operation has frame ranges
-    if (operationType === 'switch') {
-      const frames1 = parseFrameRange(frameRange1);
-      const frames2 = parseFrameRange(frameRange2);
-      
-      if (frames1.length === 0 && frames2.length === 0) {
-        alert('Please specify frame ranges for switching operation');
-        return;
-      }
-    }
+    // For switch operation, frame range is optional (empty means all frames)
+    // We allow switching even if tracklets don't exist in the specified range
 
     // Check if tracklets exist in annotations
     const hasId1 = annotations.some(ann => ann.tracklet_id === id1);
     const hasId2 = annotations.some(ann => ann.tracklet_id === id2);
     
     if (!hasId1 && !hasId2) {
-      alert(`Neither tracklet ${id1} nor tracklet ${id2} found in annotations`);
+      showAlert(`Neither tracklet ${id1} nor tracklet ${id2} found in annotations`);
       return;
     }
     
-    if (!hasId1) {
-      alert(`Tracklet ${id1} not found in annotations`);
-      return;
-    }
-    
-    if (!hasId2) {
-      alert(`Tracklet ${id2} not found in annotations`);
-      return;
-    }
+    // For switch operations, we allow switching even if only one tracklet has annotations
+    // This is useful for correcting annotation errors where IDs were swapped
 
     setIsLoadingPreviews(true);
     setShowPreviews(true);
@@ -263,17 +285,24 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         });
         
       } else {
-        // For switch: show annotations in specified frame ranges
-        const frames1 = parseFrameRange(frameRange1);
-        const frames2 = parseFrameRange(frameRange2);
+        // For switch: show annotations in specified frame range for both tracklets
+        const frames = parseFrameRange(frameRange1);
         
-        // Get annotations for tracklet 1 in range 1
-        frames1.forEach(frameNum => {
-          const ann = annotations.find(a => a.tracklet_id === id1 && a.frame === frameNum);
-          if (ann) {
+        // If no frame range specified, get all frames that have annotations for either tracklet
+        const targetFrames = frames.length > 0 ? frames : 
+          [...new Set(annotations
+            .filter(a => a.tracklet_id === id1 || a.tracklet_id === id2)
+            .map(a => a.frame)
+          )].sort((a, b) => a - b);
+        
+        // Get annotations for both tracklets in the target frames
+        targetFrames.forEach(frameNum => {
+          // Check for tracklet 1 annotation
+          const ann1 = annotations.find(a => a.tracklet_id === id1 && a.frame === frameNum);
+          if (ann1) {
             const imagePath = rally.imageFiles.find(file => {
-              const filename = file.split(/[/\\]/).pop() || '';
-              const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+              const filename = file.split(/[/\\\\]/).pop() || '';
+              const frameNumber = parseInt(filename.replace(/\\D/g, ''), 10);
               return frameNumber === frameNum;
             });
             
@@ -282,19 +311,17 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                 trackletId: id1,
                 frameNumber: frameNum,
                 imagePath,
-                annotation: ann
+                annotation: ann1
               });
             }
           }
-        });
-        
-        // Get annotations for tracklet 2 in range 2
-        frames2.forEach(frameNum => {
-          const ann = annotations.find(a => a.tracklet_id === id2 && a.frame === frameNum);
-          if (ann) {
+          
+          // Check for tracklet 2 annotation
+          const ann2 = annotations.find(a => a.tracklet_id === id2 && a.frame === frameNum);
+          if (ann2) {
             const imagePath = rally.imageFiles.find(file => {
-              const filename = file.split(/[/\\]/).pop() || '';
-              const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+              const filename = file.split(/[/\\\\]/).pop() || '';
+              const frameNumber = parseInt(filename.replace(/\\D/g, ''), 10);
               return frameNumber === frameNum;
             });
             
@@ -303,7 +330,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                 trackletId: id2,
                 frameNumber: frameNum,
                 imagePath,
-                annotation: ann
+                annotation: ann2
               });
             }
           }
@@ -331,66 +358,14 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
     } catch (error) {
       console.error('Error generating preview:', error);
-      alert('Error generating preview');
+      showAlert('Error generating preview', 'destructive');
     } finally {
       setIsLoadingPreviews(false);
     }
-  }, [trackletId1, trackletId2, frameRange1, frameRange2, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage]);
 
-  // Apply the operation
-  const applyOperation = useCallback(async () => {
-    const id1 = parseInt(trackletId1);
-    const id2 = parseInt(trackletId2);
-    
-    if (isNaN(id1) || isNaN(id2) || id1 === id2) {
-      alert('Please enter two different valid tracklet IDs');
-      return;
-    }
-
-    // Count affected annotations for confirmation
-    let affectedCount = 0;
-    if (operationType === 'merge') {
-      affectedCount = annotations.filter(ann => ann.tracklet_id === id2).length;
-    } else {
-      const frames1 = parseFrameRange(frameRange1);
-      const frames2 = parseFrameRange(frameRange2);
-      affectedCount = annotations.filter(ann => 
-        (ann.tracklet_id === id1 && frames1.includes(ann.frame)) ||
-        (ann.tracklet_id === id2 && frames2.includes(ann.frame))
-      ).length;
-    }
-
-    if (affectedCount === 0) {
-      alert('No annotations will be affected by this operation. Please check your settings.');
-      return;
-    }
-
-    const confirmMessage = operationType === 'merge' 
-      ? `⚠️ MERGE OPERATION CONFIRMATION ⚠️\n\n` +
-        `This will merge tracklet ${id2} into tracklet ${id1}.\n` +
-        `${affectedCount} annotations with ID ${id2} will be changed to ID ${id1}.\n\n` +
-        `This action cannot be undone automatically. Continue?`
-      : `⚠️ SWITCH OPERATION CONFIRMATION ⚠️\n\n` +
-        `This will switch IDs between tracklet ${id1} and tracklet ${id2} in the specified frame ranges.\n` +
-        `${affectedCount} annotations will be affected.\n\n` +
-        `Frame ranges:\n` +
-        `- Tracklet ${id1}: ${frameRange1 || 'None specified'}\n` +
-        `- Tracklet ${id2}: ${frameRange2 || 'None specified'}\n\n` +
-        `This action cannot be undone automatically. Continue?`;
-      
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    // Second confirmation for destructive operations
-    const secondConfirm = operationType === 'merge'
-      ? `Final confirmation: Merge ${affectedCount} annotations from tracklet ${id2} into tracklet ${id1}?`
-      : `Final confirmation: Switch IDs for ${affectedCount} annotations?`;
-      
-    if (!window.confirm(secondConfirm)) {
-      return;
-    }
-
+  // Perform the actual operation
+  const performOperation = useCallback(async (id1: number, id2: number) => {
     try {
       let newAnnotations = [...annotations];
       
@@ -401,15 +376,22 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         );
         
       } else {
-        // Switch: swap IDs in specified ranges
-        const frames1 = parseFrameRange(frameRange1);
-        const frames2 = parseFrameRange(frameRange2);
+        // Switch: swap IDs in specified frame range
+        const frames = parseFrameRange(frameRange1);
+        // If no frame range specified, switch all frames
+        const targetFrames = frames.length > 0 ? frames : 
+          [...new Set(annotations
+            .filter(a => a.tracklet_id === id1 || a.tracklet_id === id2)
+            .map(a => a.frame)
+          )];
         
         newAnnotations = newAnnotations.map(ann => {
-          if (ann.tracklet_id === id1 && frames1.includes(ann.frame)) {
-            return { ...ann, tracklet_id: id2 };
-          } else if (ann.tracklet_id === id2 && frames2.includes(ann.frame)) {
-            return { ...ann, tracklet_id: id1 };
+          if (targetFrames.includes(ann.frame)) {
+            if (ann.tracklet_id === id1) {
+              return { ...ann, tracklet_id: id2 };
+            } else if (ann.tracklet_id === id2) {
+              return { ...ann, tracklet_id: id1 };
+            }
           }
           return ann;
         });
@@ -421,14 +403,68 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       // Save to file
       await saveAnnotationsToFile();
       
-      alert(`${operationType === 'merge' ? 'Merge' : 'Switch'} operation completed successfully!`);
+      showAlert(`${operationType === 'merge' ? 'Merge' : 'Switch'} operation completed successfully!`);
       onClose();
       
     } catch (error) {
       console.error('Error applying operation:', error);
-      alert('Error applying operation');
+      showAlert('Error applying operation', 'destructive');
     }
-  }, [trackletId1, trackletId2, frameRange1, frameRange2, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose]);
+  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose]);
+
+  // Apply the operation - first validation step
+  const validateAndStartOperation = useCallback(() => {
+    const id1 = parseInt(trackletId1);
+    const id2 = parseInt(trackletId2);
+    
+    if (isNaN(id1) || isNaN(id2) || id1 === id2) {
+      showAlert('Please enter two different valid tracklet IDs');
+      return;
+    }
+
+    // Count affected annotations for confirmation
+    let affectedCount = 0;
+    if (operationType === 'merge') {
+      affectedCount = annotations.filter(ann => ann.tracklet_id === id2).length;
+    } else {
+      const frames = parseFrameRange(frameRange1);
+      // If no frame range specified, switch all frames
+      const targetFrames = frames.length > 0 ? frames : 
+        [...new Set(annotations
+          .filter(a => a.tracklet_id === id1 || a.tracklet_id === id2)
+          .map(a => a.frame)
+        )];
+      
+      affectedCount = annotations.filter(ann => 
+        (ann.tracklet_id === id1 || ann.tracklet_id === id2) && 
+        targetFrames.includes(ann.frame)
+      ).length;
+    }
+
+    if (affectedCount === 0) {
+      showAlert('No annotations will be affected by this operation. Please check your settings.');
+      return;
+    }
+
+    const confirmMessage = operationType === 'merge' 
+      ? `⚠️ MERGE OPERATION CONFIRMATION ⚠️\n\n` +
+        `This will merge tracklet ${id2} into tracklet ${id1}.\n` +
+        `${affectedCount} annotations with ID ${id2} will be changed to ID ${id1}.\n\n` +
+        `This action cannot be undone automatically. Continue?`
+      : `⚠️ SWITCH OPERATION CONFIRMATION ⚠️\n\n` +
+        `This will switch IDs between tracklet ${id1} and tracklet ${id2}.\n` +
+        `${affectedCount} annotations will be affected in ${frameRange1 || 'all frames'}.\n\n` +
+        `This action cannot be undone automatically. Continue?`;
+      
+    showConfirm(confirmMessage, () => {
+      // Second confirmation for destructive operations
+      const secondConfirm = operationType === 'merge'
+        ? `Final confirmation: Merge ${affectedCount} annotations from tracklet ${id2} into tracklet ${id1}?`
+        : `Final confirmation: Switch IDs for ${affectedCount} annotations?`;
+        
+      showConfirm(secondConfirm, () => performOperation(id1, id2), 'destructive');
+    }, 'destructive');
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation]);
 
   if (!isOpen) return null;
 
@@ -512,38 +548,29 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               </div>
             </div>
 
-            {/* Frame Ranges (only for switch) */}
+            {/* Frame Range (only for switch) */}
             {operationType === 'switch' && (
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-300 mb-2">Frame Ranges</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Frame Range to Switch</label>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Frames for Tracklet {trackletId1 || '1'}
+                      Frames where tracklets will switch IDs
                     </label>
                     <input
                       type="text"
                       value={frameRange1}
                       onChange={(e) => setFrameRange1(e.target.value)}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                      placeholder="e.g., 1-10 or 1,3,5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                      Frames for Tracklet {trackletId2 || '2'}
-                    </label>
-                    <input
-                      type="text"
-                      value={frameRange2}
-                      onChange={(e) => setFrameRange2(e.target.value)}
-                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                      placeholder="e.g., 11-20 or 2,4,6"
+                      placeholder="e.g., 1-10 or 1,3,5 or 15 (leave empty for all frames)"
                     />
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  Format: Single frame (5), Range (1-10), or List (1,3,5)
+                  Format: Single frame (5), Range (1-10), List (1,3,5), or leave empty to switch all frames
+                </p>
+                <p className="text-xs text-orange-400 mt-1">
+                  Note: Will switch IDs for both tracklets in the specified frames, even if only one has annotations
                 </p>
               </div>
             )}
@@ -581,7 +608,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               </button>
               
               <button
-                onClick={applyOperation}
+                onClick={validateAndStartOperation}
                 disabled={isLoadingPreviews || !trackletId1 || !trackletId2 || !showPreviews}
                 className="w-full flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
@@ -659,6 +686,25 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           </div>
         </div>
       </div>
+      
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        variant={alertDialog.variant}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant={confirmDialog.variant}
+      />
     </div>
   );
 }

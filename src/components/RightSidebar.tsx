@@ -9,6 +9,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import TimelineButton from '@/components/TimelineButton';
 import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { getTrackletColor } from '@/utils/trackletColors';
+import { showConfirm } from '@/utils/dialogUtils';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -344,8 +345,9 @@ export default function RightSidebar() {
                           )}
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm('Delete all ball annotations for this rally?')) {
+                          onClick={async () => {
+                            const shouldDelete = await showConfirm('Delete all ball annotations for this rally?');
+                            if (shouldDelete) {
                               deleteAllAnnotationsWithTrackletId(99);
                             }
                           }}
@@ -406,8 +408,9 @@ export default function RightSidebar() {
                                     )}
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      if (window.confirm(`Delete all annotations for tracklet ID ${id}?`)) {
+                                    onClick={async () => {
+                                      const shouldDelete = await showConfirm(`Delete all annotations for tracklet ID ${id}?`);
+                                      if (shouldDelete) {
                                         deleteAllAnnotationsWithTrackletId(id);
                                       }
                                     }}

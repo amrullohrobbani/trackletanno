@@ -301,8 +301,11 @@ The application operates in different modes for various annotation tasks:
 |-----|----------|-------------|
 | `Z` | Previous Frame | Navigate to previous frame |
 | `X` | Next Frame | Navigate to next frame |
+| `Home` | First Frame | Jump to first frame |
+| `End` | Last Frame | Jump to last frame |
 | `D` | Drawing Mode | Toggle drawing mode on/off |
 | `A` | Assignment Mode | Toggle assignment mode on/off |
+| `ESC` | Clear All | Clear all modes and selections |
 | `0` | Reset Zoom | Reset zoom to 100% and center image |
 | `Ctrl+0` | Reset Zoom | Alternative zoom reset shortcut |
 

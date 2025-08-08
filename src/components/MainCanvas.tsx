@@ -6,6 +6,7 @@ import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { showConfirm } from '@/utils/dialogUtils';
 
 export default function MainCanvas() {
   const { t } = useLanguage();
@@ -1011,7 +1012,7 @@ export default function MainCanvas() {
   }, [zoomLevel, panX, panY]);
 
   // Prevent context menu on right-click to allow right-click panning
-  const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleContextMenu = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     
     // Check if right-clicking on a ball annotation for deletion
@@ -1035,7 +1036,8 @@ export default function MainCanvas() {
     });
     
     if (clickedBallAnnotation) {
-      if (window.confirm('Delete this ball annotation?')) {
+      const shouldDelete = await showConfirm('Delete this ball annotation?');
+      if (shouldDelete) {
         removeBallAnnotation(currentFrameNumber);
       }
     }

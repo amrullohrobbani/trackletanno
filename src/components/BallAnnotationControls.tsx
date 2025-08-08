@@ -10,6 +10,7 @@ import {
   StopIcon
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { showAlert, showSuccess, showError } from '@/utils/dialogUtils';
 
 export default function BallAnnotationControls() {
   const { t } = useLanguage();
@@ -34,17 +35,17 @@ export default function BallAnnotationControls() {
 
   const handleImportJson = async () => {
     if (!selectedDirectory) {
-      alert('Please select a directory first.');
+      showAlert('Please select a directory first.');
       return;
     }
 
     setIsImporting(true);
     try {
       await loadBallAnnotationsFromJson();
-      alert(`Successfully imported ball annotations!`);
+      showSuccess(`Successfully imported ball annotations!`);
     } catch (error) {
       console.error('Import error:', error);
-      alert('Error importing ball annotations from JSON files.');
+      showError('Error importing ball annotations from JSON files.');
     } finally {
       setIsImporting(false);
     }
@@ -53,7 +54,7 @@ export default function BallAnnotationControls() {
   const handleExportJson = async () => {
     const rally = getCurrentRally();
     if (!rally) {
-      alert('No rally selected.');
+      showAlert('No rally selected.');
       return;
     }
 
@@ -61,13 +62,13 @@ export default function BallAnnotationControls() {
     try {
       const success = await exportAnnotationsAsJson();
       if (success) {
-        alert(`Successfully exported annotations to JSON!`);
+        showSuccess(`Successfully exported annotations to JSON!`);
       } else {
-        alert('Error exporting annotations to JSON.');
+        showError('Error exporting annotations to JSON.');
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting annotations.');
+      showError('Error exporting annotations.');
     } finally {
       setIsExporting(false);
     }

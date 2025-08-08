@@ -11,6 +11,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { showAlert, showConfirm, showSuccess, showError } from '@/utils/dialogUtils';
 
 export default function BallAnnotationSidebar() {
   const { t } = useLanguage();
@@ -39,13 +40,13 @@ export default function BallAnnotationSidebar() {
 
   const handleImportJson = async () => {
     if (!selectedDirectory) {
-      alert('Please select a directory first.');
+      await showAlert('Please select a directory first.');
       return;
     }
 
     // Check if ball annotations already exist and prompt for overwrite
     if (hasBallAnnotations) {
-      const shouldOverwrite = window.confirm(
+      const shouldOverwrite = await showConfirm(
         'Ball annotations already exist. Do you want to overwrite them with imported data?\n\n' +
         'This will replace all current ball annotations (tracklet ID 99).'
       );
@@ -58,10 +59,10 @@ export default function BallAnnotationSidebar() {
     setIsImporting(true);
     try {
       await loadBallAnnotationsFromJson();
-      alert(`Successfully imported ball annotations!`);
+      await showSuccess('Successfully imported ball annotations!');
     } catch (error) {
       console.error('Import error:', error);
-      alert('Error importing ball annotations from JSON files.');
+      await showError('Error importing ball annotations from JSON files.');
     } finally {
       setIsImporting(false);
     }
@@ -70,7 +71,7 @@ export default function BallAnnotationSidebar() {
   const handleExportAllAnnotations = async () => {
     const rally = getCurrentRally();
     if (!rally) {
-      alert('No rally selected.');
+      await showAlert('No rally selected.');
       return;
     }
 
@@ -78,33 +79,35 @@ export default function BallAnnotationSidebar() {
     try {
       const success = await exportAnnotationsAsJson();
       if (success) {
-        alert(`Successfully exported ALL annotations (players + ball) to JSON!`);
+        await showSuccess('Successfully exported ALL annotations (players + ball) to JSON!');
       } else {
-        alert('Error exporting annotations to JSON.');
+        await showError('Error exporting annotations to JSON.');
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting annotations.');
+      await showError('Error exporting annotations.');
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleClearBallAnnotations = () => {
-    if (window.confirm('Are you sure you want to clear all ball annotations?')) {
+  const handleClearBallAnnotations = async () => {
+    const shouldClear = await showConfirm('Are you sure you want to clear all ball annotations?');
+    if (shouldClear) {
       clearBallAnnotations();
     }
   };
 
-  const handleDeleteCurrentBallAnnotation = () => {
+  const handleDeleteCurrentBallAnnotation = async () => {
     const currentBallAnnotation = getCurrentFrameBallAnnotation();
     
     if (currentBallAnnotation) {
-      if (window.confirm('Delete ball annotation for current frame?')) {
+      const shouldDelete = await showConfirm('Delete ball annotation for current frame?');
+      if (shouldDelete) {
         removeCurrentFrameBallAnnotation();
       }
     } else {
-      alert('No ball annotation found for current frame.');
+      await showAlert('No ball annotation found for current frame.');
     }
   };
 
