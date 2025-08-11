@@ -85,12 +85,17 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
 
   const showConfirm = (message: string, onConfirm: () => void, variant: 'default' | 'destructive' = 'default') => {
     const lines = message.split('\n');
+    console.log('🔔 showConfirm called with:', { title: lines[0], variant, onConfirm: onConfirm.toString() });
+    
     setConfirmDialog({
       isOpen: true,
       title: lines[0] || 'Confirm',
       description: lines.slice(1).join('\n') || lines[0],
       variant,
-      onConfirm
+      onConfirm: () => {
+        console.log('🔔 Confirm dialog callback executed');
+        onConfirm();
+      }
     });
   };
 
@@ -120,32 +125,103 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     }
   }, [isOpen]);
 
-  // Parse frame range string (e.g., "1-10" or "1,3,5" or "1")
+  // Parse frame range string with enhanced syntax
+  // Examples: "1-10", "1,3,5", "15", "-20" (start to index 20), "200-" (index 200 to end), "" (all frames)
+  // Works with frame indices (1-based): 1, 2, 3, 4... instead of actual frame numbers
   const parseFrameRange = useCallback((rangeStr: string): number[] => {
-    if (!rangeStr.trim()) return [];
+    console.log('📝 parseFrameRange called with:', rangeStr);
     
-    const frames: number[] = [];
+    if (!rangeStr.trim()) {
+      console.log('📝 Empty range string, returning empty array');
+      return [];
+    }
+    
+    // Get rally to determine actual frame index range
+    const rally = getCurrentRally();
+    if (!rally) {
+      console.log('📝 No rally found');
+      return [];
+    }
+    
+    // Create array of frame indices (1-based) and their corresponding frame numbers
+    const frameIndexToNumber: { [index: number]: number } = {};
+    const allFrameIndices: number[] = [];
+    
+    rally.imageFiles.forEach((imagePath, index) => {
+      const filename = imagePath.split(/[/\\]/).pop() || '';
+      const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+      if (!isNaN(frameNumber)) {
+        const frameIndex = index + 1; // 1-based index
+        frameIndexToNumber[frameIndex] = frameNumber;
+        allFrameIndices.push(frameIndex);
+      }
+    });
+    
+    console.log('📝 Frame mapping created:', { 
+      totalImages: rally.imageFiles.length, 
+      validFrames: allFrameIndices.length,
+      sampleMapping: Object.entries(frameIndexToNumber).slice(0, 5) 
+    });
+    
+    if (allFrameIndices.length === 0) return [];
+    
+    const maxIndex = Math.max(...allFrameIndices);
+    const frameNumbers: number[] = [];
     const parts = rangeStr.split(',');
+    
+    console.log('📝 Processing parts:', parts);
     
     for (const part of parts) {
       const trimmed = part.trim();
-      if (trimmed.includes('-')) {
+      console.log('📝 Processing part:', trimmed);
+      
+      if (trimmed.startsWith('-')) {
+        // Format: "-20" means from start to frame index 20
+        const endIndex = parseInt(trimmed.substring(1));
+        console.log('📝 Start-to-index format, endIndex:', endIndex);
+        if (!isNaN(endIndex) && endIndex > 0) {
+          for (let i = 1; i <= Math.min(endIndex, maxIndex); i++) {
+            if (frameIndexToNumber[i]) {
+              frameNumbers.push(frameIndexToNumber[i]);
+            }
+          }
+        }
+      } else if (trimmed.endsWith('-')) {
+        // Format: "200-" means from frame index 200 to end
+        const startIndex = parseInt(trimmed.slice(0, -1));
+        console.log('📝 Index-to-end format, startIndex:', startIndex);
+        if (!isNaN(startIndex) && startIndex > 0) {
+          for (let i = startIndex; i <= maxIndex; i++) {
+            if (frameIndexToNumber[i]) {
+              frameNumbers.push(frameIndexToNumber[i]);
+            }
+          }
+        }
+      } else if (trimmed.includes('-')) {
+        // Format: "1-10" means range from index 1 to 10
         const [start, end] = trimmed.split('-').map(n => parseInt(n.trim()));
-        if (!isNaN(start) && !isNaN(end) && start <= end) {
-          for (let i = start; i <= end; i++) {
-            frames.push(i);
+        console.log('📝 Range format, start:', start, 'end:', end);
+        if (!isNaN(start) && !isNaN(end) && start <= end && start > 0) {
+          for (let i = start; i <= Math.min(end, maxIndex); i++) {
+            if (frameIndexToNumber[i]) {
+              frameNumbers.push(frameIndexToNumber[i]);
+            }
           }
         }
       } else {
-        const frame = parseInt(trimmed);
-        if (!isNaN(frame)) {
-          frames.push(frame);
+        // Format: "15" means single frame index
+        const frameIndex = parseInt(trimmed);
+        console.log('📝 Single frame format, frameIndex:', frameIndex);
+        if (!isNaN(frameIndex) && frameIndex > 0 && frameIndexToNumber[frameIndex]) {
+          frameNumbers.push(frameIndexToNumber[frameIndex]);
         }
       }
     }
     
-    return [...new Set(frames)].sort((a, b) => a - b);
-  }, []);
+    const result = [...new Set(frameNumbers)].sort((a, b) => a - b);
+    console.log('📝 parseFrameRange result:', result);
+    return result;
+  }, [getCurrentRally]);
 
   // Generate cropped image for annotation
   const generateCroppedImage = useCallback(async (preview: TrackletPreview): Promise<string | null> => {
@@ -233,13 +309,13 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     const id2 = parseInt(trackletId2);
     
     if (isNaN(id1) || isNaN(id2) || id1 === id2) {
-      alert('Please enter two different valid tracklet IDs');
+      showAlert(t('advancedTracklet.pleaseEnterTwoIds'));
       return;
     }
 
     const rally = getCurrentRally();
     if (!rally) {
-      alert('No rally selected');
+      showAlert(t('advancedTracklet.noRallySelected'));
       return;
     }
 
@@ -303,8 +379,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           const ann1 = annotations.find(a => a.tracklet_id === id1 && a.frame === frameNum);
           if (ann1) {
             const imagePath = rally.imageFiles.find(file => {
-              const filename = file.split(/[/\\\\]/).pop() || '';
-              const frameNumber = parseInt(filename.replace(/\\D/g, ''), 10);
+              const filename = file.split(/[/\\]/).pop() || '';
+              const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
               return frameNumber === frameNum;
             });
             
@@ -322,8 +398,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           const ann2 = annotations.find(a => a.tracklet_id === id2 && a.frame === frameNum);
           if (ann2) {
             const imagePath = rally.imageFiles.find(file => {
-              const filename = file.split(/[/\\\\]/).pop() || '';
-              const frameNumber = parseInt(filename.replace(/\\D/g, ''), 10);
+              const filename = file.split(/[/\\]/).pop() || '';
+              const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
               return frameNumber === frameNum;
             });
             
@@ -355,7 +431,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         }
       } else {
         setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
-        alert('No annotations found for the specified criteria');
+        showAlert(t('advancedTracklet.noAnnotationsFound'));
       }
       
     } catch (error) {
@@ -368,6 +444,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
 
   // Perform the actual operation
   const performOperation = useCallback(async (id1: number, id2: number) => {
+    console.log('🔧 Starting performOperation:', { operationType, id1, id2, frameRange1 });
+    
     try {
       let newAnnotations = [...annotations];
       
@@ -380,6 +458,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       } else {
         // Switch: swap IDs in specified frame range
         const frames = parseFrameRange(frameRange1);
+        console.log('🔧 Parsed frames:', frames);
+        
         // If no frame range specified, switch all frames
         const targetFrames = frames.length > 0 ? frames : 
           [...new Set(annotations
@@ -387,17 +467,36 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
             .map(a => a.frame)
           )];
         
+        console.log('🔧 Target frames for switch:', targetFrames);
+        console.log('🔧 Before switch - annotations count:', annotations.length);
+        
+        const beforeSwitchCount = {
+          id1: annotations.filter(a => a.tracklet_id === id1).length,
+          id2: annotations.filter(a => a.tracklet_id === id2).length
+        };
+        console.log('🔧 Before switch counts:', beforeSwitchCount);
+        
         newAnnotations = newAnnotations.map(ann => {
           if (targetFrames.includes(ann.frame)) {
             if (ann.tracklet_id === id1) {
+              console.log(`🔧 Switching annotation frame ${ann.frame}: ${id1} -> ${id2}`);
               return { ...ann, tracklet_id: id2 };
             } else if (ann.tracklet_id === id2) {
+              console.log(`🔧 Switching annotation frame ${ann.frame}: ${id2} -> ${id1}`);
               return { ...ann, tracklet_id: id1 };
             }
           }
           return ann;
         });
+        
+        const afterSwitchCount = {
+          id1: newAnnotations.filter(a => a.tracklet_id === id1).length,
+          id2: newAnnotations.filter(a => a.tracklet_id === id2).length
+        };
+        console.log('🔧 After switch counts:', afterSwitchCount);
       }
+      
+      console.log('🔧 Setting new annotations, count:', newAnnotations.length);
       
       // Update annotations
       setAnnotations(newAnnotations);
@@ -405,7 +504,9 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       // Save to file
       await saveAnnotationsToFile();
       
-      showAlert(`${operationType === 'merge' ? 'Merge' : 'Switch'} operation completed successfully!`);
+      showAlert(t('advancedTracklet.operationCompletedSuccessfully', { 
+        operation: operationType === 'merge' ? t('advancedTracklet.mergeButton') : t('advancedTracklet.switchButton') 
+      }));
       onClose();
       
     } catch (error) {
@@ -416,10 +517,14 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
 
   // Apply the operation - first validation step
   const validateAndStartOperation = useCallback(() => {
+    console.log('🚀 validateAndStartOperation called');
     const id1 = parseInt(trackletId1);
     const id2 = parseInt(trackletId2);
     
+    console.log('🚀 Parsed IDs:', { id1, id2, operationType, frameRange1 });
+    
     if (isNaN(id1) || isNaN(id2) || id1 === id2) {
+      console.log('🚀 Invalid IDs - showing alert');
       showAlert(t('dialogs.enterTwoDifferentIds'));
       return;
     }
@@ -430,6 +535,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       affectedCount = annotations.filter(ann => ann.tracklet_id === id2).length;
     } else {
       const frames = parseFrameRange(frameRange1);
+      console.log('🚀 Parsed frames for validation:', frames);
+      
       // If no frame range specified, switch all frames
       const targetFrames = frames.length > 0 ? frames : 
         [...new Set(annotations
@@ -437,13 +544,18 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           .map(a => a.frame)
         )];
       
+      console.log('🚀 Target frames for validation:', targetFrames);
+      
       affectedCount = annotations.filter(ann => 
         (ann.tracklet_id === id1 || ann.tracklet_id === id2) && 
         targetFrames.includes(ann.frame)
       ).length;
     }
 
+    console.log('🚀 Affected count:', affectedCount);
+
     if (affectedCount === 0) {
+      console.log('🚀 No annotations affected - showing alert');
       showAlert(t('dialogs.noAnnotationsAffected'));
       return;
     }
@@ -463,13 +575,24 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           frames: frameRange1 || t('dialogs.allFrames')
         });
       
+    console.log('🚀 Showing first confirmation dialog');
     showConfirm(confirmMessage, () => {
-      // Second confirmation for destructive operations
-      const secondConfirm = operationType === 'merge'
-        ? t('dialogs.finalMergeConfirmation', { count: affectedCount, sourceId: id2, targetId: id1 })
-        : t('dialogs.finalSwitchConfirmation', { count: affectedCount });
-        
-      showConfirm(secondConfirm, () => performOperation(id1, id2), 'destructive');
+      console.log('🚀 First confirmation accepted, showing second confirmation');
+      
+      // Close the first dialog and immediately show the second one
+      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      
+      setTimeout(() => {
+        // Second confirmation for destructive operations
+        const secondConfirm = operationType === 'merge'
+          ? t('dialogs.finalMergeConfirmation', { count: affectedCount, sourceId: id2, targetId: id1 })
+          : t('dialogs.finalSwitchConfirmation', { count: affectedCount });
+          
+        showConfirm(secondConfirm, () => {
+          console.log('🚀 Second confirmation accepted, calling performOperation');
+          performOperation(id1, id2);
+        }, 'destructive');
+      }, 100);
     }, 'destructive');
   }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t]);
 
@@ -483,7 +606,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900 rounded-t-xl">
           <h2 className="text-xl font-semibold text-white">
-            Advanced Tracklet Modification
+            {t('advancedTracklet.title')}
           </h2>
           <button
             onClick={onClose}
@@ -508,7 +631,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  🔗 Merge
+                  🔗 {t('advancedTracklet.mergeButton')}
                 </button>
                 <button
                   onClick={() => setOperationType('switch')}
@@ -519,7 +642,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   }`}
                 >
                   <ArrowsRightLeftIcon className="w-4 h-4 inline mr-1" />
-                  Switch
+                  {t('advancedTracklet.switchButton')}
                 </button>
               </div>
             </div>
@@ -574,7 +697,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  Format: Single frame (5), Range (1-10), List (1,3,5), or leave empty to switch all frames
+                  {t('advancedTracklet.formatHelp')}
                 </p>
                 <p className="text-xs text-orange-400 mt-1">
                   {t('ui.switchIdsBothTracklets')}
@@ -615,8 +738,11 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               </button>
               
               <button
-                onClick={validateAndStartOperation}
-                disabled={isLoadingPreviews || !trackletId1 || !trackletId2 || !showPreviews}
+                onClick={() => {
+                  console.log('🎯 Apply Operation button clicked');
+                  validateAndStartOperation();
+                }}
+                disabled={isLoadingPreviews || !trackletId1 || !trackletId2}
                 className="w-full flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
                 {operationType === 'merge' ? '🔗' : <ArrowsRightLeftIcon className="w-4 h-4" />}
@@ -674,9 +800,27 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                 
                 <div 
                   ref={scrollContainerRef}
-                  className="flex-1 p-2 bg-gray-850 rounded min-h-0 overflow-auto scrollbar-none"
+                  className="flex-1 p-2 bg-gray-900 rounded min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar"
+                  style={{ maxHeight: 'calc(100vh - 300px)' }}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    // Enable keyboard scrolling
+                    if (e.key === 'ArrowDown') {
+                      e.currentTarget.scrollTop += 50;
+                      e.preventDefault();
+                    } else if (e.key === 'ArrowUp') {
+                      e.currentTarget.scrollTop -= 50;
+                      e.preventDefault();
+                    } else if (e.key === 'ArrowRight') {
+                      e.currentTarget.scrollLeft += 50;
+                      e.preventDefault();
+                    } else if (e.key === 'ArrowLeft') {
+                      e.currentTarget.scrollLeft -= 50;
+                      e.preventDefault();
+                    }
+                  }}
                 >
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 min-w-fit p-1">
                     {previews.map((preview) => (
                       <TrackletPreviewCard
                         key={`${preview.trackletId}-${preview.frameNumber}`}
@@ -760,8 +904,8 @@ function TrackletPreviewCard({
   };
 
   return (
-    <div className={`bg-gray-700 rounded-lg overflow-hidden border-2 ${getBorderColor()} flex-shrink-0`}>
-      <div className="w-32 h-32 flex items-center justify-center bg-gray-800">
+    <div className={`bg-gray-700 rounded-lg overflow-hidden border-2 ${getBorderColor()} flex-shrink-0 min-w-[140px]`}>
+      <div className="w-32 h-32 flex items-center justify-center bg-gray-800 mx-auto">
         {isLoading ? (
           <div className="text-gray-400 text-xs">Loading...</div>
         ) : imageUrl ? (

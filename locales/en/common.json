@@ -238,7 +238,14 @@
     "neitherTrackletFound": "Neither tracklet {{id1}} nor tracklet {{id2}} found in annotations",
     "enterTwoDifferentIds": "Please enter two different valid tracklet IDs",
     "noAnnotationsAffected": "No annotations will be affected by this operation. Please check your settings.",
-    "showingCombinedTracklet": "Showing combined tracklet ({{count}} annotations)"
+    "showingCombinedTracklet": "Showing combined tracklet ({{count}} annotations)",
+    "mergeConfirmationTitle": "Confirm Merge Operation",
+    "mergeConfirmationMessage": "This will merge all annotations from tracklet {{sourceId}} into tracklet {{targetId}}. {{count}} annotations will be affected.",
+    "switchConfirmationTitle": "Confirm Switch Operation", 
+    "switchConfirmationMessage": "This will switch tracklet IDs {{id1}} and {{id2}} for {{count}} annotations in frames: {{frames}}",
+    "allFrames": "all frames",
+    "finalMergeConfirmation": "Are you absolutely sure you want to merge {{count}} annotations from tracklet {{sourceId}} to {{targetId}}? This action cannot be undone.",
+    "finalSwitchConfirmation": "Are you absolutely sure you want to switch {{count}} annotations? This action cannot be undone."
   },
   "ui": {
     "language": "Language",
@@ -260,7 +267,7 @@
     "noAnnotation": "No annotation",
     "clickToResetZoom": "Click to reset zoom to 100%",
     "enterTrackletId": "Enter tracklet ID",
-    "frameRangeExample": "e.g., 1-10 or 1,3,5 or 15 (leave empty for all frames)",
+    "frameRangeExample": "e.g., 1-10 or 1,3,5 or -20 (start to frame 20) or 200- (frame 200 to end)",
     "deleteAllBallAnnotationsTitle": "Delete all ball annotations",
     "deleteTrackletTitle": "Delete all annotations for tracklet {{id}}",
     "showAll": "Show All",
@@ -338,5 +345,16 @@
     "ballAnnotationTip": "💡 Tip: Use ID 99 for ball annotation (automatically enables ball mode)",
     "frame": "Frame",
     "analyzingAnnotations": "Analyzing {{trackletId}} annotations"
+  },
+  "advancedTracklet": {
+    "title": "Advanced Tracklet Modification",
+    "mergeButton": "🔗 Merge",
+    "switchButton": "Switch",
+    "pleaseEnterTwoIds": "Please enter two different valid tracklet IDs",
+    "noRallySelected": "No rally selected",
+    "operationCompletedSuccessfully": "{{operation}} operation completed successfully!",
+    "noAnnotationsFound": "No annotations found for the specified criteria",
+    "loadingImages": "Loading images",
+    "formatHelp": "Format: Single frame (5), Range (1-10), List (1,3,5), Start-to-frame (-20), Frame-to-end (200-), or leave empty to switch all frames"
   }
 }

@@ -49,6 +49,82 @@ body {
   background-color: #1f2937;
 }
 
+/* Advanced Tracklet Modal Preview Scrollbar */
+.custom-scrollbar {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: #1f2937;
+}
+
+/* Focus styles for scrollable area */
+.custom-scrollbar:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Smooth scrolling behavior */
+.custom-scrollbar {
+  scroll-behavior: smooth;
+}
+
+/* Dialog improvements for desktop apps */
+.dialog-content {
+  /* Better font rendering on Windows/Linux */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: none;
+  
+  /* Ensure proper box model on all platforms */
+  box-sizing: border-box;
+  
+  /* Better text rendering */
+  text-rendering: optimizeLegibility;
+}
+
+/* Button focus states for keyboard navigation */
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Improve dialog backdrop on different screens */
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-backdrop {
+    transition: backdrop-filter 0.2s ease-out;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .dialog-content {
+    border: 2px solid currentColor;
+  }
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;

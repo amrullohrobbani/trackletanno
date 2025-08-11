@@ -112,6 +112,7 @@ export default function BallAnnotationSidebar() {
 
   const totalAnnotations = annotations.length;
   const ballAnnotationsCount = ballAnnotations.length;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const playerAnnotationsCount = totalAnnotations - ballAnnotationsCount;
 
   return (
@@ -152,7 +153,7 @@ export default function BallAnnotationSidebar() {
       </div>
 
       {/* Annotation Statistics */}
-      <div className="mb-4 p-3 bg-gray-800 rounded border border-gray-600">
+      {/* <div className="mb-4 p-3 bg-gray-800 rounded border border-gray-600">
                 <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="flex justify-between">
             <span>{t('ball.totalAnnotations')}:</span>
@@ -173,7 +174,7 @@ export default function BallAnnotationSidebar() {
             </div>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* Import/Export Controls */}
       <div className="space-y-2 mb-4">

@@ -13,6 +13,22 @@
     "available": "사용 가능",
     "noRallySelected": "선택된 랠리 없음",
     "useDirectoryTree": "왼쪽 디렉터리 트리를 사용하여 랠리 간 전환",
+    "ballAnnotationTip": "💡 팁: 볼 주석에는 ID 99를 사용하세요 (자동으로 볼 모드가 활성화됩니다)",
+    "frame": "프레임",
+    "analyzingAnnotations": "{{trackletId}} 주석 분석 중"
+  },
+  "advancedTracklet": {
+    "title": "고급 트랙릿 수정",
+    "mergeButton": "🔗 병합",
+    "switchButton": "전환",
+    "pleaseEnterTwoIds": "두 개의 서로 다른 유효한 트랙릿 ID를 입력하십시오",
+    "noRallySelected": "선택된 랠리가 없습니다",
+    "operationCompletedSuccessfully": "{{operation}} 작업이 성공적으로 완료되었습니다!",
+    "noAnnotationsFound": "지정된 기준에 대한 주석을 찾을 수 없습니다",
+    "loadingImages": "이미지 로딩 중",
+    "formatHelp": "형식: 단일 프레임 (5), 범위 (1-10), 목록 (1,3,5), 시작부터 프레임까지 (-20), 프레임부터 끝까지 (200-), 또는 모든 프레임을 전환하려면 비워두십시오"
+  },
+  "rightSidebar": {
     "availableIds": "사용 가능한 ID",
     "noTrackletIds": "주석에서 트래클릿 ID를 찾을 수 없음",
     "customId": "사용자 정의 ID",
@@ -235,10 +251,17 @@
     "noRallyFoldersFound": "선택한 디렉토리에서 어노테이션 데이터가 있는 랠리 폴더를 찾을 수 없습니다.",
     "errorAccessingDirectory": "선택한 디렉토리에 접근하는 중 오류가 발생했습니다.",
     "enterFrameNumber": "1과 {{max}} 사이의 프레임 번호를 입력하세요",
-        "neitherTrackletFound": "어노테이션에서 트래클릿 {{id1}} 또는 트래클릿 {{id2}}를 찾을 수 없습니다",
+    "neitherTrackletFound": "어노테이션에서 트래클릿 {{id1}} 또는 트래클릿 {{id2}}를 찾을 수 없습니다",
     "enterTwoDifferentIds": "서로 다른 두 개의 유효한 트래클릿 ID를 입력하세요",
     "noAnnotationsAffected": "이 작업으로 영향받을 어노테이션이 없습니다. 설정을 확인하세요.",
-    "showingCombinedTracklet": "결합된 트래클릿 표시 ({{count}}개 어노테이션)"
+    "showingCombinedTracklet": "결합된 트래클릿 표시 ({{count}}개 어노테이션)",
+    "mergeConfirmationTitle": "병합 작업 확인",
+    "mergeConfirmationMessage": "트래클릿 {{sourceId}}의 모든 어노테이션을 트래클릿 {{targetId}}로 병합합니다. {{count}}개의 어노테이션이 영향을 받습니다.",
+    "switchConfirmationTitle": "전환 작업 확인",
+    "switchConfirmationMessage": "프레임 {{frames}}에서 트래클릿 ID {{id1}}과 {{id2}}를 전환합니다. {{count}}개의 어노테이션이 영향을 받습니다.",
+    "allFrames": "모든 프레임",
+    "finalMergeConfirmation": "트래클릿 {{sourceId}}에서 {{targetId}}로 {{count}}개의 어노테이션을 병합하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+    "finalSwitchConfirmation": "{{count}}개의 어노테이션을 전환하시겠습니까? 이 작업은 되돌릴 수 없습니다."
   },
   "ui": {
     "language": "언어",
@@ -260,7 +283,7 @@
     "noAnnotation": "어노테이션 없음",
     "clickToResetZoom": "100%로 줌 재설정하려면 클릭",
     "enterTrackletId": "트래클릿 ID 입력",
-    "frameRangeExample": "예: 1-10 또는 1,3,5 또는 15 (모든 프레임의 경우 비워두세요)",
+    "frameRangeExample": "예: 1-10 또는 1,3,5 또는 -20 (시작부터 프레임 20까지) 또는 200- (프레임 200부터 끝까지)",
     "deleteAllBallAnnotationsTitle": "모든 볼 어노테이션 삭제",
     "deleteTrackletTitle": "트래클릿 {{id}}의 모든 어노테이션 삭제",
     "showAll": "모두 보기",

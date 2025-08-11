@@ -45,18 +45,18 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-w-[450px] w-[90vw]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line text-left">
+          <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
+          <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+        <DialogFooter className="flex-row justify-end space-x-2 pt-4">
+          <Button variant="outline" onClick={handleCancel} className="min-w-[80px]">
             {cancelText}
           </Button>
-          <Button variant={variant} onClick={handleConfirm}>
+          <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
             {confirmText}
           </Button>
         </DialogFooter>
@@ -97,15 +97,15 @@ export function AlertDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-w-[450px] w-[90vw]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line text-left">
+          <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
+          <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant={variant} onClick={handleConfirm}>
+        <DialogFooter className="flex-row justify-end pt-4">
+          <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
             {confirmText}
           </Button>
         </DialogFooter>
