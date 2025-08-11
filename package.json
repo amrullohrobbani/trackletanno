@@ -1,6 +1,6 @@
 {
   "name": "trackletanno",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A tool for annotating tracklet IDs in video frames",
   "author": {
     "name": "Tracklet Annotation Team",
