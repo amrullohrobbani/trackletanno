@@ -142,7 +142,7 @@ export function DialogContent({
       {/* Content */}
       <div
         ref={contentRef}
-        className={`relative bg-gray-800 border border-gray-700 rounded-lg shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto text-white dialog-content ${className}`}
+        className={`relative bg-gray-800 border border-gray-700 rounded-lg shadow-2xl max-w-lg w-auto min-w-80 mx-4 max-h-[90vh] overflow-y-auto text-white dialog-content ${className}`}
         style={{
           /* Ensure proper rendering on Windows/Linux */
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1)',

@@ -390,11 +390,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           
           const updatedBoundingBoxes = state.boundingBoxes.filter(box => box.id !== state.selectedBoundingBox);
           
-          // Update state immediately with deletion flag
+          // Update state immediately with deletion flag and clear tracklet selection
           set({
             boundingBoxes: updatedBoundingBoxes,
             annotations: updatedAnnotations,
             selectedBoundingBox: null,
+            selectedTrackletId: null, // Clear tracklet selection on deletion
             isDeletingBox: true // Prevent recreation during deletion
           });
           
@@ -430,7 +431,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       annotations: updatedAnnotations,
       boundingBoxes: updatedBoundingBoxes,
-      selectedBoundingBox: null
+      selectedBoundingBox: null,
+      selectedTrackletId: null // Clear tracklet selection when deleting all annotations for a tracklet
     });
     
     // Auto-save after deletion - use get() to get the updated state
@@ -949,11 +951,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Remove all ball annotations (tracklet_id 99) from annotations
     const nonBallAnnotations = annotations.filter(ann => ann.tracklet_id !== BALL_TRACKLET_ID);
     
-    // Update state immediately with cross-platform compatibility
+    // Update state immediately with cross-platform compatibility and clear ball tracklet selection
     set({ 
       annotations: nonBallAnnotations,
       ballAnnotations: [],
       hasBallAnnotations: false,
+      selectedTrackletId: null, // Clear ball tracklet selection
+      selectedBoundingBox: null, // Clear any ball-related bounding box selection
+      ballAnnotationMode: false, // Exit ball annotation mode
       // Force canvas redraw for all platforms, especially Windows
       forceRedrawTimestamp: Date.now()
     });

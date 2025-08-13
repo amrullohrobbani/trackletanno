@@ -43,23 +43,35 @@ export function ConfirmDialog({
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleConfirm();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancel();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-w-[450px] w-[90vw]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
-            {description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex-row justify-end space-x-2 pt-4">
-          <Button variant="outline" onClick={handleCancel} className="min-w-[80px]">
-            {cancelText}
-          </Button>
-          <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
-            {confirmText}
-          </Button>
-        </DialogFooter>
+      <DialogContent className="max-w-md w-auto min-w-96">
+        <div onKeyDown={handleKeyDown} tabIndex={-1}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
+            <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
+              {description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={handleCancel} className="min-w-[80px]">
+              {cancelText}
+            </Button>
+            <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
+              {confirmText}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -95,20 +107,32 @@ export function AlertDialog({
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleConfirm();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-w-[450px] w-[90vw]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
-            {description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex-row justify-end pt-4">
-          <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
-            {confirmText}
-          </Button>
-        </DialogFooter>
+      <DialogContent className="max-w-md w-auto min-w-96">
+        <div onKeyDown={handleKeyDown} tabIndex={-1}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-white">{title}</DialogTitle>
+            <DialogDescription className="whitespace-pre-line text-left text-gray-300 leading-relaxed">
+              {description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-end pt-4">
+            <Button variant={variant} onClick={handleConfirm} className="min-w-[80px]">
+              {confirmText}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

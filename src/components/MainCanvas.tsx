@@ -798,16 +798,16 @@ export default function MainCanvas() {
       const clickedBox = getClickedBox(coords);
 
       if (clickedBox) {
-        // Unified selection: selecting a bounding box automatically selects its tracklet ID
-        setSelectedTrackletId(clickedBox.tracklet_id);
-        setSelectedBoundingBox(clickedBox.id);
-        
-        // If an event is selected, assign it to the clicked bounding box
+        // If an event is selected, just assign it without selecting the bounding box
         if (selectedEvent) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
+          console.log(`Assigned event "${selectedEvent}" to tracklet ID ${clickedBox.tracklet_id} without selecting`);
+        } else {
+          // Only select if no event is selected (normal selection mode)
+          setSelectedTrackletId(clickedBox.tracklet_id);
+          setSelectedBoundingBox(clickedBox.id);
+          console.log(`Selected tracklet ID ${clickedBox.tracklet_id} via bounding box`);
         }
-        
-        console.log(`Selected tracklet ID ${clickedBox.tracklet_id} via bounding box`);
       } else {
         // Clear both selections when clicking empty space
         setSelectedTrackletId(null);
@@ -1304,7 +1304,7 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (ESC to exit)`}
+          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (B/ESC to exit)`}
           {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
           {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} 🔄 Smart Swap (ESC to exit)`}
           {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}

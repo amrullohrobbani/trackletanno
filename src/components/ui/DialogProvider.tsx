@@ -29,23 +29,35 @@ function AlertDialog({
     onOpenChange(false);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleConfirm();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line">
-            {description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button 
-            onClick={handleConfirm}
-            variant={variant}
-          >
-            {confirmText}
-          </Button>
-        </DialogFooter>
+      <DialogContent className="max-w-md w-auto min-w-80">
+        <div onKeyDown={handleKeyDown} tabIndex={-1}>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="whitespace-pre-line">
+              {description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={handleConfirm}
+              variant={variant}
+            >
+              {confirmText}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -84,26 +96,38 @@ function ConfirmDialog({
     onOpenChange(false);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleConfirm();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancel();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="whitespace-pre-line">
-            {description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            {cancelText}
-          </Button>
-          <Button 
-            onClick={handleConfirm}
-            variant={variant}
-          >
-            {confirmText}
-          </Button>
-        </DialogFooter>
+      <DialogContent className="max-w-md w-auto min-w-80">
+        <div onKeyDown={handleKeyDown} tabIndex={-1}>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="whitespace-pre-line">
+              {description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel}>
+              {cancelText}
+            </Button>
+            <Button 
+              onClick={handleConfirm}
+              variant={variant}
+            >
+              {confirmText}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

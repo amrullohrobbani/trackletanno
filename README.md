@@ -150,6 +150,7 @@ The application operates in different modes for various annotation tasks:
 - **Visual**: Crosshair cursor, "Ball Annotation Mode" indicator
 - **Function**: Click to place ball markers, auto-assigns ID 99
 - **Use case**: Tracking ball position throughout rally
+- **Shortcut**: Press `B` key to toggle ball annotation mode
 
 ---
 
@@ -247,7 +248,8 @@ The application operates in different modes for various annotation tasks:
 #### CREATE - Adding Ball Position
 1. **Enter Ball Mode**
    - Right Sidebar → Click "Ball Annotation" button, OR
-   - Right Sidebar → Click on "Ball 99" button
+   - Right Sidebar → Click on "Ball 99" button, OR
+   - Press `B` key to toggle ball annotation mode
    - Mode indicator shows "Ball Annotation Mode"
 
 2. **Place Ball Marker**
@@ -305,6 +307,7 @@ The application operates in different modes for various annotation tasks:
 | `End` | Last Frame | Jump to last frame |
 | `D` | Drawing Mode | Toggle drawing mode on/off |
 | `A` | Assignment Mode | Toggle assignment mode on/off |
+| `B` | Ball Annotation Mode | Toggle ball annotation mode on/off |
 | `ESC` | Clear All | Clear all modes and selections |
 | `0` | Reset Zoom | Reset zoom to 100% and center image |
 | `Ctrl+0` | Reset Zoom | Alternative zoom reset shortcut |

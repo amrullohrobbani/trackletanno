@@ -29,7 +29,7 @@ Team values are numeric: 0=home, 1=away, -1=others
 
 ## Key Features
 - Three-column responsive layout
-- Keyboard shortcuts (Z/X for frame navigation, Home/End for first/last frame, D/A for modes, ESC to clear)
+- Keyboard shortcuts (Z/X for frame navigation, Home/End for first/last frame, D/A for modes, B for ball mode, ESC to clear)
 - Real-time bounding box drawing and editing
 - Automatic file saving with visual feedback
 - Support for 1920x1080 image frames

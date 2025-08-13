@@ -21,6 +21,9 @@ export default function Home() {
     setAssignMode,
     drawingMode,
     assignMode,
+    ballAnnotationMode,
+    setBallAnnotationMode,
+    setSelectedTrackletId,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -49,6 +52,20 @@ export default function Home() {
     setAssignMode(!assignMode);
     setDrawingMode(false);
   }, hotkeyOptions, [assignMode, setAssignMode, setDrawingMode]);
+  useHotkeys('b', () => {
+    console.log('B key pressed - Current ball mode:', ballAnnotationMode);
+    if (!ballAnnotationMode) {
+      // Entering ball mode - select tracklet ID 99 and enable ball mode
+      setBallAnnotationMode(true);
+      setSelectedTrackletId(99);
+      console.log('B pressed - Ball annotation mode enabled');
+    } else {
+      // Exiting ball mode - disable ball mode and clear tracklet selection
+      setBallAnnotationMode(false);
+      setSelectedTrackletId(null);
+      console.log('B pressed - Ball annotation mode disabled');
+    }
+  }, hotkeyOptions, [ballAnnotationMode, setBallAnnotationMode, setSelectedTrackletId]);
   useHotkeys('equal', () => zoomIn(), hotkeyOptions, [zoomIn]); // + key (without shift)
   useHotkeys('shift+equal', () => zoomIn(), hotkeyOptions, [zoomIn]); // + key (with shift)
   useHotkeys('minus', () => zoomOut(), hotkeyOptions, [zoomOut]); // - key
@@ -96,7 +113,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <SaveIndicator />
               <div className="text-sm text-gray-400">
-                Z/←: Previous | X/→: Next | D: Draw | A: Assign | +/-: Zoom | 0: Reset | Del/Backspace: Delete | Shift+Del: Delete All | Middle/Right-drag: Pan
+                Z/←: Previous | X/→: Next | D: Draw | A: Assign | +/-: Zoom | 0: Reset | Del/Backspace: Delete | Shift+Del: Delete All | Middle/Right-drag: Pan | B: Ball Mode | Home/End: Select First/ Last Tracklet
               </div>
             </div>
           </div>
