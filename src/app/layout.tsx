@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tracklet Annotation Tool",
+  title: "MatchTagger",
   description: "A tool for annotating tracklet IDs in video frames",
 };
 

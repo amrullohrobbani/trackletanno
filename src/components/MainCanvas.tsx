@@ -595,6 +595,32 @@ export default function MainCanvas() {
       });
     }
 
+    // Draw crosshair lines when in drawing mode and cursor is over canvas
+    if (drawingMode && cursorPosition && !isDrawing) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // Semi-transparent white
+      ctx.lineWidth = 1 / zoomLevel;
+      ctx.setLineDash([4 / zoomLevel, 4 / zoomLevel]); // Dashed lines for subtle effect
+      
+      // Get the actual canvas bounds considering zoom and pan
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (canvasRect) {
+        // Draw full-width horizontal crosshair line
+        ctx.beginPath();
+        ctx.moveTo(-panX / zoomLevel, cursorPosition.y);
+        ctx.lineTo((canvasDimensions.width - panX) / zoomLevel, cursorPosition.y);
+        ctx.stroke();
+        
+        // Draw full-height vertical crosshair line  
+        ctx.beginPath();
+        ctx.moveTo(cursorPosition.x, -panY / zoomLevel);
+        ctx.lineTo(cursorPosition.x, (canvasDimensions.height - panY) / zoomLevel);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    }
+
     // Restore the context state
     ctx.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -604,6 +630,13 @@ export default function MainCanvas() {
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Clear cursor position when leaving drawing mode
+  useEffect(() => {
+    if (!drawingMode) {
+      setCursorPosition(null);
+    }
+  }, [drawingMode]);
 
   const getCanvasCoordinates = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

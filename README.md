@@ -1,4 +1,4 @@
-# Tracklet Annotation Tool - Complete User Manual
+# MatchTagger - Complete User Manual
 
 A comprehensive desktop application for annotating tracklet IDs and ball positions in video frames, built with Electron, Next.js, and Tailwind CSS.
 

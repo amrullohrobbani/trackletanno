@@ -1,10 +1,10 @@
 {
-  "name": "trackletanno",
-  "version": "0.1.2",
+  "name": "matchtagger",
+  "version": "1.0.0",
   "description": "A tool for annotating tracklet IDs in video frames",
   "author": {
-    "name": "Tracklet Annotation Team",
-    "email": "team@trackletanno.com"
+    "name": "MatchTagger Development Team",
+    "email": "team@matchtagger.com"
   },
   "private": true,
   "main": "electron/main.js",
