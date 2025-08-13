@@ -118,113 +118,200 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
     console.log('Scanning directory:', basePath);
     const entries = await fs.readdir(basePath, { withFileTypes: true });
     const rallyFolders = [];
+    const validationResults = [];
     
-    // Look for folders matching the pattern [gameId]s[set]rally[rallynumber]
-    // and corresponding .txt files with the same name
-    const rallyPattern = /^(\d+s\d+rally\d+)$/;
-    
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const match = entry.name.match(rallyPattern);
-        if (match) {
-          const rallyName = match[1];
-          const rallyPath = path.join(basePath, entry.name);
-          const annotationFilePath = path.join(basePath, `${rallyName}.txt`);
-          
-          console.log('Checking rally folder:', rallyPath);
-          console.log('Looking for annotation file:', annotationFilePath);
-          
-          try {
-            // Check if annotation file exists
-            const annotationExists = await fs.access(annotationFilePath).then(() => true).catch(() => false);
-            
-            if (annotationExists) {
-              const rallyEntries = await fs.readdir(rallyPath);
-              console.log('Files in rally folder:', rallyEntries.length);
-              
-              // Look for image files
-              const imageFiles = rallyEntries.filter(file => 
-                /\.(jpg|jpeg|png|bmp)$/i.test(file)
-              ).sort((a, b) => {
-                // Extract frame numbers for proper sorting (handles format like 002001.jpg)
-                const getFrameNumber = (filename) => {
-                  const match = filename.match(/(\d{6})\./);
-                  return match ? parseInt(match[1], 10) : 0;
-                };
-                return getFrameNumber(a) - getFrameNumber(b);
-              });
-              
-              console.log('Found image files count:', imageFiles.length);
-              
-              if (imageFiles.length > 0) {
-                rallyFolders.push({
-                  name: rallyName,
-                  path: rallyPath,
-                  annotationFile: annotationFilePath,
-                  imageFiles: imageFiles.map(img => path.join(rallyPath, img))
-                });
-                console.log('Added rally folder:', rallyName);
-              } else {
-                console.log('Rally folder missing image files:', rallyName);
-              }
-            } else {
-              console.log('Annotation file not found for:', rallyName);
-            }
-          } catch (rallyError) {
-            console.error(`Error reading rally folder ${rallyPath}:`, rallyError);
-          }
-        }
+    // Support multiple rally folder naming patterns:
+    // 1. [gameId]s[set]rally[rallynumber] (e.g., 207s2rally001)
+    // 2. [name]_rally_[number] (e.g., bra_fra_men_vnl_2022_1080p_rally_000012)
+    // 3. rally_[anything] (old format fallback)
+    const rallyPatterns = [
+      { 
+        pattern: /^(\d+s\d+rally\d+)$/,
+        type: 'volleyball_standard',
+        getAnnotationName: (match) => match[1]
+      },
+      { 
+        pattern: /^(.+_rally_\d+)$/,
+        type: 'vnl_format', 
+        getAnnotationName: (match) => match[1]
+      },
+      { 
+        pattern: /^(rally_.+)$/,
+        type: 'old_format',
+        getAnnotationName: (match) => match[1]
       }
-    }
+    ];
     
-    // Fallback: look for the old rally_ pattern for backward compatibility
-    if (rallyFolders.length === 0) {
-      console.log('No new format rally folders found, checking old format...');
+    // First pass: collect all potential rally folders and analyze them
+    const potentialRallies = entries.filter(entry => entry.isDirectory()).map(entry => {
+      let matchedPattern = null;
+      let rallyName = null;
       
-      for (const entry of entries) {
-        if (entry.isDirectory() && entry.name.startsWith('rally_')) {
-          const rallyPath = path.join(basePath, entry.name);
-          console.log('Checking old format rally folder:', rallyPath);
-          
-          try {
-            const rallyEntries = await fs.readdir(rallyPath);
-            console.log('Files in rally folder:', rallyEntries);
-            
-            // Look for annotation file and images
-            const annotationFile = rallyEntries.find(file => file.endsWith('.txt'));
-            const imageFiles = rallyEntries.filter(file => 
-              /\.(jpg|jpeg|png|bmp)$/i.test(file)
-            ).sort((a, b) => {
-              // Extract frame numbers for proper sorting (handles format like 000001.jpg)
-              const getFrameNumber = (filename) => {
-                const match = filename.match(/(\d{6})\./);
-                return match ? parseInt(match[1], 10) : 0;
-              };
-              return getFrameNumber(a) - getFrameNumber(b);
-            });
-            
-            console.log('Found annotation file:', annotationFile);
-            console.log('Found image files count:', imageFiles.length);
-            
-            if (annotationFile && imageFiles.length > 0) {
-              rallyFolders.push({
-                name: entry.name,
-                path: rallyPath,
-                annotationFile: path.join(rallyPath, annotationFile),
-                imageFiles: imageFiles.map(img => path.join(rallyPath, img))
-              });
-              console.log('Added old format rally folder:', entry.name);
-            } else {
-              console.log('Old format rally folder missing required files:', entry.name);
-            }
-          } catch (rallyError) {
-            console.error(`Error reading old format rally folder ${rallyPath}:`, rallyError);
-          }
+      // Try each pattern
+      for (const patternInfo of rallyPatterns) {
+        const match = entry.name.match(patternInfo.pattern);
+        if (match) {
+          matchedPattern = patternInfo;
+          rallyName = patternInfo.getAnnotationName(match);
+          break;
         }
       }
+      
+      return {
+        folderName: entry.name,
+        rallyName: rallyName,
+        isValidPattern: !!matchedPattern,
+        patternType: matchedPattern?.type || 'unknown',
+        path: path.join(basePath, entry.name)
+      };
+    });
+    
+    console.log(`Found ${potentialRallies.length} directories, ${potentialRallies.filter(p => p.isValidPattern).length} match rally patterns`);
+    potentialRallies.forEach(p => {
+      if (p.isValidPattern) {
+        console.log(`  ✓ ${p.folderName} -> ${p.rallyName} (${p.patternType})`);
+      } else {
+        console.log(`  ✗ ${p.folderName} (no pattern match)`);
+      }
+    });
+    
+    for (const potential of potentialRallies) {
+      const validation = {
+        folderName: potential.folderName,
+        rallyName: potential.rallyName,
+        isValidPattern: potential.isValidPattern,
+        issues: [],
+        status: 'unknown'
+      };
+      
+      if (!potential.isValidPattern) {
+        validation.issues.push('Folder name does not match any supported rally pattern:');
+        validation.issues.push('  • [gameId]s[set]rally[number] (e.g., 207s2rally001)');
+        validation.issues.push('  • [name]_rally_[number] (e.g., bra_fra_men_vnl_2022_1080p_rally_000012)');
+        validation.issues.push('  • rally_[name] (legacy format)');
+        validation.status = 'invalid_pattern';
+        validationResults.push(validation);
+        continue;
+      }
+      
+      const rallyPath = potential.path;
+      const annotationFilePath = path.join(basePath, `${potential.rallyName}.txt`);
+      
+      console.log('Validating rally folder:', rallyPath);
+      console.log('Looking for annotation file:', annotationFilePath);
+      
+      try {
+        // Check if annotation file exists
+        const annotationExists = await fs.access(annotationFilePath).then(() => true).catch(() => false);
+        
+        if (!annotationExists) {
+          validation.issues.push(`Missing annotation file: ${potential.rallyName}.txt`);
+        }
+        
+        // Check folder contents
+        const rallyEntries = await fs.readdir(rallyPath);
+        console.log(`Files in ${potential.folderName}:`, rallyEntries.length);
+        
+        // Look for image files
+        const imageFiles = rallyEntries.filter(file => 
+          /\.(jpg|jpeg|png|bmp)$/i.test(file)
+        ).sort((a, b) => {
+          // Extract frame numbers for proper sorting (handles format like 002001.jpg)
+          const getFrameNumber = (filename) => {
+            const match = filename.match(/(\d{6})\./);
+            return match ? parseInt(match[1], 10) : 0;
+          };
+          return getFrameNumber(a) - getFrameNumber(b);
+        });
+        
+        console.log('Found image files count:', imageFiles.length);
+        
+        if (imageFiles.length === 0) {
+          validation.issues.push('No image files (.jpg, .jpeg, .png, .bmp) found in folder');
+        }
+        
+        // Validate annotation file content if it exists
+        if (annotationExists) {
+          try {
+            const annotationContent = await fs.readFile(annotationFilePath, 'utf8');
+            const lines = annotationContent.trim().split('\n').filter(line => line.trim());
+            
+            if (lines.length === 0) {
+              validation.issues.push('Annotation file is empty');
+            } else {
+              // Check if first line has proper format (at least 7 columns)
+              const firstLine = lines[0];
+              const columns = firstLine.split(',');
+              
+              if (columns.length < 7) {
+                validation.issues.push(`Annotation file has ${columns.length} columns, minimum 7 required (frame,tracklet_id,x,y,w,h,score)`);
+              }
+              
+              // Check if frame numbers in annotation roughly match image files
+              if (imageFiles.length > 0) {
+                const frameNumbers = lines.map(line => {
+                  const parts = line.split(',');
+                  return parseInt(parts[0]) || 0;
+                }).filter(f => f > 0);
+                
+                // Count unique frames rather than frame range
+                const uniqueFrames = [...new Set(frameNumbers)];
+                const uniqueFrameCount = uniqueFrames.length;
+                
+                // Allow for reasonable variance (up to 20% difference)
+                const variance = Math.abs(uniqueFrameCount - imageFiles.length);
+                const allowedVariance = imageFiles.length * 0.2;
+                
+                if (variance > allowedVariance) {
+                  validation.issues.push(`Frame count mismatch: ${uniqueFrameCount} unique annotation frames vs ${imageFiles.length} image files`);
+                }
+              }
+            }
+          } catch (annotationError) {
+            validation.issues.push(`Cannot read annotation file: ${annotationError.message}`);
+          }
+        }
+        
+        // Determine final status
+        if (validation.issues.length === 0) {
+          validation.status = 'valid';
+          rallyFolders.push({
+            name: potential.rallyName,
+            path: rallyPath,
+            annotationFile: annotationFilePath,
+            imageFiles: imageFiles.map(img => path.join(rallyPath, img))
+          });
+          console.log('✓ Added rally folder:', potential.rallyName);
+        } else if (annotationExists && imageFiles.length > 0) {
+          validation.status = 'warning';
+          // Add folder even with warnings since it has the essential components
+          rallyFolders.push({
+            name: potential.rallyName,
+            path: rallyPath,
+            annotationFile: annotationFilePath,
+            imageFiles: imageFiles.map(img => path.join(rallyPath, img))
+          });
+          console.log('⚠ Added rally folder with warnings:', potential.rallyName);
+        } else {
+          validation.status = 'invalid';
+          console.log('✗ Rally folder missing critical components:', potential.rallyName);
+        }
+        
+      } catch (rallyError) {
+        validation.issues.push(`Error reading folder: ${rallyError.message}`);
+        validation.status = 'error';
+        console.error(`Error validating rally folder ${rallyPath}:`, rallyError);
+      }
+      
+      validationResults.push(validation);
     }
     
     console.log('Total rally folders found:', rallyFolders.length);
+    console.log('Validation results:', validationResults);
+    
+    // Attach validation info for better user feedback
+    rallyFolders.validationResults = validationResults;
+    
     return rallyFolders;
   } catch (error) {
     console.error('Error getting rally folders:', error);

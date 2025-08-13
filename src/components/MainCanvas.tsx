@@ -59,7 +59,8 @@ export default function MainCanvas() {
     setAssignMode,
     setBallAnnotationMode,
     setSelectedTrackletId,
-    forceRedrawTimestamp
+    forceRedrawTimestamp,
+    ballAnnotationRadius
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -124,6 +125,22 @@ export default function MainCanvas() {
           if (imageRef.current) {
             const { naturalWidth, naturalHeight } = imageRef.current;
             console.log(`Image dimensions: ${naturalWidth}x${naturalHeight}`);
+            
+            // Verify common resolutions are handled correctly
+            const isFullHD = naturalWidth === 1920 && naturalHeight === 1080;
+            const isHD = naturalWidth === 1280 && naturalHeight === 720;
+            const is4K = naturalWidth === 3840 && naturalHeight === 2160;
+            
+            if (isFullHD) {
+              console.log('✅ Full HD (1920x1080) image detected');
+            } else if (isHD) {
+              console.log('✅ HD (1280x720) image detected');  
+            } else if (is4K) {
+              console.log('✅ 4K (3840x2160) image detected');
+            } else {
+              console.log(`✅ Custom resolution (${naturalWidth}x${naturalHeight}) image detected`);
+            }
+            
             setCanvasDimensions({ width: naturalWidth, height: naturalHeight });
           }
         };
@@ -486,7 +503,7 @@ export default function MainCanvas() {
           const ballCenterY = ballAnnotation.y;
           
           // Smaller, more distinct ball indicator
-          const ballRadius = Math.max(6, 6 / zoomLevel); // Reduced from 12 to 6
+          const ballRadius = Math.max(ballAnnotationRadius, ballAnnotationRadius / zoomLevel); // Use dynamic radius from store
           const borderWidth = Math.max(2, 2 / zoomLevel);
           
           // Draw outer white border circle for better visibility
@@ -715,13 +732,12 @@ export default function MainCanvas() {
         if (frameNumber !== null) {
           console.log('Ball annotation mode - frameNumber:', frameNumber, 'coords:', coords, 'selectedEvent:', selectedEvent);
           // Check if clicking on an existing ball annotation first
-          const ballRadius = 6;
           const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
             if (ballAnnotation.frame === frameNumber) {
               const distance = Math.sqrt(
                 Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
               );
-              return distance <= ballRadius;
+              return distance <= ballAnnotationRadius;
             }
             return false;
           });
@@ -746,13 +762,12 @@ export default function MainCanvas() {
         const frameNumber = getCurrentFrameNumber();
         if (frameNumber !== null) {
           // Check if clicking on an existing ball annotation
-          const ballRadius = 6;
           const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
             if (ballAnnotation.frame === frameNumber) {
               const distance = Math.sqrt(
                 Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
               );
-              return distance <= ballRadius;
+              return distance <= ballAnnotationRadius;
             }
             return false;
           });
@@ -1057,13 +1072,12 @@ export default function MainCanvas() {
     if (currentFrameNumber === null) return;
     
     // Check if clicked on a ball annotation (within radius)
-    const ballRadius = 6; // Same as used in drawing
     const clickedBallAnnotation = ballAnnotations.find(ballAnnotation => {
       if (ballAnnotation.frame === currentFrameNumber) {
         const distance = Math.sqrt(
           Math.pow(coords.x - ballAnnotation.x, 2) + Math.pow(coords.y - ballAnnotation.y, 2)
         );
-        return distance <= ballRadius;
+        return distance <= ballAnnotationRadius;
       }
       return false;
     });

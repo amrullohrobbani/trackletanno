@@ -31,7 +31,9 @@ export default function BallAnnotationSidebar() {
     annotations,
     clearBallAnnotations,
     getCurrentFrameBallAnnotation,
-    removeCurrentFrameBallAnnotation
+    removeCurrentFrameBallAnnotation,
+    ballAnnotationRadius,
+    setBallAnnotationRadius
   } = useAppStore();
 
   const handleToggleBallMode = () => {
@@ -150,6 +152,31 @@ export default function BallAnnotationSidebar() {
             {t('ball.modeInstructions')}
           </div>
         )}
+      </div>
+
+      {/* Ball Radius Control */}
+      <div className="mb-4">
+        <label className="block text-sm text-gray-300 mb-2">
+          Ball Annotation Radius: {ballAnnotationRadius}px
+        </label>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">1</span>
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={ballAnnotationRadius}
+            onChange={(e) => setBallAnnotationRadius(parseInt(e.target.value))}
+            className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+            style={{
+              background: `linear-gradient(to right, #f97316 0%, #f97316 ${(ballAnnotationRadius - 1) / 19 * 100}%, #374151 ${(ballAnnotationRadius - 1) / 19 * 100}%, #374151 100%)`
+            }}
+          />
+          <span className="text-xs text-gray-400">20</span>
+        </div>
+        <div className="text-xs text-gray-400 mt-1">
+          Controls the click radius for selecting ball annotations
+        </div>
       </div>
 
       {/* Annotation Statistics */}

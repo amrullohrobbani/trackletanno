@@ -52,8 +52,8 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "com.trackletanno.app",
-    "productName": "Tracklet Annotation Tool",
+    "appId": "com.matchtagger.app",
+    "productName": "Match Tagger",
     "directories": {
       "output": "dist"
     },
@@ -78,7 +78,8 @@
         }
       ],
       "category": "Graphics",
-      "description": "A tool for annotating tracklet IDs in video frames"
+      "description": "A tool for annotating sport games tracklet IDs in video frames",
+      "icon": "public/android-chrome-512x512.png"
     },
     "mac": {
       "target": "dmg"
@@ -98,7 +99,7 @@
           ]
         }
       ],
-      "icon": "public/favicon.ico"
+      "icon": "public/android-chrome-512x512.png"
     }
   }
 }

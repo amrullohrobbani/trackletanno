@@ -31,6 +31,10 @@ interface AppState {
   // Event annotation state
   selectedEvent: string;
   
+  // Ball annotation radius setting
+  ballAnnotationRadius: number;
+  setBallAnnotationRadius: (radius: number) => void;
+  
   // ID Analysis state
   idAnalysisResult: IDAnalysisResult | null;
   isAnalyzing: boolean;
@@ -181,6 +185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Initial ball annotation state
   ballAnnotationMode: false,
+  ballAnnotationRadius: 6, // Default radius of 6 pixels
   ballAnnotations: [],
   hasBallAnnotations: false,
   
@@ -262,12 +267,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   goToFrame: (frameNumber) => {
     const state = get();
     const rally = state.getCurrentRally();
+    console.log('🎯 goToFrame called with frameNumber:', frameNumber);
+    console.log('📊 Current rally:', rally?.name);
+    console.log('📊 Current frame index before:', state.currentFrameIndex);
+    
     if (rally) {
-      // Convert frame number to index (assuming frame numbers start from 1)
+      // Convert 1-based frame number to 0-based index
       const frameIndex = frameNumber - 1;
+      console.log('📊 Calculated frame index:', frameIndex);
+      console.log('📊 Rally image files length:', rally.imageFiles.length);
+      
       if (frameIndex >= 0 && frameIndex < rally.imageFiles.length) {
+        console.log('✅ Setting currentFrameIndex to:', frameIndex);
         set({ currentFrameIndex: frameIndex });
+      } else {
+        console.log('❌ Frame index out of bounds:', frameIndex, 'max:', rally.imageFiles.length - 1);
       }
+    } else {
+      console.log('❌ No current rally found');
     }
   },
   
@@ -657,17 +674,32 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
   },
+  setBallAnnotationRadius: (radius: number) => {
+    set({ ballAnnotationRadius: Math.max(1, Math.min(20, radius)) }); // Clamp between 1 and 20 pixels
+  },
   
   loadBallAnnotationsFromJson: async () => {
-    const { selectedDirectory, canvasDimensions } = get();
+    const { selectedDirectory, canvasDimensions, getCurrentRally } = get();
     if (!selectedDirectory) return;
+    
+    const currentRally = getCurrentRally();
+    if (!currentRally) {
+      console.warn('No current rally selected for ball annotation import');
+      return;
+    }
     
     set({ isLoading: true });
     
     // Windows-compatible loading with retry mechanism
     const loadWithRetry = async (retryCount = 0) => {
       try {
-        const ballAnnotations = await loadJsonBallAnnotations(selectedDirectory, canvasDimensions.width, canvasDimensions.height);
+        // Use selectedDirectory (parent directory) to find JSON files and pass current rally name for filtering
+        const ballAnnotations = await loadJsonBallAnnotations(
+          selectedDirectory, 
+          canvasDimensions.width, 
+          canvasDimensions.height,
+          currentRally.name // Pass the current rally name for filtering
+        );
         
         // Merge ball annotations with existing annotations, removing any existing ball annotations first
         const { annotations } = get();

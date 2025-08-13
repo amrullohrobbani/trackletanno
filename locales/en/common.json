@@ -43,7 +43,8 @@
     "spike": "Spike",
     "block": "Block",
     "score": "Score",
-    "no_event": "No Event"
+    "no_event": "No Event",
+    "view_rally_events": "View Rally Events"
   },
   "idAnalysis": {
     "title": "ID Analysis",

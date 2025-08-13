@@ -10,6 +10,7 @@ import TimelineButton from '@/components/TimelineButton';
 import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { getTrackletColor } from '@/utils/trackletColors';
 import { showConfirm } from '@/utils/dialogUtils';
+import RallyEventsModal from '@/components/RallyEventsModal';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -50,6 +51,9 @@ export default function RightSidebar() {
   const [customId, setCustomId] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [showAnnotationEditor, setShowAnnotationEditor] = useState(true);
+  const [showEventsList, setShowEventsList] = useState(false);
+  const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
+  const [selectedSport, setSelectedSport] = useState('volleyball'); // Default to volleyball
   
   // Annotation editing state
   const [editRole, setEditRole] = useState('');
@@ -62,18 +66,29 @@ export default function RightSidebar() {
   const availableIds = getAvailableTrackletIds();
   const currentRally = getCurrentRally();
 
+  // Sport-specific event types
+  const sportEventTypes = useMemo(() => ({
+    volleyball: [
+      { key: 'q', name: 'serve', label: t('events.serve'), color: 'bg-red-600' },
+      { key: 'w', name: 'receive', label: t('events.receive'), color: 'bg-blue-600' },
+      { key: 'e', name: 'dig', label: t('events.dig'), color: 'bg-green-600' },
+      { key: 'r', name: 'pass', label: t('events.pass'), color: 'bg-yellow-600' },
+      { key: 't', name: 'set', label: t('events.set'), color: 'bg-purple-600' },
+      { key: 'y', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
+      { key: 'u', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
+      { key: 'i', name: 'score', label: t('events.score'), color: 'bg-indigo-600' },
+      { key: 'n', name: 'no_event', label: t('events.no_event'), color: 'bg-gray-600' }
+    ],
+    tennis: [
+      { key: 'q', name: 'serve', label: 'Serve', color: 'bg-red-600' },
+      { key: 'w', name: 'hit', label: 'Hit', color: 'bg-blue-600' },
+      { key: 'e', name: 'bounce', label: 'Bounce', color: 'bg-green-600' },
+      { key: 'n', name: 'no_event', label: 'No Event', color: 'bg-gray-600' }
+    ]
+  }), [t]);
+
   // Event types with hotkeys (memoized to prevent dependency issues)
-  const eventTypes = useMemo(() => [
-    { key: 'q', name: 'serve', label: t('events.serve'), color: 'bg-red-600' },
-    { key: 'w', name: 'receive', label: t('events.receive'), color: 'bg-blue-600' },
-    { key: 'e', name: 'dig', label: t('events.dig'), color: 'bg-green-600' },
-    { key: 'r', name: 'pass', label: t('events.pass'), color: 'bg-yellow-600' },
-    { key: 't', name: 'set', label: t('events.set'), color: 'bg-purple-600' },
-    { key: 'y', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
-    { key: 'u', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
-    { key: 'i', name: 'score', label: t('events.score'), color: 'bg-indigo-600' },
-    { key: 'n', name: 'no_event', label: t('events.no_event'), color: 'bg-gray-600' }
-  ], [t]);
+  const eventTypes = useMemo(() => sportEventTypes[selectedSport as keyof typeof sportEventTypes] || sportEventTypes.volleyball, [sportEventTypes, selectedSport]);
 
   // Load annotation data when rally changes
   useEffect(() => {
@@ -531,6 +546,22 @@ export default function RightSidebar() {
               <div className="mt-6 bg-gray-900 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-md font-medium mb-3 text-white">{t('eventAnnotation.title')}</h3>
                 <div className="space-y-3">
+                  {/* Sport Selection */}
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-2">Sport</label>
+                    <select
+                      value={selectedSport}
+                      onChange={(e) => {
+                        setSelectedSport(e.target.value);
+                        setSelectedEvent(''); // Clear selected event when changing sports
+                      }}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="volleyball">Volleyball</option>
+                      <option value="tennis">Tennis</option>
+                    </select>
+                  </div>
+                  
                   <div>
                     <label className="block text-xs text-gray-400 mb-2">{t('eventAnnotation.selectEventType')}</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -580,6 +611,15 @@ export default function RightSidebar() {
                 </div>
               </div>
 
+              {/* Rally Events List */}
+              <div className="mt-6">
+                <button
+                  onClick={() => setIsEventsModalOpen(true)}
+                  className="w-full bg-blue-700 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                >
+                  {t('events.view_rally_events')} ({annotations.filter(ann => ann.event && ann.event.trim() !== '').length})
+                </button>
+              </div>
 
 
               {/* Annotation Details Editor */}
@@ -987,6 +1027,13 @@ export default function RightSidebar() {
           )}
         </div>
       </div>
+
+      {/* Rally Events Modal */}
+      <RallyEventsModal
+        isOpen={isEventsModalOpen}
+        onClose={() => setIsEventsModalOpen(false)}
+        eventTypes={eventTypes}
+      />
     </div>
   );
 }

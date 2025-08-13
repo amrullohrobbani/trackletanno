@@ -59,7 +59,8 @@
     "spike": "스파이크",
     "block": "블록",
     "score": "득점",
-    "no_event": "이벤트 없음"
+    "no_event": "이벤트 없음",
+    "view_rally_events": "랠리 이벤트 보기"
   },
   "idAnalysis": {
     "title": "ID 분석",

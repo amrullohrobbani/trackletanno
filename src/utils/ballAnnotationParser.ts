@@ -195,15 +195,36 @@ export async function findJsonAnnotationFiles(directoryPath: string): Promise<st
 
 /**
  * Load and merge JSON ball annotations from all JSON files in directory
+ * Filters by video_source to match current rally folder
  */
-export async function loadJsonBallAnnotations(directoryPath: string, targetWidth: number = 1920, targetHeight: number = 1080): Promise<AnnotationData[]> {
+export async function loadJsonBallAnnotations(directoryPath: string, targetWidth: number = 1920, targetHeight: number = 1080, currentRallyName?: string): Promise<AnnotationData[]> {
   const jsonFiles = await findJsonAnnotationFiles(directoryPath);
   let allAnnotations: AnnotationData[] = [];
+
+  console.log(`Loading ball annotations for rally: ${currentRallyName || 'any'}`);
 
   for (const jsonFile of jsonFiles) {
     try {
       if (typeof window !== 'undefined' && window.electronAPI) {
         const content = await window.electronAPI.readFile(jsonFile);
+        
+        // Parse the JSON to check video_source
+        const jsonData: JsonAnnotationFile = JSON.parse(content);
+        
+        // If we have a current rally name, check if this JSON file matches
+        if (currentRallyName) {
+          // Extract rally name from video_source path (e.g., "/home/vanyi/new_samples/217s3rally028" -> "217s3rally028")
+          const videoSourceRallyName = jsonData.video_source.split('/').pop() || '';
+          
+          // Only process this JSON file if it matches the current rally
+          if (videoSourceRallyName !== currentRallyName) {
+            console.log(`Skipping JSON file ${jsonFile}: video_source "${videoSourceRallyName}" doesn't match current rally "${currentRallyName}"`);
+            continue;
+          }
+          
+          console.log(`✓ Processing JSON file ${jsonFile}: video_source matches rally "${currentRallyName}"`);
+        }
+        
         const annotations = parseJsonBallAnnotations(content, targetWidth, targetHeight);
         allAnnotations = allAnnotations.concat(annotations);
       }
@@ -212,7 +233,7 @@ export async function loadJsonBallAnnotations(directoryPath: string, targetWidth
     }
   }
 
-  console.log(`Loaded total ${allAnnotations.length} ball annotations from ${jsonFiles.length} JSON files`);
+  console.log(`Loaded total ${allAnnotations.length} ball annotations from ${jsonFiles.length} JSON files for rally ${currentRallyName || 'any'}`);
   return allAnnotations;
 }
 

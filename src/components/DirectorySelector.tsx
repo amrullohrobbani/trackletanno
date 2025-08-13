@@ -7,6 +7,14 @@ export default function DirectorySelector() {
   const [isSelecting, setIsSelecting] = useState(false);
   const { setSelectedDirectory, setRallyFolders, setLoading } = useAppStore();
 
+  interface ValidationResult {
+    folderName: string;
+    rallyName: string | null;
+    isValidPattern: boolean;
+    issues: string[];
+    status: string;
+  }
+
   const handleSelectDirectory = async () => {
     if (typeof window === 'undefined' || !window.electronAPI) {
       alert('This feature is only available in the desktop application.');
@@ -27,25 +35,45 @@ export default function DirectorySelector() {
         console.log('Found rally folders:', rallyFolders);
         
         if (rallyFolders.length === 0) {
-          // Debug the directory structure to help troubleshoot
+          // Enhanced error message with validation details
           const debugInfo = await window.electronAPI.debugDirectory(selectedPath);
           console.log('Debug info:', debugInfo);
           
-          alert(`No rally folders with annotation data found in the selected directory.
+          let errorMessage = `No valid rally folders found in the selected directory.\n\n`;
           
-Debug info:
-- Total entries: ${debugInfo.totalEntries || 0}
-- Directories: ${debugInfo.directories?.join(', ') || 'none'}
-- Rally directories: ${debugInfo.rallyDirectories?.join(', ') || 'none'}
+          // Show validation results if available
+          const validationResults = (rallyFolders as unknown as { validationResults?: ValidationResult[] }).validationResults;
+          if (validationResults && validationResults.length > 0) {
+            errorMessage += `Found ${validationResults.length} directories:\n\n`;
+            
+            for (const result of validationResults) {
+              errorMessage += `📁 ${result.folderName}:\n`;
+              if (result.status === 'valid') {
+                errorMessage += `  ✅ Valid rally folder\n`;
+              } else if (result.status === 'warning') {
+                errorMessage += `  ⚠️  Has issues but may work:\n`;
+                result.issues.forEach((issue: string) => errorMessage += `     • ${issue}\n`);
+              } else {
+                errorMessage += `  ❌ Issues found:\n`;
+                result.issues.forEach((issue: string) => errorMessage += `     • ${issue}\n`);
+              }
+              errorMessage += `\n`;
+            }
+          } else {
+            errorMessage += `Debug info:\n`;
+            errorMessage += `- Total entries: ${debugInfo.totalEntries || 0}\n`;
+            errorMessage += `- Directories: ${debugInfo.directories?.join(', ') || 'none'}\n`;
+            errorMessage += `- Rally directories: ${debugInfo.rallyDirectories?.join(', ') || 'none'}\n\n`;
+          }
+          
+          errorMessage += `Requirements for rally folders:\n`;
+          errorMessage += `1. Folder name format: [gameId]s[set]rally[number] (e.g., 207s2rally001)\n`;
+          errorMessage += `2. Matching .txt file in parent directory (e.g., 207s2rally001.txt)\n`;
+          errorMessage += `3. Image files (.jpg, .png, etc.) inside the folder\n`;
+          errorMessage += `4. Annotation file with at least 7 columns: frame,tracklet_id,x,y,w,h,score\n\n`;
+          errorMessage += `Check the console for detailed logs.`;
 
-Please check:
-1. Directory contains folders named [gameId]s[set]rally[rallynumber] (e.g., 207s2rally001)
-2. Rally folders contain corresponding .txt files with matching names (e.g., 207s2rally001.txt)
-3. Rally folders contain image files (.jpg, .png, etc.)
-4. Annotation files have at least 7 columns: frame,tracklet_id,x,y,w,h,score
-5. Additional columns (role,jersey_number,jersey_color,team) are optional
-
-Check the console for more detailed logs.`);
+          alert(errorMessage);
           setSelectedDirectory(null);
         } else {
           setRallyFolders(rallyFolders);
