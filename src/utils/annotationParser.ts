@@ -35,7 +35,12 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
       const jersey_number = columns[8] || '';
       const jersey_color = columns[9] || '';
       const team = columns[10] || '';
-      const event = columns[11] || ''; // New event field
+      let event = columns[11] || ''; // New event field
+      
+      // Normalize no_event to empty string for uniformity
+      if (event === 'no_event') {
+        event = '';
+      }
 
       // Validate required numeric fields
       if (isNaN(frame) || isNaN(tracklet_id) || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || isNaN(score)) {
@@ -73,8 +78,11 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
  * Always exports in full 12-column format for consistency
  */
 export function annotationsToCSV(annotations: AnnotationData[]): string {
-  const lines = annotations.map(ann => 
-    `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role || ''},${ann.jersey_number || ''},${ann.jersey_color || ''},${ann.team || ''},${ann.event || ''}`
-  );
+  const lines = annotations.map(ann => {
+    // Convert empty event back to 'no_event' for CSV export if needed
+    // For now, keep it as empty string for uniformity as requested
+    const event = ann.event || '';
+    return `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role || ''},${ann.jersey_number || ''},${ann.jersey_color || ''},${ann.team || ''},${event}`;
+  });
   return lines.join('\n');
 }

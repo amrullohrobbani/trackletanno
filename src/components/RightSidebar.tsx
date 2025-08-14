@@ -11,6 +11,7 @@ import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { getTrackletColor } from '@/utils/trackletColors';
 import { showConfirm } from '@/utils/dialogUtils';
 import RallyEventsModal from '@/components/RallyEventsModal';
+import DevModePasswordModal from '@/components/DevModePasswordModal';
 
 export default function RightSidebar() {
   const { t } = useLanguage();
@@ -45,15 +46,17 @@ export default function RightSidebar() {
     setTrackletVisibility,
     showAllTracklets,
     hideAllTracklets,
-    deleteAllAnnotationsWithTrackletId
+    deleteAllAnnotationsWithTrackletId,
+    isDevMode,
+    setDevMode
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [showAnnotationEditor, setShowAnnotationEditor] = useState(true);
-  const [showEventsList, setShowEventsList] = useState(false);
   const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
   const [selectedSport, setSelectedSport] = useState('volleyball'); // Default to volleyball
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   
   // Annotation editing state
   const [editRole, setEditRole] = useState('');
@@ -1015,6 +1018,37 @@ export default function RightSidebar() {
                   <li>• {t('quickTips.eventsPerFrame')}</li>
                 </ul>
               </div>
+
+              {/* Dev Mode Toggle */}
+              <div className="mt-4 p-3 bg-gray-800 border border-gray-600 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-200">⚙️ Developer Mode</h4>
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    isDevMode ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'
+                  }`}>
+                    {isDevMode ? 'ON' : 'OFF'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (isDevMode) {
+                      setDevMode(false);
+                    } else {
+                      setIsPasswordModalOpen(true);
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded text-sm font-medium transition-colors ${
+                    isDevMode
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {isDevMode ? 'Disable Dev Mode' : 'Enable Dev Mode'}
+                </button>
+                <p className="mt-2 text-xs text-gray-400">
+                  Enables JSON import/export for ball annotations
+                </p>
+              </div>
             </>
           ) : (
             <div className="text-center text-gray-400 py-8">
@@ -1033,6 +1067,13 @@ export default function RightSidebar() {
         isOpen={isEventsModalOpen}
         onClose={() => setIsEventsModalOpen(false)}
         eventTypes={eventTypes}
+      />
+
+      {/* Dev Mode Password Modal */}
+      <DevModePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSuccess={() => setDevMode(true)}
       />
     </div>
   );

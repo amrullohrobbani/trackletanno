@@ -52,6 +52,10 @@ interface AppState {
   showAllTracklets: () => void;
   hideAllTracklets: () => void;
   
+  // Dev mode state
+  isDevMode: boolean;
+  setDevMode: (enabled: boolean) => void;
+  
   // Ball annotation state
   ballAnnotationMode: boolean;
   ballAnnotations: AnnotationData[];
@@ -161,6 +165,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Initial event label visibility
   showEventLabels: false,
   setShowEventLabels: (show) => set({ showEventLabels: show }),
+  
+  // Dev mode state (default off)
+  isDevMode: false,
+  setDevMode: (enabled) => set({ isDevMode: enabled }),
   
   // Initial tracklet visibility (all visible by default)
   visibleTrackletIds: new Set(),
