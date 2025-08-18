@@ -29,7 +29,7 @@ interface AppState {
   panY: number;
   
   // Event annotation state
-  selectedEvent: string;
+  selectedEvent: string | null;
   
   // Ball annotation radius setting
   ballAnnotationRadius: number;
@@ -91,7 +91,7 @@ interface AppState {
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
   
   // Event annotation actions
-  setSelectedEvent: (event: string) => void;
+  setSelectedEvent: (event: string | null) => void;
   assignEventToBoundingBox: (boxId: string, eventType: string) => Promise<void>;
   
   // Annotation editing
@@ -151,7 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   panY: 0,
   
   // Initial event annotation state
-  selectedEvent: '',
+  selectedEvent: null,
   
   // Initial ID analysis state
   idAnalysisResult: null,
@@ -335,12 +335,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDrawingMode: (enabled) => set({ 
     drawingMode: enabled,
     assignMode: enabled ? false : get().assignMode,
-    selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering drawing mode
+    selectedEvent: enabled ? null : get().selectedEvent // Clear event selection when entering drawing mode
   }),
   setAssignMode: (enabled) => set({ 
     assignMode: enabled,
     drawingMode: enabled ? false : get().drawingMode,
-    selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering assign mode
+    selectedEvent: enabled ? null : get().selectedEvent // Clear event selection when entering assign mode
   }),
   setSelectedBoundingBox: (id) => set({ selectedBoundingBox: id }),
   
@@ -521,8 +521,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             ann.tracklet_id === targetBox.tracklet_id &&
             ann.x === targetBox.x && ann.y === targetBox.y && 
             ann.w === targetBox.width && ann.h === targetBox.height) {
-          // Handle "no_event" by removing the event property
-          if (eventType === 'no_event') {
+          // Handle empty string (no event) by removing the event property
+          if (eventType === '') {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { event, ...annWithoutEvent } = ann;
             return annWithoutEvent;
@@ -669,7 +669,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBallAnnotationMode: (enabled: boolean) => {
     set({ 
       ballAnnotationMode: enabled,
-      selectedEvent: enabled ? '' : get().selectedEvent // Clear event selection when entering ball mode
+      selectedEvent: enabled ? null : get().selectedEvent // Clear event selection when entering ball mode
     });
     // When enabling ball mode, auto-select ball tracklet ID
     if (enabled) {
@@ -848,7 +848,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       jersey_number: '',
       jersey_color: '',
       team: '',
-      event: event || 'no_event'
+      event: event || ''
     };
     
     const updatedAnnotations = [...filteredAnnotations, newBallAnnotation];

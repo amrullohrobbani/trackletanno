@@ -79,8 +79,7 @@ export function parseAnnotations(csvContent: string): AnnotationData[] {
  */
 export function annotationsToCSV(annotations: AnnotationData[]): string {
   const lines = annotations.map(ann => {
-    // Convert empty event back to 'no_event' for CSV export if needed
-    // For now, keep it as empty string for uniformity as requested
+    // Keep events as empty string for uniformity
     const event = ann.event || '';
     return `${ann.frame},${ann.tracklet_id},${ann.x},${ann.y},${ann.w},${ann.h},${ann.score},${ann.role || ''},${ann.jersey_number || ''},${ann.jersey_color || ''},${ann.team || ''},${event}`;
   });

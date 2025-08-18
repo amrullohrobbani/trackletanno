@@ -124,22 +124,6 @@ export default function MainCanvas() {
         imageRef.current.onload = () => {
           if (imageRef.current) {
             const { naturalWidth, naturalHeight } = imageRef.current;
-            console.log(`Image dimensions: ${naturalWidth}x${naturalHeight}`);
-            
-            // Verify common resolutions are handled correctly
-            const isFullHD = naturalWidth === 1920 && naturalHeight === 1080;
-            const isHD = naturalWidth === 1280 && naturalHeight === 720;
-            const is4K = naturalWidth === 3840 && naturalHeight === 2160;
-            
-            if (isFullHD) {
-              console.log('✅ Full HD (1920x1080) image detected');
-            } else if (isHD) {
-              console.log('✅ HD (1280x720) image detected');  
-            } else if (is4K) {
-              console.log('✅ 4K (3840x2160) image detected');
-            } else {
-              console.log(`✅ Custom resolution (${naturalWidth}x${naturalHeight}) image detected`);
-            }
             
             setCanvasDimensions({ width: naturalWidth, height: naturalHeight });
           }
@@ -489,12 +473,6 @@ export default function MainCanvas() {
 
     // Draw ball annotations as points
     if (ballAnnotations && ballAnnotations.length > 0 && visibleTrackletIds.has(99)) {
-      console.log('Drawing ball annotations:', {
-        ballAnnotationsCount: ballAnnotations.length,
-        currentFrame: currentFrameNumberRef.current,
-        visibleTrackletIds: Array.from(visibleTrackletIds),
-        ballAnnotationsForCurrentFrame: ballAnnotations.filter(b => b.frame === currentFrameNumberRef.current)
-      });
       
       ballAnnotations.forEach((ballAnnotation) => {
         // Only draw ball annotations for the current frame
@@ -572,7 +550,7 @@ export default function MainCanvas() {
           }
           
           // Draw event label for ball if enabled and event exists - Position above the ball label
-          if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '' && ballAnnotation.event !== 'no_event') {
+          if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '') {
             const eventText = ballAnnotation.event.toUpperCase();
             const indicatorHeight = Math.max(20, 20 / zoomLevel);
             const padding = 4 / zoomLevel;
@@ -641,7 +619,7 @@ export default function MainCanvas() {
     // Restore the context state
     ctx.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -741,8 +719,8 @@ export default function MainCanvas() {
             }
             return false;
           });
-          
-          if (clickedBallAnnotation && selectedEvent) {
+
+          if (clickedBallAnnotation && selectedEvent !== null) {
             // Update the event for the existing ball annotation using store action
             updateBallAnnotationEvent(frameNumber, selectedEvent);
             return; // Exit early after updating event
@@ -771,8 +749,8 @@ export default function MainCanvas() {
             }
             return false;
           });
-          
-          if (clickedBallAnnotation && selectedEvent) {
+
+          if (clickedBallAnnotation && selectedEvent !== null) {
             // Update the event for the existing ball annotation using store action
             updateBallAnnotationEvent(frameNumber, selectedEvent);
             return; // Exit early after updating event
@@ -826,7 +804,7 @@ export default function MainCanvas() {
         }
         
         // If an event is also selected, assign it to the clicked box
-        if (selectedEvent) {
+        if (selectedEvent !== null) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
         }
       }
@@ -847,7 +825,7 @@ export default function MainCanvas() {
 
       if (clickedBox) {
         // If an event is selected, just assign it without selecting the bounding box
-        if (selectedEvent) {
+        if (selectedEvent !== null) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
           console.log(`Assigned event "${selectedEvent}" to tracklet ID ${clickedBox.tracklet_id} without selecting`);
         } else {

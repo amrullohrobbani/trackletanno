@@ -80,13 +80,13 @@ export default function RightSidebar() {
       { key: 'y', name: 'spike', label: t('events.spike'), color: 'bg-orange-600' },
       { key: 'u', name: 'block', label: t('events.block'), color: 'bg-pink-600' },
       { key: 'i', name: 'score', label: t('events.score'), color: 'bg-indigo-600' },
-      { key: 'n', name: 'no_event', label: t('events.no_event'), color: 'bg-gray-600' }
+      { key: 'n', name: '', label: t('events.no_event'), color: 'bg-gray-600' }
     ],
     tennis: [
       { key: 'q', name: 'serve', label: 'Serve', color: 'bg-red-600' },
       { key: 'w', name: 'hit', label: 'Hit', color: 'bg-blue-600' },
       { key: 'e', name: 'bounce', label: 'Bounce', color: 'bg-green-600' },
-      { key: 'n', name: 'no_event', label: 'No Event', color: 'bg-gray-600' }
+      { key: 'n', name: '', label: 'No Event', color: 'bg-gray-600' }
     ]
   }), [t]);
 
@@ -144,7 +144,7 @@ export default function RightSidebar() {
   useHotkeys('q', () => {
     const eventType = eventTypes.find(e => e.key === 'q');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: Q -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -152,7 +152,7 @@ export default function RightSidebar() {
   useHotkeys('w', () => {
     const eventType = eventTypes.find(e => e.key === 'w');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: W -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -160,7 +160,7 @@ export default function RightSidebar() {
   useHotkeys('e', () => {
     const eventType = eventTypes.find(e => e.key === 'e');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: E -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -168,7 +168,7 @@ export default function RightSidebar() {
   useHotkeys('r', () => {
     const eventType = eventTypes.find(e => e.key === 'r');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: R -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -176,7 +176,7 @@ export default function RightSidebar() {
   useHotkeys('t', () => {
     const eventType = eventTypes.find(e => e.key === 't');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: T -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -184,7 +184,7 @@ export default function RightSidebar() {
   useHotkeys('y', () => {
     const eventType = eventTypes.find(e => e.key === 'y');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: Y -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -192,7 +192,7 @@ export default function RightSidebar() {
   useHotkeys('u', () => {
     const eventType = eventTypes.find(e => e.key === 'u');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: U -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -200,7 +200,7 @@ export default function RightSidebar() {
   useHotkeys('i', () => {
     const eventType = eventTypes.find(e => e.key === 'i');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: I -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -208,7 +208,7 @@ export default function RightSidebar() {
   useHotkeys('n', () => {
     const eventType = eventTypes.find(e => e.key === 'n');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name);
+      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
       console.log(`Event hotkey pressed: N -> ${eventType.name}`);
     }
   }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
@@ -556,7 +556,7 @@ export default function RightSidebar() {
                       value={selectedSport}
                       onChange={(e) => {
                         setSelectedSport(e.target.value);
-                        setSelectedEvent(''); // Clear selected event when changing sports
+                        setSelectedEvent(null); // Clear selected event when changing sports
                       }}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                     >
@@ -571,7 +571,7 @@ export default function RightSidebar() {
                       {eventTypes.map((eventType) => (
                         <button
                           key={eventType.name}
-                          onClick={() => setSelectedEvent(selectedEvent === eventType.name ? '' : eventType.name)}
+                          onClick={() => setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name)}
                           className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
                             selectedEvent === eventType.name
                               ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
@@ -594,7 +594,7 @@ export default function RightSidebar() {
                   
                   {/* Clear Event Button */}
                   <button
-                    onClick={() => setSelectedEvent('')}
+                    onClick={() => setSelectedEvent(null)}
                     className="w-full p-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
                   >
                     {t('eventAnnotation.clearSelection')}
@@ -602,8 +602,8 @@ export default function RightSidebar() {
                   
                   <div className="text-xs text-gray-400 space-y-1">
                     <p>
-                      {selectedEvent ? (
-                        <>🎯 <strong className="text-white">{selectedEvent.toUpperCase()}</strong> {t('eventAnnotation.modeActive')}</>
+                      {selectedEvent !== null ? (
+                        <>🎯 <strong className="text-white">{selectedEvent === '' ? 'NO_EVENT' : selectedEvent.toUpperCase()}</strong> {t('eventAnnotation.modeActive')}</>
                       ) : (
                         <>⚡ {t('eventAnnotation.selectFirst')}</>
                       )}
