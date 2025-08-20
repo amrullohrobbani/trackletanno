@@ -33,7 +33,8 @@ export default function BallAnnotationSidebar() {
     getCurrentFrameBallAnnotation,
     removeCurrentFrameBallAnnotation,
     ballAnnotationRadius,
-    setBallAnnotationRadius
+    setBallAnnotationRadius,
+    isDevMode
   } = useAppStore();
 
   const handleToggleBallMode = () => {
@@ -204,25 +205,27 @@ export default function BallAnnotationSidebar() {
       </div> */}
 
       {/* Import/Export Controls - Only visible in dev mode */}
-      <div className="space-y-2 mb-4">
-        <button
-          onClick={handleImportJson}
-          disabled={isImporting || !selectedDirectory}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
-        >
-          <ArrowDownTrayIcon className="w-4 h-4" />
-          {isImporting ? t('ball.importing') : t('ball.importJson')}
-        </button>
+      {isDevMode && (
+        <div className="space-y-2 mb-4">
+          <button
+            onClick={handleImportJson}
+            disabled={isImporting || !selectedDirectory}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4" />
+            {isImporting ? t('ball.importing') : t('ball.importJson')}
+          </button>
 
-        <button
-          onClick={handleExportAllAnnotations}
-          disabled={isExporting || !getCurrentRally() || totalAnnotations === 0}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
-        >
-          <ArrowUpTrayIcon className="w-4 h-4" />
-          {isExporting ? t('ui.exportingAll') : t('ui.exportAllToJson')}
-        </button>
-      </div>
+          <button
+            onClick={handleExportAllAnnotations}
+            disabled={isExporting || !getCurrentRally() || totalAnnotations === 0}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
+          >
+            <ArrowUpTrayIcon className="w-4 h-4" />
+            {isExporting ? t('ui.exportingAll') : t('ui.exportAllToJson')}
+          </button>
+        </div>
+      )}
 
       {hasBallAnnotations && (
         <div className="space-y-2 mb-4">
