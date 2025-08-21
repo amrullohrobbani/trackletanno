@@ -829,13 +829,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   addBallAnnotation: (x: number, y: number, frameNumber: number, event?: string) => {
     const { annotations, ballAnnotations } = get();
     
+    // Find existing ball annotation for this frame to preserve its fields
+    const existingBallAnnotation = annotations.find(
+      ann => ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber
+    );
+    
     // Remove existing ball annotation for this frame
     const filteredAnnotations = annotations.filter(
       ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
     );
     const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
     
-    // Create new ball annotation
+    // Create new ball annotation, preserving existing fields if available
     const newBallAnnotation: AnnotationData = {
       frame: frameNumber,
       tracklet_id: BALL_TRACKLET_ID,
@@ -844,11 +849,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       w: 8, // Small fixed size for ball point
       h: 8,
       score: 1.0,
-      role: 'ball',
-      jersey_number: '',
-      jersey_color: '',
-      team: '',
-      event: event || ''
+      // Preserve existing fields if updating, use defaults if creating new
+      role: existingBallAnnotation?.role || 'ball',
+      jersey_number: existingBallAnnotation?.jersey_number || '',
+      jersey_color: existingBallAnnotation?.jersey_color || '',
+      team: existingBallAnnotation?.team || '',
+      event: event !== undefined ? event : (existingBallAnnotation?.event || '')
     };
     
     const updatedAnnotations = [...filteredAnnotations, newBallAnnotation];

@@ -912,6 +912,11 @@ export default function MainCanvas() {
       const filename = imagePath.split('/').pop() || '';
       const frameNumber = await window.electronAPI.getFrameNumber(filename);
 
+      // Find existing annotation for this frame and tracklet to preserve its fields
+      const existingAnnotation = annotations.find(
+        ann => ann.frame === frameNumber && ann.tracklet_id === box.tracklet_id
+      );
+
       // Remove any existing annotation with the same tracklet ID and frame number
       const filteredAnnotations = annotations.filter(ann => 
         !(ann.frame === frameNumber && ann.tracklet_id === box.tracklet_id)
@@ -925,11 +930,12 @@ export default function MainCanvas() {
         w: box.width,
         h: box.height,
         score: 1.0,
-        role: '',
-        jersey_number: '',
-        jersey_color: '',
-        team: '',
-        event: ''
+        // Preserve existing fields if updating, use defaults if creating new
+        role: existingAnnotation?.role || '',
+        jersey_number: existingAnnotation?.jersey_number || '',
+        jersey_color: existingAnnotation?.jersey_color || '',
+        team: existingAnnotation?.team || '',
+        event: existingAnnotation?.event || ''
       };
 
       const updatedAnnotations = [...filteredAnnotations, newAnnotation];
