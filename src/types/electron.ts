@@ -61,6 +61,7 @@ export interface BoundingBox {
   width: number;
   height: number;
   team?: string;
+  jersey_number?: string;
   selected?: boolean;
 }
 

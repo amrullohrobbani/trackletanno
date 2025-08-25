@@ -110,7 +110,8 @@
     "others": "기타 (-1)",
     "saveDetails": "세부사항 저장",
     "clickEditToModify": "주석 정보를 수정하려면 \"세부사항 편집\"을 클릭하세요",
-    "selectBoxToEdit": "세부사항을 편집할 경계 상자를 선택하세요"
+    "selectBoxToEdit": "세부사항을 편집할 경계 상자를 선택하세요",
+    "selectTrackletToEdit": "세부사항을 편집할 트랙릿 ID를 선택하세요"
   },
   "instructions": {
     "howToUse": "이 앱 사용법",

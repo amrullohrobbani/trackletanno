@@ -170,6 +170,7 @@ export default function MainCanvas() {
             width: ann.w,
             height: ann.h,
             team: ann.team,
+            jersey_number: ann.jersey_number,
             selected: false
           }));
         
@@ -364,7 +365,7 @@ export default function MainCanvas() {
       // Draw tracklet ID and team label background at the bottom
       // Skip labels for ball annotations (tracklet_id === 99)
       if (showTrackletLabels && box.tracklet_id !== 99) {
-        const labelWidth = box.team ? 90 : 70;
+        const labelWidth = box.team ? 120 : 70;
         const labelHeight = 30;
         const darkColor = getTrackletDarkColor(box.tracklet_id);
         ctx.fillStyle = darkColor;
@@ -378,8 +379,9 @@ export default function MainCanvas() {
         ctx.lineWidth = 3 / zoomLevel;
         ctx.strokeStyle = 'black';
         ctx.fillStyle = 'white';
+        console.log(box)
         const text = box.team && box.team.trim() !== '' 
-          ? `ID: ${box.tracklet_id} | ${box.team}` 
+          ? `ID: ${box.tracklet_id} | ${box.team === '0' ? 'Home' : 'Away'} | ${box.jersey_number || ''}` 
           : `ID: ${box.tracklet_id}`;
         ctx.strokeText(text, box.x + 5, textY);
         ctx.fillText(text, box.x + 5, textY);

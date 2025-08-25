@@ -23,11 +23,9 @@ export default function RightSidebar() {
     getCurrentRally,
     setAnnotations,
     setLoading,
-    selectedBoundingBox,
-    boundingBoxes,
     annotations,
     currentFrameIndex,
-    updateAnnotationDetails,
+    updateTrackletAnnotationDetails,
     selectedEvent,
     setSelectedEvent,
     idAnalysisResult,
@@ -92,6 +90,27 @@ export default function RightSidebar() {
 
   // Event types with hotkeys (memoized to prevent dependency issues)
   const eventTypes = useMemo(() => sportEventTypes[selectedSport as keyof typeof sportEventTypes] || sportEventTypes.volleyball, [sportEventTypes, selectedSport]);
+
+  // Auto-load annotation data when selectedTrackletId or currentFrameIndex changes
+  useEffect(() => {
+    if (selectedTrackletId !== null && annotations.length > 0) {
+      // const frameNumber = currentFrameIndex + 1;
+      const annotation = annotations.find(ann => ann.tracklet_id === selectedTrackletId
+      );
+      if (annotation) {
+        setEditRole(annotation.role || '');
+        setEditJerseyNumber(annotation.jersey_number || '');
+        setEditJerseyColor(annotation.jersey_color || '');
+        setEditTeam(annotation.team || '');
+      } else {
+        // Clear form if no annotation exists for this tracklet on current frame
+        setEditRole('');
+        setEditJerseyNumber('');
+        setEditJerseyColor('');
+        setEditTeam('');
+      }
+    }
+  }, [selectedTrackletId, currentFrameIndex, annotations]);
 
   // Load annotation data when rally changes
   useEffect(() => {
@@ -632,26 +651,10 @@ export default function RightSidebar() {
                   <button
                     onClick={() => {
                       setShowAnnotationEditor(!showAnnotationEditor);
-                      if (!showAnnotationEditor && selectedBoundingBox) {
-                        // Load current annotation data when opening editor
-                        const targetBox = boundingBoxes.find(box => box.id === selectedBoundingBox);
-                        if (targetBox) {
-                          const frameNumber = currentFrameIndex + 1;
-                          const annotation = annotations.find(ann => 
-                            ann.frame === frameNumber && ann.tracklet_id === targetBox.tracklet_id
-                          );
-                          if (annotation) {
-                            setEditRole(annotation.role || '');
-                            setEditJerseyNumber(annotation.jersey_number || '');
-                            setEditJerseyColor(annotation.jersey_color || '');
-                            setEditTeam(annotation.team || '');
-                          }
-                        }
-                      }
                     }}
-                    disabled={!selectedBoundingBox}
+                    disabled={selectedTrackletId === null}
                     className={`text-xs transition-colors ${
-                      selectedBoundingBox
+                      selectedTrackletId !== null
                         ? 'text-blue-400 hover:text-blue-300'
                         : 'text-gray-500 cursor-not-allowed'
                     }`}
@@ -660,7 +663,7 @@ export default function RightSidebar() {
                   </button>
                 </div>
                 
-                {selectedBoundingBox ? (
+                {selectedTrackletId !== null ? (
                   showAnnotationEditor ? (
                     <div className="space-y-3">
                       {/* Role */}
@@ -744,8 +747,8 @@ export default function RightSidebar() {
                       {/* Save Button */}
                       <button
                         onClick={() => {
-                          if (selectedBoundingBox) {
-                            updateAnnotationDetails(selectedBoundingBox, {
+                          if (selectedTrackletId !== null) {
+                            updateTrackletAnnotationDetails(selectedTrackletId, {
                               role: editRole,
                               jersey_number: editJerseyNumber,
                               jersey_color: editJerseyColor,
@@ -766,7 +769,7 @@ export default function RightSidebar() {
                   )
                 ) : (
                   <p className="text-xs text-gray-400">
-                    {t('annotationDetails.selectBoxToEdit')}
+                    {t('annotationDetails.selectTrackletToEdit')}
                   </p>
                 )}
               </div>

@@ -96,6 +96,7 @@ interface AppState {
   
   // Annotation editing
   updateAnnotationDetails: (boxId: string, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
+  updateTrackletAnnotationDetails: (trackletId: number, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
   saveAnnotationsToFile: () => Promise<void>;
   
   // Zoom actions
@@ -555,6 +556,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Update ALL annotations that match this tracklet ID across all frames
     const updatedAnnotations = state.annotations.map(ann => {
       if (ann.tracklet_id === targetBox.tracklet_id) {
+        return { ...ann, ...details };
+      }
+      return ann;
+    });
+    
+    set({ annotations: updatedAnnotations });
+    
+    // Auto-save the changes
+    get().saveAnnotationsToFile();
+  },
+  
+  updateTrackletAnnotationDetails: (trackletId, details) => {
+    const state = get();
+    const frameNumber = state.currentFrameIndex + 1;
+    
+    // Update only the annotation that matches this tracklet ID on the current frame
+    const updatedAnnotations = state.annotations.map(ann => {
+      if (ann.tracklet_id === trackletId && ann.frame === frameNumber) {
         return { ...ann, ...details };
       }
       return ann;

@@ -94,7 +94,8 @@
     "others": "Others (-1)",
     "saveDetails": "Save Details",
     "clickEditToModify": "Click \"Edit Details\" to modify annotation information",
-    "selectBoxToEdit": "Select a bounding box to edit its details"
+    "selectBoxToEdit": "Select a bounding box to edit its details",
+    "selectTrackletToEdit": "Select a tracklet ID to edit its details"
   },
   "instructions": {
     "howToUse": "Quick Reference Guide",
