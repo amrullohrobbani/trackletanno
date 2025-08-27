@@ -104,10 +104,7 @@ export default function BallAnnotationSidebar() {
     const currentBallAnnotation = getCurrentFrameBallAnnotation();
     
     if (currentBallAnnotation) {
-      const shouldDelete = await showConfirm(t('dialogs.deleteBallFrameConfirm'));
-      if (shouldDelete) {
-        removeCurrentFrameBallAnnotation();
-      }
+      removeCurrentFrameBallAnnotation();
     } else {
       await showAlert(t('dialogs.noBallAnnotationFound'));
     }

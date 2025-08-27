@@ -68,6 +68,10 @@ interface AppState {
   // Force redraw timestamp for Windows compatibility
   forceRedrawTimestamp: number;
   
+  // High quality image mode
+  highQualityMode: boolean;
+  setHighQualityMode: (enabled: boolean) => void;
+  
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
   setRallyFolders: (folders: RallyFolder[]) => void;
@@ -95,7 +99,7 @@ interface AppState {
   assignEventToBoundingBox: (boxId: string, eventType: string) => Promise<void>;
   
   // Annotation editing
-  updateAnnotationDetails: (boxId: string, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
+  updateAnnotationDetails: (boxId: number, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
   updateTrackletAnnotationDetails: (trackletId: number, details: Partial<Pick<AnnotationData, 'role' | 'jersey_number' | 'jersey_color' | 'team'>>) => void;
   saveAnnotationsToFile: () => Promise<void>;
   
@@ -204,6 +208,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Force redraw timestamp for Windows compatibility
   forceRedrawTimestamp: 0,
+  
+  // High quality mode
+  highQualityMode: false,
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
@@ -546,16 +553,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
-  updateAnnotationDetails: (boxId, details) => {
+  updateAnnotationDetails: (tracklet_id, details) => {
     const state = get();
-    
-    // Find the bounding box to get tracklet info
-    const targetBox = state.boundingBoxes.find(box => box.id === boxId);
-    if (!targetBox) return;
-    
+
     // Update ALL annotations that match this tracklet ID across all frames
     const updatedAnnotations = state.annotations.map(ann => {
-      if (ann.tracklet_id === targetBox.tracklet_id) {
+      if (ann.tracklet_id === tracklet_id) {
         return { ...ann, ...details };
       }
       return ann;
@@ -570,7 +573,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateTrackletAnnotationDetails: (trackletId, details) => {
     const state = get();
     const frameNumber = state.currentFrameIndex + 1;
-    
+
     // Update only the annotation that matches this tracklet ID on the current frame
     const updatedAnnotations = state.annotations.map(ann => {
       if (ann.tracklet_id === trackletId && ann.frame === frameNumber) {
@@ -634,6 +637,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   setPan: (x, y) => set({ panX: x, panY: y }),
+  
+  setHighQualityMode: (enabled) => set({ highQualityMode: enabled }),
   
   // Computed getters
   getCurrentRally: () => {

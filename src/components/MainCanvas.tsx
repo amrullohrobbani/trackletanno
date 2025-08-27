@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { useAppStore } from '@/store/appStore';
 import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { showConfirm } from '@/utils/dialogUtils';
+
+const HIGH_QUALITY = 95;
+const LOW_QUALITY = 10;
 
 export default function MainCanvas() {
   const { t } = useLanguage();
@@ -60,7 +64,11 @@ export default function MainCanvas() {
     setBallAnnotationMode,
     setSelectedTrackletId,
     forceRedrawTimestamp,
-    ballAnnotationRadius
+    ballAnnotationRadius,
+    getCurrentFrameBallAnnotation,
+    removeCurrentFrameBallAnnotation,
+    highQualityMode,
+    setHighQualityMode
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -109,30 +117,24 @@ export default function MainCanvas() {
   }, [annotations]);
 
   // Load and display image securely
+  // Add state for the processed image data URL
+  const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null);
+
   const loadImage = useCallback(async () => {
-    if (!imagePath || !imageRef.current || typeof window === 'undefined' || !window.electronAPI) {
+    if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
+      setProcessedImageSrc(null);
       return;
     }
 
     try {
       // Use the secure image loading method
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
-      if (imageRef.current) {
-        imageRef.current.src = imageDataUrl;
-        
-        // Update canvas dimensions when image loads
-        imageRef.current.onload = () => {
-          if (imageRef.current) {
-            const { naturalWidth, naturalHeight } = imageRef.current;
-            
-            setCanvasDimensions({ width: naturalWidth, height: naturalHeight });
-          }
-        };
-      }
+      setProcessedImageSrc(imageDataUrl);
     } catch (error) {
       console.error('Error loading image:', error);
+      setProcessedImageSrc(null);
     }
-  }, [imagePath, setCanvasDimensions]);
+  }, [imagePath]);
 
   // Load image when path changes
   useEffect(() => {
@@ -1280,11 +1282,21 @@ export default function MainCanvas() {
           panY: 0 
         });
       }
+
+      // Delete ball annotation on current frame with Delete or Backspace key
+      if ((event.key === 'Delete' || event.key === 'Backspace') && ballAnnotationMode) {
+        event.preventDefault();
+        const currentBallAnnotation = getCurrentFrameBallAnnotation();
+
+        if (currentBallAnnotation) {
+          removeCurrentFrameBallAnnotation();
+        }
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox]);
+  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox, ballAnnotationMode, ballAnnotations, currentFrameIndex, removeBallAnnotation, t, getCurrentFrameBallAnnotation, removeCurrentFrameBallAnnotation]);
 
   if (!imagePath) {
     return (
@@ -1301,16 +1313,29 @@ export default function MainCanvas() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden">
       <div className="relative w-full h-full flex items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={imageRef}
-          alt="Frame"
-          className="hidden"
-          onLoad={drawCanvas}
-          onError={(e) => {
-            console.error('Error loading image:', e);
-          }}
-        />
+        {processedImageSrc && (
+          <Image
+            key={`${imagePath}-${highQualityMode}`} // Force re-render when quality changes
+            ref={imageRef}
+            src={processedImageSrc}
+            alt="Frame"
+            fill
+            quality={highQualityMode ? HIGH_QUALITY : LOW_QUALITY}
+            className="hidden"
+            onLoad={(e) => {
+              const img = e.target as HTMLImageElement;
+              setCanvasDimensions({ 
+                width: img.naturalWidth, 
+                height: img.naturalHeight 
+              });
+              drawCanvas();
+            }}
+            onError={(e) => {
+              console.error('Error loading image:', e);
+            }}
+            unoptimized={true} // Important for local files in Electron
+          />
+        )}
         <canvas
           ref={canvasRef}
           width={canvasDimensions.width}
@@ -1341,6 +1366,27 @@ export default function MainCanvas() {
           {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
           {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} 🔄 Smart Swap (ESC to exit)`}
           {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}
+        </div>
+
+        {/* High Quality Toggle Switch */}
+        <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs">HQ</span>
+            <button
+              onClick={() => setHighQualityMode(!highQualityMode)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                highQualityMode ? 'bg-blue-600' : 'bg-gray-400'
+              }`}
+              title={highQualityMode ? "Switch to normal quality" : "Switch to high quality"}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${
+                  highQualityMode ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className="text-xs">{highQualityMode ? 'ON' : 'OFF'}</span>
+          </div>
         </div>
 
         {/* Frame info */}

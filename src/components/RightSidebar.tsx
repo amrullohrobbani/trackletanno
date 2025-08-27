@@ -25,7 +25,7 @@ export default function RightSidebar() {
     setLoading,
     annotations,
     currentFrameIndex,
-    updateTrackletAnnotationDetails,
+    updateAnnotationDetails,
     selectedEvent,
     setSelectedEvent,
     idAnalysisResult,
@@ -748,7 +748,7 @@ export default function RightSidebar() {
                       <button
                         onClick={() => {
                           if (selectedTrackletId !== null) {
-                            updateTrackletAnnotationDetails(selectedTrackletId, {
+                            updateAnnotationDetails(selectedTrackletId, {
                               role: editRole,
                               jersey_number: editJerseyNumber,
                               jersey_color: editJerseyColor,
