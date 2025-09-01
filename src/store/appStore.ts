@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox, IDAnalysisResult } from '@/types/electron';
-import { parseAnnotations, annotationsToCSV } from '@/utils/annotationParser';
+import { parseAnnotations, parseTrackletDetails, trackletDetailsToCSV, getTrackletFilePath, extractTrackletDetailsFromAnnotations, TrackletDetails } from '@/utils/annotationParser';
 import { loadJsonBallAnnotations, exportAnnotationsToJson, BALL_TRACKLET_ID } from '@/utils/ballAnnotationParser';
 
 interface AppState {
@@ -65,6 +65,10 @@ interface AppState {
   canvasDimensions: { width: number; height: number };
   setCanvasDimensions: (dimensions: { width: number; height: number }) => void;
   
+  // Tracklet details management
+  trackletDetails: TrackletDetails[];
+  setTrackletDetails: (details: TrackletDetails[]) => void;
+  
   // Force redraw timestamp for Windows compatibility
   forceRedrawTimestamp: number;
   
@@ -74,7 +78,7 @@ interface AppState {
   
   // Actions
   setSelectedDirectory: (dir: string | null) => void;
-  setRallyFolders: (folders: RallyFolder[]) => void;
+  setRallyFolders: (folders: RallyFolder[]) => Promise<void>;
   setCurrentRally: (index: number) => Promise<void>;
   setCurrentFrame: (index: number) => void;
   goToFrame: (frameNumber: number) => void;
@@ -209,21 +213,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Force redraw timestamp for Windows compatibility
   forceRedrawTimestamp: 0,
   
+  // Tracklet details
+  trackletDetails: [],
+  
   // High quality mode
   highQualityMode: false,
   
   // Actions
   setSelectedDirectory: (dir) => set({ selectedDirectory: dir }),
   
-  setRallyFolders: (folders) => set({ 
-    rallyFolders: folders,
-    currentRallyIndex: 0,
-    currentFrameIndex: 0,
-    annotations: [],
-    boundingBoxes: [],
-    ballAnnotations: [],
-    hasBallAnnotations: false
-  }),
+  setRallyFolders: async (folders) => {
+    set({ 
+      rallyFolders: folders,
+      currentRallyIndex: 0,
+      currentFrameIndex: 0,
+      annotations: [],
+      boundingBoxes: [],
+      ballAnnotations: [],
+      hasBallAnnotations: false
+    });
+    
+    // Automatically load the first rally if available
+    if (folders.length > 0) {
+      const state = get();
+      await state.setCurrentRally(0);
+    }
+  },
   
   setCurrentRally: async (index) => {
     const state = get();
@@ -248,8 +263,95 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Load annotations if available and we're in an Electron environment
     if (rally.annotationFile && typeof window !== 'undefined' && window.electronAPI) {
       try {
+        // Load frame-level annotations
         const csvContent = await window.electronAPI.loadAnnotationFile(rally.annotationFile);
-        const annotations = parseAnnotations(csvContent);
+        
+        // Try to load tracklet details from separate file
+        const trackletFilePath = getTrackletFilePath(rally.annotationFile);
+        let trackletDetails: TrackletDetails[] = [];
+        
+        try {
+          const trackletCsvContent = await window.electronAPI.loadAnnotationFile(trackletFilePath);
+          trackletDetails = parseTrackletDetails(trackletCsvContent);
+          console.log(`Loaded ${trackletDetails.length} tracklet details from ${trackletFilePath}`);
+        } catch {
+          console.log(`No tracklet details file found at ${trackletFilePath}, using frame-level data`);
+          // If tracklet file doesn't exist, we'll extract details from frame-level data
+        }
+        
+        // Parse annotations with tracklet details
+        const annotations = parseAnnotations(csvContent, trackletDetails);
+        
+        // If no tracklet details file was found, extract details from annotations for future use
+        if (trackletDetails.length === 0) {
+          trackletDetails = extractTrackletDetailsFromAnnotations(annotations);
+          console.log(`Extracted ${trackletDetails.length} tracklet details from frame-level data`);
+        }
+        
+        // Check if frame-level file needs formatting conversion (space after comma)
+        const needsSpaceFormatting = !csvContent.includes(', ') && csvContent.includes(',');
+        const needsTrackletExtraction = trackletDetails.length > 0;
+        
+        // Auto-convert if we need to extract tracklets OR fix comma formatting
+        if (needsTrackletExtraction || needsSpaceFormatting) {
+          try {
+            // Save tracklet details if we extracted any
+            if (needsTrackletExtraction) {
+              const trackletCsvContent = trackletDetailsToCSV(trackletDetails);
+              await window.electronAPI.saveAnnotationFile(trackletFilePath, trackletCsvContent);
+              console.log(`✓ Auto-converted: Created tracklet details file ${trackletFilePath}`);
+            }
+            
+            // Always update the frame-level file if conversion is needed
+            const cleanedAnnotations = annotations.map(ann => ({
+              ...ann,
+              role: '',
+              jersey_number: '',
+              jersey_color: '',
+              team: ''
+            }));
+            
+            // Sort by frame first, then by tracklet_id
+            cleanedAnnotations.sort((a, b) => {
+              if (a.frame !== b.frame) {
+                return a.frame - b.frame;
+              }
+              return a.tracklet_id - b.tracklet_id;
+            });
+            
+            // Convert to CSV format with proper spacing
+            const cleanedCsvContent = cleanedAnnotations.map(ann => {
+              const row = [
+                ann.frame,
+                ann.tracklet_id,
+                ann.x,
+                ann.y,
+                ann.w,
+                ann.h,
+                ann.score,
+                '', // Empty role
+                '', // Empty jersey_number
+                '', // Empty jersey_color
+                '', // Empty team
+                ann.event || ''
+              ];
+              return row.join(', ');
+            }).join('\n');
+            
+            await window.electronAPI.saveAnnotationFile(rally.annotationFile, cleanedCsvContent);
+            
+            if (needsSpaceFormatting && needsTrackletExtraction) {
+              console.log(`✓ Auto-converted: Fixed comma formatting and cleaned tracklet details in ${rally.annotationFile}`);
+            } else if (needsSpaceFormatting) {
+              console.log(`✓ Auto-converted: Fixed comma formatting in ${rally.annotationFile}`);
+            } else if (needsTrackletExtraction) {
+              console.log(`✓ Auto-converted: Cleaned tracklet details in ${rally.annotationFile}`);
+            }
+          } catch (conversionError) {
+            console.warn('Failed to auto-convert annotation format:', conversionError);
+            // Continue with existing workflow even if conversion fails
+          }
+        }
         
         // Extract ball annotations from loaded annotations
         const ballAnnotations = annotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
@@ -257,7 +359,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ 
           annotations,
           ballAnnotations,
-          hasBallAnnotations: ballAnnotations.length > 0
+          hasBallAnnotations: ballAnnotations.length > 0,
+          trackletDetails
         });
         
         // Initialize visibility for all tracklet IDs
@@ -572,17 +675,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   updateTrackletAnnotationDetails: (trackletId, details) => {
     const state = get();
-    const frameNumber = state.currentFrameIndex + 1;
 
-    // Update only the annotation that matches this tracklet ID on the current frame
-    const updatedAnnotations = state.annotations.map(ann => {
-      if (ann.tracklet_id === trackletId && ann.frame === frameNumber) {
-        return { ...ann, ...details };
-      }
-      return ann;
-    });
+    // Update or create tracklet details
+    const existingTrackletIndex = state.trackletDetails.findIndex(td => td.tracklet_id === trackletId);
     
-    set({ annotations: updatedAnnotations });
+    if (existingTrackletIndex >= 0) {
+      // Update existing tracklet details
+      const updatedTrackletDetails = [...state.trackletDetails];
+      updatedTrackletDetails[existingTrackletIndex] = {
+        ...updatedTrackletDetails[existingTrackletIndex],
+        ...details
+      };
+      state.setTrackletDetails(updatedTrackletDetails);
+    } else {
+      // Create new tracklet details entry
+      const newTrackletDetail: TrackletDetails = {
+        tracklet_id: trackletId,
+        role: details.role || '',
+        jersey_number: details.jersey_number || '',
+        jersey_color: details.jersey_color || '',
+        team: details.team !== undefined ? String(details.team) : ''
+      };
+      state.setTrackletDetails([...state.trackletDetails, newTrackletDetail]);
+    }
     
     // Auto-save the changes
     get().saveAnnotationsToFile();
@@ -597,14 +712,53 @@ export const useAppStore = create<AppState>((set, get) => ({
     state.setSaveStatus('saving');
     
     try {
-      // Use the annotation parser to convert to CSV format
-      const csvContent = annotationsToCSV(state.annotations);
-
+      // Combine regular annotations and ball annotations for the frame-level file
+      const allAnnotations = [...state.annotations, ...state.ballAnnotations];
+      
+      // Sort by frame number first, then by tracklet_id
+      allAnnotations.sort((a, b) => {
+        if (a.frame !== b.frame) {
+          return a.frame - b.frame;
+        }
+        return a.tracklet_id - b.tracklet_id;
+      });
+      
+      // Convert to CSV format (frame-level - tracklet details will be empty)
+      const csvContent = allAnnotations.map(ann => {
+        const row = [
+          ann.frame,
+          ann.tracklet_id,
+          ann.x,
+          ann.y,
+          ann.w,
+          ann.h,
+          ann.score,
+          '', // Empty role
+          '', // Empty jersey_number
+          '', // Empty jersey_color
+          '', // Empty team
+          ann.event || ''
+        ];
+        return row.join(', ');
+      }).join('\n');
+      
+      // Save frame-level file
       await window.electronAPI.saveAnnotationFile(rally.annotationFile, csvContent);
+      
+      // Save tracklet details file if we have tracklet details
+      if (state.trackletDetails && state.trackletDetails.length > 0) {
+        const trackletFilePath = getTrackletFilePath(rally.annotationFile);
+        const trackletCsvContent = trackletDetailsToCSV(state.trackletDetails);
+        await window.electronAPI.saveAnnotationFile(trackletFilePath, trackletCsvContent);
+        console.log(`Saved ${state.trackletDetails.length} tracklet details to ${trackletFilePath}`);
+      }
+
       state.setSaveStatus('saved');
       
       // Clear saved status after 2 seconds
       setTimeout(() => state.setSaveStatus('idle'), 2000);
+      
+      console.log(`Saved ${allAnnotations.length} annotations to ${rally.annotationFile}`);
     } catch (error) {
       console.error('Error saving annotation file:', error);
       state.setSaveStatus('error');
@@ -639,6 +793,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPan: (x, y) => set({ panX: x, panY: y }),
   
   setHighQualityMode: (enabled) => set({ highQualityMode: enabled }),
+  
+  setTrackletDetails: (details) => set({ trackletDetails: details }),
   
   // Computed getters
   getCurrentRally: () => {

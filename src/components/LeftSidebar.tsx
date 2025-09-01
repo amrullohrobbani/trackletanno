@@ -91,7 +91,7 @@ export default function LeftSidebar() {
         if (rallyFolders.length === 0) {
           await showAlert(t('dialogs.noRallyFoldersFound'));
         } else {
-          setRallyFolders(rallyFolders);
+          await setRallyFolders(rallyFolders);
         }
       }
     } catch (error) {

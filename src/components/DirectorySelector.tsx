@@ -76,7 +76,7 @@ export default function DirectorySelector() {
           alert(errorMessage);
           setSelectedDirectory(null);
         } else {
-          setRallyFolders(rallyFolders);
+          await setRallyFolders(rallyFolders);
         }
       }
     } catch (error) {

@@ -24,8 +24,6 @@ export default function RightSidebar() {
     setAnnotations,
     setLoading,
     annotations,
-    currentFrameIndex,
-    updateAnnotationDetails,
     selectedEvent,
     setSelectedEvent,
     idAnalysisResult,
@@ -46,7 +44,9 @@ export default function RightSidebar() {
     hideAllTracklets,
     deleteAllAnnotationsWithTrackletId,
     isDevMode,
-    setDevMode
+    setDevMode,
+    trackletDetails,
+    updateTrackletAnnotationDetails
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -91,26 +91,25 @@ export default function RightSidebar() {
   // Event types with hotkeys (memoized to prevent dependency issues)
   const eventTypes = useMemo(() => sportEventTypes[selectedSport as keyof typeof sportEventTypes] || sportEventTypes.volleyball, [sportEventTypes, selectedSport]);
 
-  // Auto-load annotation data when selectedTrackletId or currentFrameIndex changes
+  // Auto-load annotation data when selectedTrackletId changes
   useEffect(() => {
-    if (selectedTrackletId !== null && annotations.length > 0) {
-      // const frameNumber = currentFrameIndex + 1;
-      const annotation = annotations.find(ann => ann.tracklet_id === selectedTrackletId
-      );
-      if (annotation) {
-        setEditRole(annotation.role || '');
-        setEditJerseyNumber(annotation.jersey_number || '');
-        setEditJerseyColor(annotation.jersey_color || '');
-        setEditTeam(annotation.team || '');
+    if (selectedTrackletId !== null && trackletDetails.length > 0) {
+      // Find tracklet details for the selected tracklet
+      const trackletDetail = trackletDetails.find(td => td.tracklet_id === selectedTrackletId);
+      if (trackletDetail) {
+        setEditRole(trackletDetail.role || '');
+        setEditJerseyNumber(trackletDetail.jersey_number || '');
+        setEditJerseyColor(trackletDetail.jersey_color || '');
+        setEditTeam(trackletDetail.team || '');
       } else {
-        // Clear form if no annotation exists for this tracklet on current frame
+        // Clear form if no tracklet details exist for this tracklet
         setEditRole('');
         setEditJerseyNumber('');
         setEditJerseyColor('');
         setEditTeam('');
       }
     }
-  }, [selectedTrackletId, currentFrameIndex, annotations]);
+  }, [selectedTrackletId, trackletDetails]);
 
   // Load annotation data when rally changes
   useEffect(() => {
@@ -748,7 +747,7 @@ export default function RightSidebar() {
                       <button
                         onClick={() => {
                           if (selectedTrackletId !== null) {
-                            updateAnnotationDetails(selectedTrackletId, {
+                            updateTrackletAnnotationDetails(selectedTrackletId, {
                               role: editRole,
                               jersey_number: editJerseyNumber,
                               jersey_color: editJerseyColor,
