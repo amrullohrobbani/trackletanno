@@ -92,8 +92,8 @@
     "help": "이 도구는 이미지의 경계 상자 영역을 분석하여 누락된 프레임, ID 교체, 색상 불일치를 감지합니다."
   },
   "annotationDetails": {
-    "title": "주석 세부사항",
-    "editDetails": "세부사항 편집",
+    "title": "트랙렛 정보",
+    "editDetails": "정보 편집",
     "close": "닫기",
     "role": "역할",
     "rolePlaceholder": "예: 선수, 심판",
@@ -108,10 +108,10 @@
     "homeTeam": "홈 팀 (0)",
     "awayTeam": "원정 팀 (1)",
     "others": "기타 (-1)",
-    "saveDetails": "세부사항 저장",
-    "clickEditToModify": "주석 정보를 수정하려면 \"세부사항 편집\"을 클릭하세요",
-    "selectBoxToEdit": "세부사항을 편집할 경계 상자를 선택하세요",
-    "selectTrackletToEdit": "세부사항을 편집할 트랙릿 ID를 선택하세요"
+    "saveDetails": "정보 저장",
+    "clickEditToModify": "주석 정보를 수정하려면 \"정보 편집\"을 클릭하세요",
+    "selectBoxToEdit": "정보를 편집할 경계 상자를 선택하세요",
+    "selectTrackletToEdit": "정보를 편집할 트랙릿 ID를 선택하세요"
   },
   "instructions": {
     "howToUse": "이 앱 사용법",

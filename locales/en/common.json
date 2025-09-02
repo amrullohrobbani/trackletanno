@@ -76,8 +76,8 @@
     "help": "This tool detects missing frames, ID switching, and color inconsistencies by analyzing bounding box regions in images."
   },
   "annotationDetails": {
-    "title": "Annotation Details",
-    "editDetails": "Edit Details",
+    "title": "Tracklet Information",
+    "editDetails": "Edit Information",
     "close": "Close",
     "role": "Role",
     "rolePlaceholder": "e.g., player, referee",
@@ -92,10 +92,10 @@
     "homeTeam": "Home Team (0)",
     "awayTeam": "Away Team (1)",
     "others": "Others (-1)",
-    "saveDetails": "Save Details",
-    "clickEditToModify": "Click \"Edit Details\" to modify annotation information",
-    "selectBoxToEdit": "Select a bounding box to edit its details",
-    "selectTrackletToEdit": "Select a tracklet ID to edit its details"
+    "saveDetails": "Save Information",
+    "clickEditToModify": "Click \"Edit Information\" to modify annotation information",
+    "selectBoxToEdit": "Select a bounding box to edit its information",
+    "selectTrackletToEdit": "Select a tracklet ID to edit its information"
   },
   "instructions": {
     "howToUse": "Quick Reference Guide",

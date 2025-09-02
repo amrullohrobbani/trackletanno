@@ -40,7 +40,8 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     annotations,
     getCurrentRally,
     currentFrameIndex: globalFrameIndex,
-    goToFrame
+    goToFrame,
+    trackletDetails
   } = useAppStore();
 
   // Cleanup cached images when modal closes to prevent memory leaks
@@ -359,9 +360,54 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900 rounded-t-xl">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-white">
-              {t('tracklet.timeline')} - ID {trackletId}
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                {t('tracklet.timeline')} - ID {trackletId}
+              </h2>
+              {/* Tracklet Info */}
+              {(() => {
+                const trackletInfo = trackletDetails.find(td => td.tracklet_id === trackletId);
+                if (trackletInfo && (trackletInfo.role || trackletInfo.jersey_number || trackletInfo.jersey_color || trackletInfo.team)) {
+                  return (
+                    <div className="flex items-center gap-3 mt-1 text-sm text-gray-300 capitalize">
+                      {trackletInfo.role && (
+                        <span className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium">
+                          {trackletInfo.role}
+                        </span>
+                      )}
+                      {trackletInfo.jersey_number && (
+                        <span className="px-2 py-1 bg-green-600 text-white rounded text-xs font-medium">
+                          #{trackletInfo.jersey_number}
+                        </span>
+                      )}
+                      {trackletInfo.jersey_color && (
+                        <span 
+                          className="px-2 py-1 text-white rounded text-xs font-medium"
+                          style={{ 
+                            backgroundColor: trackletInfo.jersey_color.toLowerCase(),
+                            color: ['yellow', 'white', 'cyan', 'lime', 'lightblue', 'lightgreen', 'lightyellow'].includes(trackletInfo.jersey_color.toLowerCase()) ? '#000' : '#fff'
+                          }}
+                        >
+                          {trackletInfo.jersey_color}
+                        </span>
+                      )}
+                      {trackletInfo.team !== undefined && trackletInfo.team !== '' && (
+                        <span className={`px-2 py-1 text-white rounded text-xs font-medium ${
+                          trackletInfo.team === '0' ? 'bg-orange-600' : 
+                          trackletInfo.team === '1' ? 'bg-cyan-600' : 
+                          'bg-gray-600'
+                        }`}>
+                          {trackletInfo.team === '0' ? t('annotationDetails.homeTeam').replace(' (0)', '') : 
+                           trackletInfo.team === '1' ? t('annotationDetails.awayTeam').replace(' (1)', '') : 
+                           'Other'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowPlaceholders(!showPlaceholders)}
