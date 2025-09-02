@@ -311,8 +311,22 @@ export const useAppStore = create<AppState>((set, get) => ({
               team: ''
             }));
             
+            // Remove duplicates - ensure only one annotation per frame+tracklet combination
+            const uniqueAnnotations: AnnotationData[] = [];
+            const seen = new Set<string>();
+            
+            for (const ann of cleanedAnnotations) {
+              const key = `${ann.frame}-${ann.tracklet_id}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                uniqueAnnotations.push(ann);
+              } else {
+                console.log(`✓ Auto-converted: Removed duplicate annotation for frame ${ann.frame}, tracklet ${ann.tracklet_id}`);
+              }
+            }
+            
             // Sort by frame first, then by tracklet_id
-            cleanedAnnotations.sort((a, b) => {
+            uniqueAnnotations.sort((a, b) => {
               if (a.frame !== b.frame) {
                 return a.frame - b.frame;
               }
@@ -320,7 +334,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
             
             // Convert to CSV format with proper spacing
-            const cleanedCsvContent = cleanedAnnotations.map(ann => {
+            const cleanedCsvContent = uniqueAnnotations.map(ann => {
               const row = [
                 ann.frame,
                 ann.tracklet_id,
@@ -353,11 +367,25 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
         
-        // Extract ball annotations from loaded annotations
-        const ballAnnotations = annotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
+        // Remove duplicates from loaded annotations - ensure only one annotation per frame+tracklet combination
+        const uniqueAnnotations: AnnotationData[] = [];
+        const seen = new Set<string>();
+        
+        for (const ann of annotations) {
+          const key = `${ann.frame}-${ann.tracklet_id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueAnnotations.push(ann);
+          } else {
+            console.log(`✓ Removed duplicate annotation during load: frame ${ann.frame}, tracklet ${ann.tracklet_id}`);
+          }
+        }
+        
+        // Extract ball annotations from deduplicated annotations
+        const ballAnnotations = uniqueAnnotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
         
         set({ 
-          annotations,
+          annotations: uniqueAnnotations,
           ballAnnotations,
           hasBallAnnotations: ballAnnotations.length > 0,
           trackletDetails
@@ -423,11 +451,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   setAnnotations: (annotations) => {
-    // Extract ball annotations from the annotations array
-    const ballAnnotations = annotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
+    // Remove duplicates - ensure only one annotation per frame+tracklet combination
+    const uniqueAnnotations: AnnotationData[] = [];
+    const seen = new Set<string>();
+    
+    for (const ann of annotations) {
+      const key = `${ann.frame}-${ann.tracklet_id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueAnnotations.push(ann);
+      } else {
+        console.log(`✓ Removed duplicate annotation in setAnnotations: frame ${ann.frame}, tracklet ${ann.tracklet_id}`);
+      }
+    }
+    
+    // Extract ball annotations from the deduplicated annotations array
+    const ballAnnotations = uniqueAnnotations.filter(ann => ann.tracklet_id === BALL_TRACKLET_ID);
     
     set({ 
-      annotations,
+      annotations: uniqueAnnotations,
       ballAnnotations,
       hasBallAnnotations: ballAnnotations.length > 0
     });
@@ -712,11 +754,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     state.setSaveStatus('saving');
     
     try {
-      // Combine regular annotations and ball annotations for the frame-level file
-      const allAnnotations = [...state.annotations, ...state.ballAnnotations];
+      // Use only the main annotations array (which already includes ball annotations)
+      // Remove duplicates just in case
+      const uniqueAnnotations: AnnotationData[] = [];
+      const seen = new Set<string>();
+      
+      for (const ann of state.annotations) {
+        const key = `${ann.frame}-${ann.tracklet_id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueAnnotations.push(ann);
+        }
+      }
       
       // Sort by frame number first, then by tracklet_id
-      allAnnotations.sort((a, b) => {
+      uniqueAnnotations.sort((a, b) => {
         if (a.frame !== b.frame) {
           return a.frame - b.frame;
         }
@@ -724,7 +776,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       
       // Convert to CSV format (frame-level - tracklet details will be empty)
-      const csvContent = allAnnotations.map(ann => {
+      const csvContent = uniqueAnnotations.map(ann => {
         const row = [
           ann.frame,
           ann.tracklet_id,
@@ -758,7 +810,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Clear saved status after 2 seconds
       setTimeout(() => state.setSaveStatus('idle'), 2000);
       
-      console.log(`Saved ${allAnnotations.length} annotations to ${rally.annotationFile}`);
+      console.log(`Saved ${uniqueAnnotations.length} annotations to ${rally.annotationFile}`);
     } catch (error) {
       console.error('Error saving annotation file:', error);
       state.setSaveStatus('error');
@@ -1014,11 +1066,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       ann => ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber
     );
     
-    // Remove existing ball annotation for this frame
+    // Remove ALL existing ball annotations for this frame from both arrays
     const filteredAnnotations = annotations.filter(
       ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
     );
-    const filteredBallAnnotations = ballAnnotations.filter(ann => ann.frame !== frameNumber);
+    const filteredBallAnnotations = ballAnnotations.filter(
+      ann => !(ann.tracklet_id === BALL_TRACKLET_ID && ann.frame === frameNumber)
+    );
     
     // Create new ball annotation, preserving existing fields if available
     const newBallAnnotation: AnnotationData = {
