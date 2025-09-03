@@ -82,6 +82,7 @@ interface AppState {
   setCurrentRally: (index: number) => Promise<void>;
   setCurrentFrame: (index: number) => void;
   goToFrame: (frameNumber: number) => void;
+  goToFrameByIndex: (index: number) => void;
   nextFrame: () => void;
   previousFrame: () => void;
   setAnnotations: (annotations: AnnotationData[]) => void;
@@ -419,19 +420,43 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('📊 Current frame index before:', state.currentFrameIndex);
     
     if (rally) {
-      // Convert 1-based frame number to 0-based index
-      const frameIndex = frameNumber - 1;
-      console.log('📊 Calculated frame index:', frameIndex);
-      console.log('📊 Rally image files length:', rally.imageFiles.length);
+      // Find the image that corresponds to this frame number (same as timeline modal)
+      let targetIndex = -1;
       
-      if (frameIndex >= 0 && frameIndex < rally.imageFiles.length) {
-        console.log('✅ Setting currentFrameIndex to:', frameIndex);
-        set({ currentFrameIndex: frameIndex });
+      for (let i = 0; i < rally.imageFiles.length; i++) {
+        const imagePath = rally.imageFiles[i];
+        const filename = imagePath.split(/[/\\]/).pop() || '';
+        const imageFrameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+        
+        if (imageFrameNumber === frameNumber) {
+          targetIndex = i;
+          break;
+        }
+      }
+      
+      console.log('📊 Found target index for frame', frameNumber, ':', targetIndex);
+      
+      if (targetIndex >= 0 && targetIndex < rally.imageFiles.length) {
+        console.log('✅ Setting currentFrameIndex to:', targetIndex);
+        set({ currentFrameIndex: targetIndex });
       } else {
-        console.log('❌ Frame index out of bounds:', frameIndex, 'max:', rally.imageFiles.length - 1);
+        console.log('❌ Frame not found:', frameNumber);
       }
     } else {
       console.log('❌ No current rally found');
+    }
+  },
+  
+  goToFrameByIndex: (index: number) => {
+    const state = get();
+    const rally = state.getCurrentRally();
+    console.log('🎯 goToFrameByIndex called with index:', index);
+    
+    if (rally && index >= 0 && index < rally.imageFiles.length) {
+      console.log('✅ Setting currentFrameIndex to:', index);
+      set({ currentFrameIndex: index });
+    } else {
+      console.log('❌ Invalid frame index:', index);
     }
   },
   
@@ -865,7 +890,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   getCurrentFrameAnnotations: () => {
     const state = get();
-    return state.annotations.filter(ann => ann.frame === state.currentFrameIndex);
+    const rally = state.getCurrentRally();
+    
+    if (!rally || !rally.imageFiles[state.currentFrameIndex]) {
+      return [];
+    }
+    
+    // Extract frame number from current image filename (same as timeline modal)
+    const imagePath = rally.imageFiles[state.currentFrameIndex];
+    const filename = imagePath.split(/[/\\]/).pop() || '';
+    const currentFrameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+    
+    return state.annotations.filter(ann => ann.frame === currentFrameNumber);
   },
   
   getAvailableTrackletIds: () => {

@@ -29,7 +29,7 @@ export default function LeftSidebar() {
     setCurrentRally,
     nextFrame,
     previousFrame,
-    goToFrame,
+    goToFrameByIndex,
     drawingMode,
     assignMode,
     setDrawingMode,
@@ -115,7 +115,7 @@ export default function LeftSidebar() {
             {/* Current Frame Display */}
             <div className="text-center bg-gray-800 rounded-lg p-4">
               <div className="text-3xl font-bold text-blue-400 mb-1">
-                {currentFrameIndex + 1}
+                {currentFrameIndex}
               </div>
               <div className="text-sm text-gray-400">
                 of {getCurrentRally()?.imageFiles.length || 0} frames
@@ -156,19 +156,19 @@ export default function LeftSidebar() {
               <label className="text-sm text-gray-300 font-medium">{t('ui.jumpToFrame')}:</label>
               <input
                 type="number"
-                min="1"
-                max={getCurrentRally()?.imageFiles.length || 0}
+                min="0"
+                max={(getCurrentRally()?.imageFiles.length || 1) - 1}
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
                 placeholder={t('ui.enterFrameNumber')}
                 onKeyDown={async (e) => {
                   if (e.key === 'Enter') {
-                    const frameNumber = parseInt((e.target as HTMLInputElement).value);
-                    if (frameNumber >= 1 && frameNumber <= (getCurrentRally()?.imageFiles.length || 0)) {
-                      goToFrame(frameNumber);
+                    const frameIndex = parseInt((e.target as HTMLInputElement).value);
+                    if (frameIndex >= 0 && frameIndex < (getCurrentRally()?.imageFiles.length || 0)) {
+                      goToFrameByIndex(frameIndex);
                       (e.target as HTMLInputElement).value = '';
                       (e.target as HTMLInputElement).blur();
                     } else {
-                      await showAlert(t('dialogs.enterFrameNumber', { max: getCurrentRally()?.imageFiles.length || 0 }));
+                      await showAlert(t('dialogs.enterFrameNumber', { max: (getCurrentRally()?.imageFiles.length || 1) - 1 }));
                     }
                   }
                 }}

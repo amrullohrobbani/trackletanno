@@ -276,7 +276,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     const frameIndex = frameData.findIndex(f => f.frameNumber === frameNumber);
     if (frameIndex !== -1) {
       // Use the index to navigate (goToFrame expects 1-based frame number for the rally)
-      goToFrame(frameIndex + 1);
+      goToFrame(frameIndex);
       setCurrentFrameIndex(frameIndex);
     }
   }, [goToFrame, frameData, getCurrentRally]);

@@ -216,10 +216,9 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
         const imageFiles = rallyEntries.filter(file => 
           /\.(jpg|jpeg|png|bmp)$/i.test(file)
         ).sort((a, b) => {
-          // Extract frame numbers for proper sorting (handles format like 002001.jpg)
+          // Extract frame numbers for proper sorting
           const getFrameNumber = (filename) => {
-            const match = filename.match(/(\d{6})\./);
-            return match ? parseInt(match[1], 10) : 0;
+            return parseInt(filename.replace(/\D/g, ''), 10) || 0;
           };
           return getFrameNumber(a) - getFrameNumber(b);
         });
@@ -321,11 +320,10 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
 
 ipcMain.handle('get-frame-number', async (event, filename) => {
   try {
-    // Extract frame number from filename (e.g., 000001.jpg -> 1)
-    const match = filename.match(/(\d{6})\./);
-    const frameNumber = match ? parseInt(match[1], 10) : 1;
+    // Extract frame number from filename using the same method as timeline modal
+    const frameNumber = parseInt(filename.replace(/\D/g, ''), 10) || 1;
     console.log(`Frame conversion: ${filename} -> ${frameNumber}`);
-    return frameNumber; // Keep 1-based indexing to match annotation files
+    return frameNumber;
   } catch (error) {
     console.error('Error extracting frame number:', error);
     return 1;
@@ -334,8 +332,8 @@ ipcMain.handle('get-frame-number', async (event, filename) => {
 
 ipcMain.handle('get-filename-from-frame', async (event, frameIndex) => {
   try {
-    // Convert 0-based frame index to 6-digit filename format (e.g., 0 -> 000001)
-    const frameNumber = frameIndex + 1; // Convert to 1-based for filename
+    // This function is rarely used, keeping simple fallback
+    const frameNumber = frameIndex + 1;
     const filename = frameNumber.toString().padStart(6, '0');
     console.log(`Filename conversion: frame index ${frameIndex} -> ${filename}`);
     return filename;
