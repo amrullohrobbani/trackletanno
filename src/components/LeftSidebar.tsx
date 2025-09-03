@@ -166,6 +166,7 @@ export default function LeftSidebar() {
                     if (frameNumber >= 1 && frameNumber <= (getCurrentRally()?.imageFiles.length || 0)) {
                       goToFrame(frameNumber);
                       (e.target as HTMLInputElement).value = '';
+                      (e.target as HTMLInputElement).blur();
                     } else {
                       await showAlert(t('dialogs.enterFrameNumber', { max: getCurrentRally()?.imageFiles.length || 0 }));
                     }
