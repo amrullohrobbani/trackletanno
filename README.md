@@ -94,6 +94,10 @@ dataset/
 - **⚫ Gray**: Others/Referees (team = -1)
 - **🟠 Orange**: Ball annotations (tracklet_id = 99)
 
+### Court Positioning
+- **Home Team**: Positioned on the right side of the net
+- **Away Team**: Positioned on the left side of the net
+
 ---
 
 ## Interface Guide

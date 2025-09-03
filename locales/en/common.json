@@ -81,6 +81,9 @@
     "close": "Close",
     "role": "Role",
     "rolePlaceholder": "e.g., player, referee",
+    "selectRole": "Select role",
+    "customRole": "Custom...",
+    "enterCustomRole": "Enter custom role",
     "jerseyNumber": "Jersey Number",
     "jerseyNumberPlaceholder": "e.g., 10, 23",
     "jerseyColor": "Jersey Color",
@@ -92,6 +95,8 @@
     "homeTeam": "Home Team (0)",
     "awayTeam": "Away Team (1)",
     "others": "Others (-1)",
+    "teamPositioning": "Court Positioning",
+    "teamPositioningInfo": "Home team is on the right side of the net, Away team is on the left side of the net",
     "saveDetails": "Save Information",
     "clickEditToModify": "Click \"Edit Information\" to modify annotation information",
     "selectBoxToEdit": "Select a bounding box to edit its information",
@@ -162,7 +167,8 @@
     "ballTracking": "Track ball continuously - use event tags for key moments",
     "timeline": "Use timeline view to check annotation coverage and gaps",
     "visibility": "Hide completed tracklets to focus on remaining work",
-    "eventsPerFrame": "Events are frame-specific, player details apply globally"
+    "eventsPerFrame": "Events are frame-specific, player details apply globally",
+    "teamPositioning": "Home team plays on the right side of the net, Away team on the left"
   },
   "modes": {
     "drawing": "Drawing",
@@ -178,6 +184,11 @@
     "green": "Green",
     "orange": "Orange",
     "purple": "Purple"
+  },
+  "roles": {
+    "player": "Player",
+    "ball": "Ball",
+    "referee": "Referee"
   },
   "common": {
     "frame": "Frame",

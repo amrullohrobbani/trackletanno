@@ -63,6 +63,8 @@ export default function RightSidebar() {
   const [editTeam, setEditTeam] = useState('');
   const [customJerseyColor, setCustomJerseyColor] = useState('');
   const [showCustomColor, setShowCustomColor] = useState(false);
+  const [customRole, setCustomRole] = useState('');
+  const [showCustomRole, setShowCustomRole] = useState(false);
   
   const availableIds = getAvailableTrackletIds();
   const currentRally = getCurrentRally();
@@ -97,16 +99,30 @@ export default function RightSidebar() {
       // Find tracklet details for the selected tracklet
       const trackletDetail = trackletDetails.find(td => td.tracklet_id === selectedTrackletId);
       if (trackletDetail) {
-        setEditRole(trackletDetail.role || '');
+        const role = trackletDetail.role || '';
         setEditJerseyNumber(trackletDetail.jersey_number || '');
         setEditJerseyColor(trackletDetail.jersey_color || '');
         setEditTeam(trackletDetail.team || '');
+        
+        // Handle custom role display
+        const predefinedRoles = ['player', 'ball', 'referee'];
+        if (role && !predefinedRoles.includes(role)) {
+          setShowCustomRole(true);
+          setCustomRole(role);
+          setEditRole('custom');
+        } else {
+          setShowCustomRole(false);
+          setCustomRole('');
+          setEditRole(role);
+        }
       } else {
         // Clear form if no tracklet details exist for this tracklet
         setEditRole('');
         setEditJerseyNumber('');
         setEditJerseyColor('');
         setEditTeam('');
+        setShowCustomRole(false);
+        setCustomRole('');
       }
     }
   }, [selectedTrackletId, trackletDetails]);
@@ -668,13 +684,35 @@ export default function RightSidebar() {
                       {/* Role */}
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">{t('annotationDetails.role')}</label>
-                        <input
-                          type="text"
-                          value={editRole}
-                          onChange={(e) => setEditRole(e.target.value)}
-                          placeholder={t('annotationDetails.rolePlaceholder')}
-                          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
-                        />
+                        <div className="space-y-2">
+                          <select
+                            value={editRole}
+                            onChange={(e) => {
+                              setEditRole(e.target.value);
+                              setShowCustomRole(e.target.value === 'custom');
+                            }}
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          >
+                            <option value="">{t('annotationDetails.selectRole')}</option>
+                            <option value="player">{t('roles.player')}</option>
+                            <option value="ball">{t('roles.ball')}</option>
+                            <option value="referee">{t('roles.referee')}</option>
+                            <option value="custom">{t('annotationDetails.customRole')}</option>
+                          </select>
+                          
+                          {showCustomRole && (
+                            <input
+                              type="text"
+                              value={customRole}
+                              onChange={(e) => {
+                                setCustomRole(e.target.value);
+                                setEditRole(e.target.value);
+                              }}
+                              placeholder={t('annotationDetails.enterCustomRole')}
+                              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                            />
+                          )}
+                        </div>
                       </div>
                       
                       {/* Jersey Number */}
@@ -741,14 +779,24 @@ export default function RightSidebar() {
                           <option value="1">{t('annotationDetails.awayTeam')}</option>
                           <option value="-1">{t('annotationDetails.others')}</option>
                         </select>
+                        
+                        {/* Team Positioning Info */}
+                        <div className="mt-2 p-2 bg-blue-900/30 border border-blue-700/50 rounded text-xs text-blue-200">
+                          <div className="flex items-center gap-1 mb-1">
+                            <span>ℹ️</span>
+                            <span className="font-medium">{t('annotationDetails.teamPositioning')}</span>
+                          </div>
+                          <div className="text-blue-300">{t('annotationDetails.teamPositioningInfo')}</div>
+                        </div>
                       </div>
                       
                       {/* Save Button */}
                       <button
                         onClick={() => {
                           if (selectedTrackletId !== null) {
+                            const roleToSave = editRole === 'custom' ? customRole : editRole;
                             updateTrackletAnnotationDetails(selectedTrackletId, {
-                              role: editRole,
+                              role: roleToSave,
                               jersey_number: editJerseyNumber,
                               jersey_color: editJerseyColor,
                               team: editTeam
@@ -1018,6 +1066,7 @@ export default function RightSidebar() {
                   <li>• {t('quickTips.timeline')}</li>
                   <li>• {t('quickTips.visibility')}</li>
                   <li>• {t('quickTips.eventsPerFrame')}</li>
+                  <li>• {t('quickTips.teamPositioning')}</li>
                 </ul>
               </div>
 

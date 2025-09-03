@@ -97,6 +97,9 @@
     "close": "닫기",
     "role": "역할",
     "rolePlaceholder": "예: 선수, 심판",
+    "selectRole": "역할 선택",
+    "customRole": "사용자 정의...",
+    "enterCustomRole": "사용자 정의 역할 입력",
     "jerseyNumber": "등번호",
     "jerseyNumberPlaceholder": "예: 10, 23",
     "jerseyColor": "유니폼 색상",
@@ -108,6 +111,8 @@
     "homeTeam": "홈 팀 (0)",
     "awayTeam": "원정 팀 (1)",
     "others": "기타 (-1)",
+    "teamPositioning": "코트 위치",
+    "teamPositioningInfo": "홈 팀은 네트 오른쪽, 원정 팀은 네트 왼쪽에 위치합니다",
     "saveDetails": "정보 저장",
     "clickEditToModify": "주석 정보를 수정하려면 \"정보 편집\"을 클릭하세요",
     "selectBoxToEdit": "정보를 편집할 경계 상자를 선택하세요",
@@ -178,7 +183,8 @@
     "ballTracking": "볼을 지속적으로 추적 - 주요 순간에 이벤트 태그 사용",
     "timeline": "타임라인 뷰를 사용하여 주석 범위와 간격 확인",
     "visibility": "완료된 트래클릿을 숨겨서 남은 작업에 집중",
-    "eventsPerFrame": "이벤트는 프레임별, 플레이어 세부사항은 전체적으로 적용"
+    "eventsPerFrame": "이벤트는 프레임별, 플레이어 세부사항은 전체적으로 적용",
+    "teamPositioning": "홈 팀은 네트 오른쪽, 원정 팀은 네트 왼쪽에서 플레이"
   },
   "modes": {
     "drawing": "그리기",
@@ -194,6 +200,11 @@
     "green": "초록색",
     "orange": "주황색",
     "purple": "보라색"
+  },
+  "roles": {
+    "player": "선수",
+    "ball": "볼",
+    "referee": "심판"
   },
   "common": {
     "frame": "프레임",
