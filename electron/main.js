@@ -321,9 +321,13 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
 ipcMain.handle('get-frame-number', async (event, filename) => {
   try {
     // Extract frame number from filename using the same method as timeline modal
-    const frameNumber = parseInt(filename.replace(/\D/g, ''), 10) || 1;
-    console.log(`Frame conversion: ${filename} -> ${frameNumber}`);
-    return frameNumber;
+    const digitsOnly = filename.replace(/\D/g, '');
+    const frameNumber = parseInt(digitsOnly, 10);
+    
+    // Only use fallback if parsing actually failed (NaN), not if the result is 0
+    const finalFrameNumber = isNaN(frameNumber) ? 1 : frameNumber;
+    console.log(`Frame conversion: ${filename} -> ${finalFrameNumber}`);
+    return finalFrameNumber;
   } catch (error) {
     console.error('Error extracting frame number:', error);
     return 1;
