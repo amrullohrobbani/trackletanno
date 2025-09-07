@@ -31,7 +31,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
   const [frameData, setFrameData] = useState<FrameData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState<LoadingProgress>({ loaded: 0, total: 0, isComplete: false });
-  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(1);
   const [showPlaceholders, setShowPlaceholders] = useState(true);
   const [croppedImages, setCroppedImages] = useState<Map<string, string>>(new Map());
   const croppedImagesRef = useRef<Map<string, string>>(new Map());
@@ -272,23 +272,28 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
     const rally = getCurrentRally();
     if (!rally) return;
     
-    // Find the index by matching the frame number
+    // Find the index by matching the frame number in frameData
     const frameIndex = frameData.findIndex(f => f.frameNumber === frameNumber);
     if (frameIndex !== -1) {
-      // Use the index to navigate (goToFrame expects 1-based frame number for the rally)
-      goToFrame(frameIndex);
-      setCurrentFrameIndex(frameIndex);
+      // Convert 0-based frameData index to 1-based frame index for the store
+      const frameIndexForStore = frameIndex + 1;
+      goToFrame(frameIndexForStore);
+      setCurrentFrameIndex(frameIndexForStore);
     }
   }, [goToFrame, frameData, getCurrentRally]);
 
   // Scroll to current frame
   const scrollToCurrentFrame = useCallback(() => {
     if (scrollContainerRef.current && frameData.length > 0) {
-      const currentFrame = frameData[currentFrameIndex];
-      if (currentFrame) {
-        const frameElement = scrollContainerRef.current.querySelector(`[data-frame="${currentFrame.frameNumber}"]`);
-        if (frameElement) {
-          frameElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      // Convert 1-based currentFrameIndex to 0-based array index
+      const arrayIndex = currentFrameIndex - 1;
+      if (arrayIndex >= 0 && arrayIndex < frameData.length) {
+        const currentFrame = frameData[arrayIndex];
+        if (currentFrame) {
+          const frameElement = scrollContainerRef.current.querySelector(`[data-frame="${currentFrame.frameNumber}"]`);
+          if (frameElement) {
+            frameElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+          }
         }
       }
     }
@@ -315,15 +320,19 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
       switch (e.key) {
         case 'ArrowLeft':
           e.preventDefault();
-          if (currentFrameIndex > 0) {
-            const prevFrame = frameData[currentFrameIndex - 1];
+          if (currentFrameIndex > 1) {
+            // Convert 1-based currentFrameIndex to 0-based array index
+            const arrayIndex = currentFrameIndex - 1;
+            const prevFrame = frameData[arrayIndex - 1];
             if (prevFrame) navigateToFrame(prevFrame.frameNumber);
           }
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (currentFrameIndex < frameData.length - 1) {
-            const nextFrame = frameData[currentFrameIndex + 1];
+          if (currentFrameIndex <= frameData.length) {
+            // Convert 1-based currentFrameIndex to 0-based array index
+            const arrayIndex = currentFrameIndex - 1;
+            const nextFrame = frameData[arrayIndex + 1];
             if (nextFrame) navigateToFrame(nextFrame.frameNumber);
           }
           break;
@@ -438,7 +447,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
               <span>Total Frames: {frameData.length}</span>
               <span>Annotated: {frameData.filter(f => !f.hasPlaceholder).length}</span>
               <span>Missing: {frameData.filter(f => f.hasPlaceholder).length}</span>
-              <span>Current Frame: {currentFrameIndex + 1} / {frameData.length}</span>
+              <span>Current Frame: {currentFrameIndex} / {frameData.length}</span>
             </div>
             <div className="text-sm text-gray-300">
               Coverage: {frameData.length > 0 ? Math.round((frameData.filter(f => !f.hasPlaceholder).length / frameData.length) * 100) : 0}%
@@ -487,17 +496,23 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
               className="h-full overflow-x-auto overflow-y-hidden p-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
             >
               <div className="flex gap-1 h-full items-center min-w-max">
-                {filteredFrames.map((frame) => (
-                  <TrackletFrameCard
-                    key={frame.frameNumber}
-                    frame={frame}
-                    isActive={frame.frameNumber === (frameData[currentFrameIndex]?.frameNumber)}
-                    globalFrameIndex={globalFrameIndex}
-                    onNavigate={navigateToFrame}
-                    generateCroppedImage={generateCroppedImage}
-                    generatePlaceholderImage={generatePlaceholderImage}
-                  />
-                ))}
+                {filteredFrames.map((frame) => {
+                  // Convert 1-based currentFrameIndex to 0-based array index
+                  const arrayIndex = currentFrameIndex - 1;
+                  const currentFrame = arrayIndex >= 0 && arrayIndex < frameData.length ? frameData[arrayIndex] : null;
+                  
+                  return (
+                    <TrackletFrameCard
+                      key={frame.frameNumber}
+                      frame={frame}
+                      isActive={frame.frameNumber === currentFrame?.frameNumber}
+                      globalFrameIndex={globalFrameIndex}
+                      onNavigate={navigateToFrame}
+                      generateCroppedImage={generateCroppedImage}
+                      generatePlaceholderImage={generatePlaceholderImage}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -509,12 +524,14 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  if (currentFrameIndex > 0) {
-                    const prevFrame = frameData[currentFrameIndex - 1];
+                  if (currentFrameIndex > 1) {
+                    // Convert 1-based currentFrameIndex to 0-based array index
+                    const arrayIndex = currentFrameIndex - 1;
+                    const prevFrame = frameData[arrayIndex - 1];
                     if (prevFrame) navigateToFrame(prevFrame.frameNumber);
                   }
                 }}
-                disabled={currentFrameIndex === 0 || isLoading || !loadingProgress.isComplete}
+                disabled={currentFrameIndex === 1 || isLoading || !loadingProgress.isComplete}
                 className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
@@ -522,12 +539,14 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
               </button>
               <button
                 onClick={() => {
-                  if (currentFrameIndex < frameData.length - 1) {
-                    const nextFrame = frameData[currentFrameIndex + 1];
+                  if (currentFrameIndex <= frameData.length) {
+                    // Convert 1-based currentFrameIndex to 0-based array index
+                    const arrayIndex = currentFrameIndex - 1;
+                    const nextFrame = frameData[arrayIndex + 1];
                     if (nextFrame) navigateToFrame(nextFrame.frameNumber);
                   }
                 }}
-                disabled={currentFrameIndex >= frameData.length - 1 || isLoading || !loadingProgress.isComplete}
+                disabled={currentFrameIndex >= frameData.length || isLoading || !loadingProgress.isComplete}
                 className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-sm"
               >
                 Next
@@ -633,7 +652,7 @@ function TrackletFrameCard({
         {/* Frame Info */}
         <div className="p-2 text-center">
           <div className="text-white text-sm font-medium">
-            {isActive ? `Frame ${globalFrameIndex + 1} - ${frame.frameNumber}` : `Frame ${frame.frameNumber}`}
+            {isActive ? `Frame ${globalFrameIndex} - ${frame.frameNumber}` : `Frame ${frame.frameNumber}`}
           </div>
           {frame.annotation && (
             <div className="text-gray-400 text-xs mt-1">

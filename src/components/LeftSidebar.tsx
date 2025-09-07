@@ -126,9 +126,9 @@ export default function LeftSidebar() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={previousFrame}
-                disabled={currentFrameIndex === 0}
+                disabled={currentFrameIndex === 1}
                 className={`flex items-center justify-center gap-2 p-3 rounded-lg font-medium transition-colors ${
-                  currentFrameIndex === 0
+                  currentFrameIndex === 1
                     ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
@@ -139,9 +139,9 @@ export default function LeftSidebar() {
               
               <button
                 onClick={nextFrame}
-                disabled={currentFrameIndex === (getCurrentRally()?.imageFiles.length || 0) - 1}
+                disabled={currentFrameIndex === (getCurrentRally()?.imageFiles.length || 0)}
                 className={`flex items-center justify-center gap-2 p-3 rounded-lg font-medium transition-colors ${
-                  currentFrameIndex === (getCurrentRally()?.imageFiles.length || 0) - 1
+                  currentFrameIndex === (getCurrentRally()?.imageFiles.length || 0)
                     ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}

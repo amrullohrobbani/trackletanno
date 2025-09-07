@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore';
 import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
+import { debugAnnotationFrameConnection } from '@/utils/debugHelpers';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { showConfirm } from '@/utils/dialogUtils';
 
@@ -25,6 +26,8 @@ export default function MainCanvas() {
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const {
     getCurrentImagePath,
@@ -72,6 +75,41 @@ export default function MainCanvas() {
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
+
+  // Preload adjacent frames to reduce blinking during navigation
+  useEffect(() => {
+    const preloadAdjacentFrames = () => {
+      const rally = getCurrentRally();
+      if (!rally) return;
+
+      // Convert 1-based frame index to 0-based array indices for preloading
+      const currentArrayIndex = currentFrameIndex - 1;
+      const nextArrayIndex = currentArrayIndex + 1;
+      const prevArrayIndex = currentArrayIndex - 1;
+
+      if (nextArrayIndex < rally.imageFiles.length) {
+        const nextImage = new window.Image();
+        nextImage.src = rally.imageFiles[nextArrayIndex];
+      }
+
+      if (prevArrayIndex >= 0) {
+        const prevImage = new window.Image();
+        prevImage.src = rally.imageFiles[prevArrayIndex];
+      }
+    };
+
+    // Debounce preloading to avoid excessive loading
+    const timeoutId = setTimeout(preloadAdjacentFrames, 100);
+    return () => clearTimeout(timeoutId);
+  }, [currentFrameIndex, getCurrentRally]);
+
+  // Track image loading state changes
+  useEffect(() => {
+    if (imagePath) {
+      setImageLoading(true);
+      setImageError(false);
+    }
+  }, [imagePath]);
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
@@ -159,6 +197,9 @@ export default function MainCanvas() {
         const filename = imagePath.split('/').pop() || '';
         const frameNumber = await window.electronAPI.getFrameNumber(filename);
         
+        // Update the frame number ref immediately to ensure consistency
+        currentFrameNumberRef.current = frameNumber;
+        
         // Filter annotations for this specific frame number
         const currentFrameAnnotations = annotations.filter(ann => ann.frame === frameNumber);
         
@@ -176,29 +217,35 @@ export default function MainCanvas() {
             selected: false
           }));
         
-        // Only update bounding boxes if they are actually different
-        // This prevents unnecessary re-renders and potential conflicts with deletion
-        const currentBoxes = lastBoundingBoxesRef.current;
-        const boxesChanged = currentBoxes.length !== boxes.length || 
-          !currentBoxes.every((box, index) => {
-            const newBox = boxes[index];
-            return newBox && box.tracklet_id === newBox.tracklet_id && 
-                   box.x === newBox.x && box.y === newBox.y && 
-                   box.width === newBox.width && box.height === newBox.height;
-          });
+        // Use requestAnimationFrame to batch updates and reduce blinking
+        requestAnimationFrame(() => {
+          // Only update bounding boxes if they are actually different
+          // This prevents unnecessary re-renders and potential conflicts with deletion
+          const currentBoxes = lastBoundingBoxesRef.current;
+          const boxesChanged = currentBoxes.length !== boxes.length || 
+            !currentBoxes.every((box, index) => {
+              const newBox = boxes[index];
+              return newBox && box.tracklet_id === newBox.tracklet_id && 
+                     box.x === newBox.x && box.y === newBox.y && 
+                     box.width === newBox.width && box.height === newBox.height;
+            });
+          
+          if (boxesChanged) {
+            setBoundingBoxes(boxes);
+            lastBoundingBoxesRef.current = boxes;
+          }
+        });
         
-        if (boxesChanged) {
-          setBoundingBoxes(boxes);
-          lastBoundingBoxesRef.current = boxes;
-        } else {
-          // Bounding boxes unchanged, skipping update
+        console.log(`📍 Frame ${frameNumber}: ${boxes.length} bounding boxes, ${currentFrameAnnotations.filter(ann => ann.tracklet_id === 99).length} ball annotations`);
+        
+        // Debug annotation-frame connection when no annotations are found
+        if (process.env.NODE_ENV === 'development' && currentFrameAnnotations.length === 0) {
+          debugAnnotationFrameConnection(imagePath, annotations, frameNumber);
         }
-        
-        // Store the current frame number for event annotation lookups
-        currentFrameNumberRef.current = frameNumber;
       } catch (error) {
         console.error('Error getting frame number:', error);
         setBoundingBoxes([]);
+        currentFrameNumberRef.current = 1;
       }
     };
 
@@ -213,23 +260,25 @@ export default function MainCanvas() {
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
-    if (!canvas || !image) return;
+    if (!canvas || !image || imageLoading) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Use try-catch to handle any drawing errors gracefully
+    try {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Save the current context state
-    ctx.save();
+      // Save the current context state
+      ctx.save();
 
-    // Apply pan (translation) first, then zoom (scale)
-    ctx.translate(panX, panY);
-    ctx.scale(zoomLevel, zoomLevel);
+      // Apply pan (translation) first, then zoom (scale)
+      ctx.translate(panX, panY);
+      ctx.scale(zoomLevel, zoomLevel);
 
-    // Draw image at original size - the transformations will handle zoom/pan
-    ctx.drawImage(image, 0, 0, canvasDimensions.width, canvasDimensions.height);
+      // Draw image at original size - the transformations will handle zoom/pan
+      ctx.drawImage(image, 0, 0, canvasDimensions.width, canvasDimensions.height);
 
     // Draw current drawing rectangle AFTER transformations (in canvas coordinates)
     if (currentRect) {
@@ -622,8 +671,11 @@ export default function MainCanvas() {
 
     // Restore the context state
     ctx.restore();
+    } catch (error) {
+      console.error('Error drawing canvas:', error);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius, imageLoading]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -709,7 +761,9 @@ export default function MainCanvas() {
     // Ball annotation mode - handle first to prevent other modes from interfering
     if (ballAnnotationMode || selectedTrackletId === 99) {
       const rally = getCurrentRally();
-      if (rally && rally.imageFiles[currentFrameIndex]) {
+      // Convert 1-based currentFrameIndex to 0-based array index
+      const arrayIndex = currentFrameIndex - 1;
+      if (rally && arrayIndex >= 0 && arrayIndex < rally.imageFiles.length) {
         const frameNumber = getCurrentFrameNumber();
         if (frameNumber !== null) {
           console.log('Ball annotation mode - frameNumber:', frameNumber, 'coords:', coords, 'selectedEvent:', selectedEvent);
@@ -740,7 +794,9 @@ export default function MainCanvas() {
     // Handle clicking on ball annotation indicator for event annotation (when not in ball annotation mode)
     if (!ballAnnotationMode && selectedTrackletId !== 99) {
       const rally = getCurrentRally();
-      if (rally && rally.imageFiles[currentFrameIndex]) {
+      // Convert 1-based currentFrameIndex to 0-based array index
+      const arrayIndex = currentFrameIndex - 1;
+      if (rally && arrayIndex >= 0 && arrayIndex < rally.imageFiles.length) {
         const frameNumber = getCurrentFrameNumber();
         if (frameNumber !== null) {
           // Check if clicking on an existing ball annotation
@@ -1054,7 +1110,9 @@ export default function MainCanvas() {
     // Check if right-clicking on a ball annotation for deletion
     const coords = getCanvasCoordinates(event);
     const rally = getCurrentRally();
-    if (!rally || !rally.imageFiles[currentFrameIndex]) return;
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = currentFrameIndex - 1;
+    if (!rally || arrayIndex < 0 || arrayIndex >= rally.imageFiles.length) return;
     
     const currentFrameNumber = getCurrentFrameNumber();
     if (currentFrameNumber === null) return;
@@ -1313,6 +1371,26 @@ export default function MainCanvas() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden">
       <div className="relative w-full h-full flex items-center justify-center">
+        {/* Loading indicator */}
+        {imageLoading && (
+          <div className="absolute inset-0 bg-gray-800 bg-opacity-0 flex items-center justify-center z-10">
+            <div className="text-white text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2 mx-auto"></div>
+              <div className="text-sm">Loading frame...</div>
+            </div>
+          </div>
+        )}
+        
+        {/* Error indicator */}
+        {imageError && (
+          <div className="absolute inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-10">
+            <div className="text-red-400 text-center">
+              <div className="text-4xl mb-2">⚠️</div>
+              <div className="text-sm">Error loading frame</div>
+            </div>
+          </div>
+        )}
+        
         {processedImageSrc && (
           <Image
             key={`${imagePath}-${highQualityMode}`} // Force re-render when quality changes
@@ -1328,10 +1406,17 @@ export default function MainCanvas() {
                 width: img.naturalWidth, 
                 height: img.naturalHeight 
               });
-              drawCanvas();
+              setImageLoading(false);
+              setImageError(false);
+              // Use requestAnimationFrame to ensure smooth rendering
+              requestAnimationFrame(() => {
+                drawCanvas();
+              });
             }}
             onError={(e) => {
               console.error('Error loading image:', e);
+              setImageLoading(false);
+              setImageError(true);
             }}
             unoptimized={true} // Important for local files in Electron
           />
@@ -1391,7 +1476,7 @@ export default function MainCanvas() {
 
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {t('common.frame')} {currentFrameIndex + 1} • {boundingBoxes.length} boxes • 
+          {t('common.frame')} {currentFrameIndex} • {boundingBoxes.length} boxes • 
           <button
             onClick={() => {
               // Reset zoom to 100% and center the image

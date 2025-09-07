@@ -144,7 +144,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedDirectory: null,
   rallyFolders: [],
   currentRallyIndex: 0,
-  currentFrameIndex: 0,
+  currentFrameIndex: 1, // Start at frame 1 instead of 0
   annotations: [],
   selectedTrackletId: null,
   drawingMode: false,
@@ -227,7 +227,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ 
       rallyFolders: folders,
       currentRallyIndex: 0,
-      currentFrameIndex: 0,
+      currentFrameIndex: 1, // Start at frame 1 instead of 0
       annotations: [],
       boundingBoxes: [],
       ballAnnotations: [],
@@ -253,7 +253,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Reset state first
     set({ 
       currentRallyIndex: index,
-      currentFrameIndex: 0,
+      currentFrameIndex: 1, // Start at frame 1 instead of 0
       annotations: [],
       boundingBoxes: [],
       ballAnnotations: [],
@@ -407,7 +407,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentFrame: (index) => {
     const state = get();
     const rally = state.getCurrentRally();
-    if (rally && index >= 0 && index < rally.imageFiles.length) {
+    if (rally && index >= 1 && index <= rally.imageFiles.length) {
       set({ currentFrameIndex: index });
     }
   },
@@ -420,27 +420,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('📊 Current frame index before:', state.currentFrameIndex);
     
     if (rally) {
-      // Find the image that corresponds to this frame number (same as timeline modal)
-      let targetIndex = -1;
-      
-      for (let i = 0; i < rally.imageFiles.length; i++) {
-        const imagePath = rally.imageFiles[i];
-        const filename = imagePath.split(/[/\\]/).pop() || '';
-        const imageFrameNumber = parseInt(filename.replace(/\D/g, ''), 10);
-        
-        if (imageFrameNumber === frameNumber) {
-          targetIndex = i;
-          break;
-        }
-      }
-      
-      console.log('📊 Found target index for frame', frameNumber, ':', targetIndex);
-      
-      if (targetIndex >= 0 && targetIndex < rally.imageFiles.length) {
-        console.log('✅ Setting currentFrameIndex to:', targetIndex);
-        set({ currentFrameIndex: targetIndex });
+      // Frame number is now the same as frame index (1-based)
+      if (frameNumber >= 1 && frameNumber <= rally.imageFiles.length) {
+        console.log('✅ Setting currentFrameIndex to:', frameNumber);
+        set({ currentFrameIndex: frameNumber });
       } else {
-        console.log('❌ Frame not found:', frameNumber);
+        console.log('❌ Frame number out of range:', frameNumber);
       }
     } else {
       console.log('❌ No current rally found');
@@ -452,7 +437,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const rally = state.getCurrentRally();
     console.log('🎯 goToFrameByIndex called with index:', index);
     
-    if (rally && index >= 0 && index < rally.imageFiles.length) {
+    if (rally && index >= 1 && index <= rally.imageFiles.length) {
       console.log('✅ Setting currentFrameIndex to:', index);
       set({ currentFrameIndex: index });
     } else {
@@ -463,14 +448,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   nextFrame: () => {
     const state = get();
     const rally = state.getCurrentRally();
-    if (rally && state.currentFrameIndex < rally.imageFiles.length - 1) {
+    if (rally && state.currentFrameIndex < rally.imageFiles.length) {
       set({ currentFrameIndex: state.currentFrameIndex + 1 });
     }
   },
   
   previousFrame: () => {
     const state = get();
-    if (state.currentFrameIndex > 0) {
+    if (state.currentFrameIndex > 1) {
       set({ currentFrameIndex: state.currentFrameIndex - 1 });
     }
   },
@@ -882,8 +867,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCurrentImagePath: () => {
     const state = get();
     const rally = state.getCurrentRally();
-    if (rally && rally.imageFiles[state.currentFrameIndex]) {
-      return rally.imageFiles[state.currentFrameIndex];
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = state.currentFrameIndex - 1;
+    if (rally && arrayIndex >= 0 && arrayIndex < rally.imageFiles.length) {
+      return rally.imageFiles[arrayIndex];
     }
     return null;
   },
@@ -892,12 +879,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     const rally = state.getCurrentRally();
     
-    if (!rally || !rally.imageFiles[state.currentFrameIndex]) {
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = state.currentFrameIndex - 1;
+    if (!rally || arrayIndex < 0 || arrayIndex >= rally.imageFiles.length) {
       return [];
     }
     
     // Extract frame number from current image filename (same as timeline modal)
-    const imagePath = rally.imageFiles[state.currentFrameIndex];
+    const imagePath = rally.imageFiles[arrayIndex];
     const filename = imagePath.split(/[/\\]/).pop() || '';
     const currentFrameNumber = parseInt(filename.replace(/\D/g, ''), 10);
     
@@ -1314,11 +1303,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { ballAnnotations, getCurrentRally, currentFrameIndex } = get();
     const rally = getCurrentRally();
     
-    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = currentFrameIndex - 1;
+    if (!rally || arrayIndex < 0 || arrayIndex >= rally.imageFiles.length) {
       return null;
     }
     
-    const imageFileName = rally.imageFiles[currentFrameIndex];
+    const imageFileName = rally.imageFiles[arrayIndex];
     // Cross-platform path handling - handle both forward and back slashes
     const fileName = imageFileName.split(/[/\\]/).pop();
     const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);
@@ -1336,11 +1327,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { getCurrentRally, currentFrameIndex, ballAnnotations } = get();
     const rally = getCurrentRally();
     
-    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = currentFrameIndex - 1;
+    if (!rally || arrayIndex < 0 || arrayIndex >= rally.imageFiles.length) {
       return;
     }
     
-    const imageFileName = rally.imageFiles[currentFrameIndex];
+    const imageFileName = rally.imageFiles[arrayIndex];
     // Cross-platform path handling - handle both forward and back slashes
     const fileName = imageFileName.split(/[/\\]/).pop();
     const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);
@@ -1361,11 +1354,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { getCurrentRally, currentFrameIndex } = get();
     const rally = getCurrentRally();
     
-    if (!rally || !rally.imageFiles[currentFrameIndex]) {
+    // Convert 1-based currentFrameIndex to 0-based array index
+    const arrayIndex = currentFrameIndex - 1;
+    if (!rally || arrayIndex < 0 || arrayIndex >= rally.imageFiles.length) {
       return null;
     }
     
-    const imageFileName = rally.imageFiles[currentFrameIndex];
+    const imageFileName = rally.imageFiles[arrayIndex];
     // Cross-platform path handling - handle both forward and back slashes
     const fileName = imageFileName.split(/[/\\]/).pop();
     const frameNumber = parseInt(fileName?.replace(/\.(jpg|jpeg|png)$/i, '') || '', 10);

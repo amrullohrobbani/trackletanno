@@ -247,7 +247,7 @@
     "featureDesktopOnly": "This feature is only available in the desktop application.",
     "noRallyFoldersFound": "No rally folders with annotation data found in the selected directory.",
     "errorAccessingDirectory": "Error accessing the selected directory.",
-    "enterFrameNumber": "Please enter a frame index between 0 and {{max}}",
+    "enterFrameNumber": "Please enter a frame number between 1 and {{max}}",
     "neitherTrackletFound": "Neither tracklet {{id1}} nor tracklet {{id2}} found in annotations",
     "enterTwoDifferentIds": "Please enter two different valid tracklet IDs",
     "noAnnotationsAffected": "No annotations will be affected by this operation. Please check your settings.",
@@ -258,7 +258,8 @@
     "switchConfirmationMessage": "This will switch tracklet IDs {{id1}} and {{id2}} for {{count}} annotations in frames: {{frames}}",
     "allFrames": "all frames",
     "finalMergeConfirmation": "Are you absolutely sure you want to merge {{count}} annotations from tracklet {{sourceId}} to {{targetId}}? This action cannot be undone.",
-    "finalSwitchConfirmation": "Are you absolutely sure you want to switch {{count}} annotations? This action cannot be undone."
+    "finalSwitchConfirmation": "Are you absolutely sure you want to switch {{count}} annotations? This action cannot be undone.",
+    "ballAnnotationModeActive": "Ball annotation mode is active. Click on the canvas to place ball points."
   },
   "ui": {
     "language": "Language",
@@ -267,7 +268,7 @@
     "loading": "Loading...",
     "processingData": "Processing annotation data",
     "jumpToFrame": "Jump to frame",
-    "enterFrameNumber": "Enter frame index",
+    "enterFrameNumber": "Enter frame number",
     "annotationsFile": "annotations.txt",
     "noRallyDatasets": "No rally datasets found",
     "noDirectorySelected": "No directory selected",

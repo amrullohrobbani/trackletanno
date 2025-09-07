@@ -70,12 +70,12 @@ export default function RallyEventsModal({ isOpen, onClose, eventTypes }: RallyE
       console.log('📊 Found target frame:', targetFrame);
       
       if (targetFrame) {
-        // Use the index to navigate (goToFrame expects 1-based frame number)
-        const frameNumber = targetFrame.index + 1;
-        console.log('📊 Converting index', targetFrame.index, 'to 1-based frame number:', frameNumber);
+        // Use 1-based indexing directly - frame index is now the same as array index + 1
+        const frameIndex = targetFrame.index + 1;
+        console.log('📊 Converting array index', targetFrame.index, 'to 1-based frame index:', frameIndex);
         
-        // Jump to frame using the calculated frame number
-        goToFrame(frameNumber);
+        // Jump to frame using the calculated frame index
+        goToFrame(frameIndex);
         
         // Wait a bit for the frame to load, then select the tracklet and bounding box
         setTimeout(() => {
@@ -140,8 +140,10 @@ export default function RallyEventsModal({ isOpen, onClose, eventTypes }: RallyE
                   // Calculate current frame number from the current image file
                   const rally = getCurrentRally();
                   let currentFrameNumber = 1; // fallback
-                  if (rally && rally.imageFiles[currentFrameIndex]) {
-                    const currentImageName = rally.imageFiles[currentFrameIndex];
+                  // Convert 1-based currentFrameIndex to 0-based array index
+                  const arrayIndex = currentFrameIndex - 1;
+                  if (rally && arrayIndex >= 0 && arrayIndex < rally.imageFiles.length) {
+                    const currentImageName = rally.imageFiles[arrayIndex];
                     currentFrameNumber = parseInt(currentImageName.replace(/\D/g, ''), 10);
                   }
                   
