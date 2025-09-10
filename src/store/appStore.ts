@@ -537,7 +537,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               return null;
             }
 
-            const filename = imagePath.split('/').pop() || '';
+            const filename = imagePath.split(/[/\\]/).pop() || '';
             const frameNumber = await window.electronAPI.getFrameNumber(filename);
             return frameNumber;
           } catch (error) {
@@ -675,7 +675,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const imagePath = state.getCurrentImagePath();
       if (!imagePath) return;
 
-      const filename = imagePath.split('/').pop() || '';
+      const filename = imagePath.split(/[/\\]/).pop() || '';
       const frameNumber = await window.electronAPI.getFrameNumber(filename);
 
       // Update only the annotation for this specific frame and bounding box

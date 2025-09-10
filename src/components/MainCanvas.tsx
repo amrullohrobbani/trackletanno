@@ -77,30 +77,10 @@ export default function MainCanvas() {
   const imagePath = getCurrentImagePath();
 
   // Preload adjacent frames to reduce blinking during navigation
+  // Disabled in Electron environment to prevent 404 errors
+  // All images are loaded securely via IPC when needed
   useEffect(() => {
-    const preloadAdjacentFrames = () => {
-      const rally = getCurrentRally();
-      if (!rally) return;
-
-      // Convert 1-based frame index to 0-based array indices for preloading
-      const currentArrayIndex = currentFrameIndex - 1;
-      const nextArrayIndex = currentArrayIndex + 1;
-      const prevArrayIndex = currentArrayIndex - 1;
-
-      if (nextArrayIndex < rally.imageFiles.length) {
-        const nextImage = new window.Image();
-        nextImage.src = rally.imageFiles[nextArrayIndex];
-      }
-
-      if (prevArrayIndex >= 0) {
-        const prevImage = new window.Image();
-        prevImage.src = rally.imageFiles[prevArrayIndex];
-      }
-    };
-
-    // Debounce preloading to avoid excessive loading
-    const timeoutId = setTimeout(preloadAdjacentFrames, 100);
-    return () => clearTimeout(timeoutId);
+    // No preloading in Electron environment
   }, [currentFrameIndex, getCurrentRally]);
 
   // Track image loading state changes
@@ -193,8 +173,8 @@ export default function MainCanvas() {
       }
 
       try {
-        // Extract filename from path
-        const filename = imagePath.split('/').pop() || '';
+        // Extract filename from path (handle both Windows and Unix path separators)
+        const filename = imagePath.split(/[/\\]/).pop() || '';
         const frameNumber = await window.electronAPI.getFrameNumber(filename);
         
         // Update the frame number ref immediately to ensure consistency
@@ -969,7 +949,7 @@ export default function MainCanvas() {
     try {
       if (!imagePath) return;
 
-      const filename = imagePath.split('/').pop() || '';
+      const filename = imagePath.split(/[/\\]/).pop() || '';
       const frameNumber = await window.electronAPI.getFrameNumber(filename);
 
       // Find existing annotation for this frame and tracklet to preserve its fields
@@ -1142,7 +1122,7 @@ export default function MainCanvas() {
     try {
       if (!imagePath) return;
 
-      const filename = imagePath.split('/').pop() || '';
+      const filename = imagePath.split(/[/\\]/).pop() || '';
       const frameNumber = await window.electronAPI.getFrameNumber(filename);
 
       const updatedAnnotations = annotations.map(ann => {
@@ -1168,7 +1148,7 @@ export default function MainCanvas() {
     try {
       if (!imagePath) return;
 
-      const filename = imagePath.split('/').pop() || '';
+      const filename = imagePath.split(/[/\\]/).pop() || '';
       const frameNumber = await window.electronAPI.getFrameNumber(filename);
 
       const updatedAnnotations = annotations.map(ann => {

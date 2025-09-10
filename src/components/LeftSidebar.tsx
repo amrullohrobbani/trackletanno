@@ -286,7 +286,7 @@ export default function LeftSidebar() {
               >
                 <FolderIcon className="w-5 h-5 text-yellow-400 flex-shrink-0" />
                 <span className="text-sm font-medium truncate text-white flex-1" title={selectedDirectory}>
-                  {selectedDirectory.split('/').pop() || selectedDirectory}
+                  {selectedDirectory.split(/[/\\]/).pop() || selectedDirectory}
                 </span>
                 <ChevronRightIcon 
                   className={`w-4 h-4 text-gray-400 transition-transform ${

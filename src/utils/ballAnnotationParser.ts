@@ -214,7 +214,7 @@ export async function loadJsonBallAnnotations(directoryPath: string, targetWidth
         // If we have a current rally name, check if this JSON file matches
         if (currentRallyName) {
           // Extract rally name from video_source path (e.g., "/home/vanyi/new_samples/217s3rally028" -> "217s3rally028")
-          const videoSourceRallyName = jsonData.video_source.split('/').pop() || '';
+          const videoSourceRallyName = jsonData.video_source.split(/[/\\]/).pop() || '';
           
           // Only process this JSON file if it matches the current rally
           if (videoSourceRallyName !== currentRallyName) {

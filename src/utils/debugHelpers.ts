@@ -4,8 +4,8 @@ import { AnnotationData } from '@/types/electron';
 export const debugAnnotationFrameConnection = (imagePath: string, annotations: AnnotationData[], frameNumber: number) => {
   console.group(`🔍 Frame-Annotation Debug: ${imagePath}`);
   
-  // Extract filename from path
-  const filename = imagePath.split('/').pop() || '';
+  // Extract filename from path (handle both Windows and Unix path separators)
+  const filename = imagePath.split(/[/\\]/).pop() || '';
   console.log(`📁 Image filename: ${filename}`);
   console.log(`🔢 Extracted frame number: ${frameNumber}`);
   
@@ -68,7 +68,7 @@ export const debugFrameNavigation = (currentIndex: number, imageFiles: string[],
   
   if (imageFiles[currentIndex]) {
     const currentImageFile = imageFiles[currentIndex];
-    const filename = currentImageFile.split('/').pop() || '';
+    const filename = currentImageFile.split(/[/\\]/).pop() || '';
     const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
     
     console.log(`🖼️ Current image: ${filename}`);
