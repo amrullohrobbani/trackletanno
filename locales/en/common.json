@@ -369,6 +369,14 @@
     "operationCompletedSuccessfully": "{{operation}} operation completed successfully!",
     "noAnnotationsFound": "No annotations found for the specified criteria",
     "loadingImages": "Loading images",
-    "formatHelp": "Format: Single frame (5), Range (1-10), List (1,3,5), Start-to-frame (-20), Frame-to-end (200-), or leave empty to switch all frames"
+    "formatHelp": "Format: Single frame (5), Range (1-10), List (1,3,5), Start-to-frame (-20), Frame-to-end (200-), or leave empty to switch all frames",
+    "pleaseEnterValidSourceInfo": "Please enter valid source tracklet ID and frame number",
+    "pleaseEnterTargetFrameRange": "Please enter target frame range",
+    "invalidTargetFrameRange": "Invalid target frame range format",
+    "sourceAnnotationNotFound": "No annotation found for tracklet ID {{trackletId}} in frame {{frame}}",
+    "confirmDuplicate": "Duplicate annotation from tracklet {{sourceId}} frame {{sourceFrame}} to {{duplicateCount}} frames ({{targetFrames}})?",
+    "conflictWarning": "{{conflictCount}} frames already have annotations for this tracklet. {{overwriteAction}}",
+    "willOverwrite": "They will be overwritten.",
+    "willSkip": "They will be skipped."
   }
 }

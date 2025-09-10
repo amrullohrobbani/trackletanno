@@ -26,7 +26,7 @@ interface LoadingProgress {
   isComplete: boolean;
 }
 
-type OperationType = 'merge' | 'switch';
+type OperationType = 'merge' | 'switch' | 'duplicate';
 
 export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrackletModalProps) {
   const { t } = useLanguage();
@@ -37,6 +37,11 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
   const [trackletId1, setTrackletId1] = useState<string>('');
   const [trackletId2, setTrackletId2] = useState<string>('');
   const [frameRange1, setFrameRange1] = useState<string>('');
+  
+  // Duplicate operation states
+  const [duplicateTrackletId, setDuplicateTrackletId] = useState<string>('');
+  const [duplicateFrameRange, setDuplicateFrameRange] = useState<string>('');
+  const [overwriteExisting, setOverwriteExisting] = useState<boolean>(true); // Default to true for convenience
   
   // Dialog states
   const [alertDialog, setAlertDialog] = useState<{
@@ -69,7 +74,8 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     getCurrentRally,
     getAvailableTrackletIds,
     setAnnotations,
-    saveAnnotationsToFile
+    saveAnnotationsToFile,
+    getCurrentFrameNumber
   } = useAppStore();
 
   // Helper functions for dialogs
@@ -122,8 +128,19 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       setTrackletId1('');
       setTrackletId2('');
       setFrameRange1('');
+      setDuplicateTrackletId('');
+      setDuplicateFrameRange('');
+      setOverwriteExisting(true);
+      setDuplicateTrackletId('');
+      setDuplicateFrameRange('');
     }
   }, [isOpen]);
+
+  // Initialize duplicate form defaults when operation changes (only once)
+  useEffect(() => {
+    // Removed auto-fill logic - let inputs start empty
+    // Users can manually enter the values they want
+  }, [operationType]);
 
   // Parse frame range string with enhanced syntax
   // Examples: "1-10", "1,3,5", "15", "-20" (start to index 20), "200-" (index 200 to end), "" (all frames)
@@ -305,6 +322,92 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
 
   // Generate preview data
   const generatePreview = useCallback(async () => {
+    if (operationType === 'duplicate') {
+      // Duplicate operation validation and preview
+      const trackletId = parseInt(duplicateTrackletId);
+      
+      if (isNaN(trackletId)) {
+        showAlert('Please enter a valid tracklet ID');
+        return;
+      }
+      
+      if (!duplicateFrameRange.trim()) {
+        showAlert(t('advancedTracklet.pleaseEnterTargetFrameRange'));
+        return;
+      }
+      
+      const rally = getCurrentRally();
+      if (!rally) {
+        showAlert(t('advancedTracklet.noRallySelected'));
+        return;
+      }
+      
+      // Find source annotation for the tracklet (from any frame)
+      const currentFrame = getCurrentFrameNumber();
+      let sourceAnnotation = annotations.find(ann => 
+        ann.tracklet_id === trackletId && ann.frame === currentFrame
+      );
+      
+      // If not found in current frame, find from any frame
+      if (!sourceAnnotation) {
+        sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+      }
+      
+      if (!sourceAnnotation) {
+        showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
+        return;
+      }
+      
+      setIsLoadingPreviews(true);
+      setShowPreviews(true);
+      
+      try {
+        const previewData: TrackletPreview[] = [];
+        
+        // Show source annotation from current frame
+        const imagePath = rally.imageFiles.find(file => {
+          const filename = file.split(/[/\\]/).pop() || '';
+          const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+          return frameNumber === currentFrame;
+        });
+        
+        if (imagePath) {
+          previewData.push({
+            trackletId: sourceAnnotation.tracklet_id,
+            frameNumber: sourceAnnotation.frame,
+            imagePath,
+            annotation: sourceAnnotation
+          });
+        }
+        
+        setPreviews(previewData);
+        
+        // Load images with progress
+        if (previewData.length > 0) {
+          setLoadingProgress({ loaded: 0, total: previewData.length, isComplete: false });
+          
+          let loaded = 0;
+          for (const preview of previewData) {
+            await generateCroppedImage(preview);
+            loaded++;
+            setLoadingProgress({ loaded, total: previewData.length, isComplete: loaded === previewData.length });
+          }
+        } else {
+          setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
+          showAlert('No source annotation found in current frame');
+        }
+        
+      } catch (error) {
+        console.error('Error generating preview:', error);
+        showAlert(t('ui.errorGeneratingPreview'), 'destructive');
+      } finally {
+        setIsLoadingPreviews(false);
+      }
+      
+      return;
+    }
+    
+    // Original logic for merge and switch operations
     const id1 = parseInt(trackletId1);
     const id2 = parseInt(trackletId2);
     
@@ -440,10 +543,10 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     } finally {
       setIsLoadingPreviews(false);
     }
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t, duplicateTrackletId, duplicateFrameRange, getCurrentFrameNumber]);
 
   // Perform the actual operation
-  const performOperation = useCallback(async (id1: number, id2: number) => {
+  const performOperation = useCallback(async (id1?: number, id2?: number) => {
     console.log('🔧 Starting performOperation:', { operationType, id1, id2, frameRange1 });
     
     try {
@@ -451,12 +554,69 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
       if (operationType === 'merge') {
         // Merge: change all id2 annotations to id1
+        if (id1 === undefined || id2 === undefined) {
+          throw new Error('Both tracklet IDs are required for merge operation');
+        }
         newAnnotations = newAnnotations.map(ann => 
           ann.tracklet_id === id2 ? { ...ann, tracklet_id: id1 } : ann
         );
         
+      } else if (operationType === 'duplicate') {
+        // Duplicate: copy annotation from source tracklet (any frame) to target frames with same tracklet ID
+        const trackletId = parseInt(duplicateTrackletId);
+        const targetFrames = parseFrameRange(duplicateFrameRange);
+        
+        console.log('🔧 Duplicate operation:', { trackletId, targetFrames, overwriteExisting });
+        
+        // Find source annotation (try current frame first, then any frame)
+        const currentFrame = getCurrentFrameNumber();
+        let sourceAnnotation = annotations.find(ann => 
+          ann.tracklet_id === trackletId && ann.frame === currentFrame
+        );
+        
+        // If not found in current frame, find from any frame
+        if (!sourceAnnotation) {
+          sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+        }
+        
+        if (!sourceAnnotation) {
+          throw new Error(`No annotation found for tracklet ID ${trackletId} in any frame`);
+        }
+        
+        // Create duplicates for each target frame with same tracklet ID
+        for (const targetFrame of targetFrames) {
+          // Check if annotation already exists for the tracklet in target frame
+          const existingIndex = newAnnotations.findIndex(ann => 
+            ann.tracklet_id === trackletId && ann.frame === targetFrame
+          );
+          
+          if (existingIndex >= 0 && !overwriteExisting) {
+            console.log(`🔧 Skipped frame ${targetFrame} - annotation exists and overwrite is disabled`);
+            continue;
+          }
+          
+          const newAnnotation = {
+            ...sourceAnnotation,
+            frame: targetFrame
+          };
+          
+          if (existingIndex >= 0) {
+            // Overwrite existing annotation
+            newAnnotations[existingIndex] = newAnnotation;
+            console.log(`🔧 Overwritten annotation for tracklet ${trackletId} in frame ${targetFrame}`);
+          } else {
+            // Add new annotation
+            newAnnotations.push(newAnnotation);
+            console.log(`🔧 Added new annotation for tracklet ${trackletId} in frame ${targetFrame}`);
+          }
+        }
+        
       } else {
         // Switch: swap IDs in specified frame range
+        if (id1 === undefined || id2 === undefined) {
+          throw new Error('Both tracklet IDs are required for switch operation');
+        }
+        
         const frames = parseFrameRange(frameRange1);
         console.log('🔧 Parsed frames:', frames);
         
@@ -513,11 +673,80 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       console.error('Error applying operation:', error);
       showAlert(t('ui.errorApplyingOperation'), 'destructive');
     }
-  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t]);
+  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t, duplicateTrackletId, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
 
   // Apply the operation - first validation step
   const validateAndStartOperation = useCallback(() => {
     console.log('🚀 validateAndStartOperation called');
+    
+    if (operationType === 'duplicate') {
+      // Validate duplicate operation
+      const trackletId = parseInt(duplicateTrackletId);
+      
+      if (isNaN(trackletId)) {
+        showAlert('Please enter a valid tracklet ID');
+        return;
+      }
+      
+      if (!duplicateFrameRange.trim()) {
+        showAlert(t('advancedTracklet.pleaseEnterTargetFrameRange'));
+        return;
+      }
+      
+      const targetFrames = parseFrameRange(duplicateFrameRange);
+      if (targetFrames.length === 0) {
+        showAlert(t('advancedTracklet.invalidTargetFrameRange'));
+        return;
+      }
+      
+      // Check if source annotation exists (try current frame first, then any frame)
+      const currentFrame = getCurrentFrameNumber();
+      let sourceAnnotation = annotations.find(ann => 
+        ann.tracklet_id === trackletId && ann.frame === currentFrame
+      );
+      
+      // If not found in current frame, find from any frame
+      if (!sourceAnnotation) {
+        sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+      }
+      
+      if (!sourceAnnotation) {
+        showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
+        return;
+      }
+      
+      // Count how many annotations will be created/affected
+      let duplicateCount = 0;
+      let conflictCount = 0;
+      
+      for (const targetFrame of targetFrames) {
+        const existingAnnotation = annotations.find(ann => 
+          ann.tracklet_id === trackletId && ann.frame === targetFrame
+        );
+        
+        if (existingAnnotation) {
+          conflictCount++;
+        } else {
+          duplicateCount++;
+        }
+      }
+      
+      let confirmMessage = `Duplicate annotation from tracklet ${trackletId} (frame ${sourceAnnotation.frame}) to frames: ${targetFrames.join(', ')}\n` +
+        `Will create ${duplicateCount} new annotations`;
+      
+      if (conflictCount > 0) {
+        confirmMessage += '\n\n' + `${conflictCount} conflicting annotations found. ` +
+          (overwriteExisting ? 'Will overwrite existing annotations.' : 'Will skip conflicting frames.');
+      }
+      
+      showConfirm(confirmMessage, () => {
+        performOperation();
+      });
+      
+      return;
+    }
+    
+    // Original validation for merge and switch operations
     const id1 = parseInt(trackletId1);
     const id2 = parseInt(trackletId2);
     
@@ -594,7 +823,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         }, 'destructive');
       }, 100);
     }, 'destructive');
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t, duplicateTrackletId, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
 
   if (!isOpen) return null;
 
@@ -622,7 +851,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
             {/* Operation Type */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.operationType')}</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setOperationType('merge')}
                   className={`p-3 rounded-lg text-sm font-medium transition-colors ${
@@ -644,39 +873,51 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   <ArrowsRightLeftIcon className="w-4 h-4 inline mr-1" />
                   {t('advancedTracklet.switchButton')}
                 </button>
+                <button
+                  onClick={() => setOperationType('duplicate')}
+                  className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+                    operationType === 'duplicate'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  📋 Duplicate
+                </button>
               </div>
             </div>
 
             {/* Tracklet IDs */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.trackletIds')}</label>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    {operationType === 'merge' ? t('ui.targetTrackletId') : t('ui.trackletId1')}
-                  </label>
-                  <input
-                    type="number"
-                    value={trackletId1}
-                    onChange={(e) => setTrackletId1(e.target.value)}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                    placeholder={t('ui.enterTrackletId')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    {operationType === 'merge' ? t('ui.sourceTrackletId') : t('ui.trackletId2')}
-                  </label>
-                  <input
-                    type="number"
-                    value={trackletId2}
-                    onChange={(e) => setTrackletId2(e.target.value)}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                    placeholder={t('ui.enterTrackletId')}
-                  />
+            {(operationType == 'switch' || operationType == 'merge') && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.trackletIds')}</label>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {operationType === 'merge' ? t('ui.targetTrackletId') : t('ui.trackletId1')}
+                    </label>
+                    <input
+                      type="number"
+                      value={trackletId1}
+                      onChange={(e) => setTrackletId1(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                      placeholder={t('ui.enterTrackletId')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {operationType === 'merge' ? t('ui.sourceTrackletId') : t('ui.trackletId2')}
+                    </label>
+                    <input
+                      type="number"
+                      value={trackletId2}
+                      onChange={(e) => setTrackletId2(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                      placeholder={t('ui.enterTrackletId')}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Frame Range (only for switch) */}
             {operationType === 'switch' && (
@@ -705,6 +946,51 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
               </div>
             )}
 
+            {/* Duplicate Operation Inputs */}
+            {operationType === 'duplicate' && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Duplicate Settings</label>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Tracklet ID
+                    </label>
+                    <input
+                      type="number"
+                      value={duplicateTrackletId}
+                      onChange={(e) => setDuplicateTrackletId(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                      placeholder="Enter tracklet ID to duplicate"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Target Frame(s)
+                    </label>
+                    <input
+                      type="text"
+                      value={duplicateFrameRange}
+                      onChange={(e) => setDuplicateFrameRange(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                      placeholder="e.g., 10, 15-20, 25"
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="overwriteExisting"
+                      checked={overwriteExisting}
+                      onChange={(e) => setOverwriteExisting(e.target.checked)}
+                      className="mr-2"
+                    />
+                    <label htmlFor="overwriteExisting" className="text-xs text-gray-400">
+                      Overwrite existing annotations (if unchecked, will skip conflicting frames)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Available Tracklets */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-300 mb-2">{t('ui.availableTrackletIds')}</label>
@@ -730,7 +1016,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
             <div className="space-y-3">
               <button
                 onClick={generatePreview}
-                disabled={isLoadingPreviews || !trackletId1 || !trackletId2}
+                disabled={isLoadingPreviews || (operationType === 'duplicate' ? (!duplicateTrackletId || !duplicateFrameRange) : (!trackletId1 || !trackletId2))}
                 className="w-full flex items-center justify-center gap-2 p-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
                 <MagnifyingGlassIcon className="w-4 h-4" />
@@ -742,11 +1028,11 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   console.log('🎯 Apply Operation button clicked');
                   validateAndStartOperation();
                 }}
-                disabled={isLoadingPreviews || !trackletId1 || !trackletId2}
+                disabled={isLoadingPreviews || (operationType === 'duplicate' ? (!duplicateTrackletId || !duplicateFrameRange) : (!trackletId1 || !trackletId2))}
                 className="w-full flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded font-medium"
               >
-                {operationType === 'merge' ? '🔗' : <ArrowsRightLeftIcon className="w-4 h-4" />}
-                {t('ui.applyOperation', { operation: operationType === 'merge' ? t('ui.merge') : t('ui.switch') })}
+                {operationType === 'merge' ? '🔗' : operationType === 'duplicate' ? '📋' : <ArrowsRightLeftIcon className="w-4 h-4" />}
+                {operationType === 'duplicate' ? 'Apply Duplicate' : t('ui.applyOperation', { operation: operationType === 'merge' ? t('ui.merge') : t('ui.switch') })}
               </button>
             </div>
           </div>
@@ -895,6 +1181,7 @@ function TrackletPreviewCard({
 
   const getBorderColor = () => {
     if (operationType === 'merge') return 'border-green-500';
+    if (operationType === 'duplicate') return 'border-purple-500';
     return preview.trackletId === targetId1 ? 'border-blue-500' : 'border-red-500';
   };
 

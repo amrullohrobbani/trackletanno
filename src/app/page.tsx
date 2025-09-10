@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useAppStore } from '@/store/appStore';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -9,9 +10,11 @@ import MainCanvas from '@/components/MainCanvas';
 import RightSidebar from '@/components/RightSidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SaveIndicator from '@/components/SaveIndicator';
+import PatchNotesModal from '@/components/PatchNotesModal';
 
 export default function Home() {
   const { t } = useLanguage();
+  const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const { 
     selectedDirectory, 
     isLoading, 
@@ -97,7 +100,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex overflow-hidden">
+    <div className="h-screen bg-gray-900 text-white flex overflow-hidden min-w-44">
       {isLoading && <LoadingSpinner />}
       
       {/* Left Sidebar */}
@@ -127,6 +130,26 @@ export default function Home() {
       <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col h-full">
         <RightSidebar />
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 px-4 py-2 flex justify-between items-center text-xs text-gray-400">
+        <div>
+          Copyright © KIST Human Data Intelligence Lab
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsPatchNotesOpen(true)}
+            className="text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            Patch Notes
+          </button>
+        </div>
+      </div>
+
+      <PatchNotesModal 
+        isOpen={isPatchNotesOpen} 
+        onClose={() => setIsPatchNotesOpen(false)} 
+      />
     </div>
   );
 }

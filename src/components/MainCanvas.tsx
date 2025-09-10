@@ -864,12 +864,15 @@ export default function MainCanvas() {
       const clickedBox = getClickedBox(coords);
 
       if (clickedBox) {
-        // If an event is selected, just assign it without selecting the bounding box
+        // If an event is selected, assign it AND keep the selection
         if (selectedEvent !== null) {
           assignEventToBoundingBox(clickedBox.id, selectedEvent);
-          console.log(`Assigned event "${selectedEvent}" to tracklet ID ${clickedBox.tracklet_id} without selecting`);
+          // Also select the tracklet and bounding box to maintain selection persistence
+          setSelectedTrackletId(clickedBox.tracklet_id);
+          setSelectedBoundingBox(clickedBox.id);
+          console.log(`Assigned event "${selectedEvent}" to tracklet ID ${clickedBox.tracklet_id} and maintained selection`);
         } else {
-          // Only select if no event is selected (normal selection mode)
+          // Normal selection mode when no event is selected
           setSelectedTrackletId(clickedBox.tracklet_id);
           setSelectedBoundingBox(clickedBox.id);
           console.log(`Selected tracklet ID ${clickedBox.tracklet_id} via bounding box`);

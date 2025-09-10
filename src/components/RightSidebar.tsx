@@ -56,6 +56,9 @@ export default function RightSidebar() {
   const [selectedSport, setSelectedSport] = useState('volleyball'); // Default to volleyball
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   
+  // Tennis event attributes state
+  const [selectedTennisAttribute, setSelectedTennisAttribute] = useState('flat'); // default attribute
+  
   // Annotation editing state
   const [editRole, setEditRole] = useState('');
   const [editJerseyNumber, setEditJerseyNumber] = useState('');
@@ -83,9 +86,12 @@ export default function RightSidebar() {
       { key: 'n', name: '', label: t('events.no_event'), color: 'bg-gray-600' }
     ],
     tennis: [
-      { key: 'q', name: 'serve', label: 'Serve', color: 'bg-red-600' },
-      { key: 'w', name: 'hit', label: 'Hit', color: 'bg-blue-600' },
-      { key: 'e', name: 'bounce', label: 'Bounce', color: 'bg-green-600' },
+      { key: 'q', name: 'forehand', label: 'Forehand', color: 'bg-red-600' },
+      { key: 'w', name: 'backhand', label: 'Backhand', color: 'bg-blue-600' },
+      { key: 'e', name: 'serve', label: 'Serve', color: 'bg-green-600' },
+      { key: 'r', name: 'overhead', label: 'Overhead', color: 'bg-yellow-600' },
+      { key: 't', name: 'bounce', label: 'Bounce', color: 'bg-purple-600' },
+      { key: 'y', name: 'net', label: 'Net', color: 'bg-orange-600' },
       { key: 'n', name: '', label: 'No Event', color: 'bg-gray-600' }
     ]
   }), [t]);
@@ -178,74 +184,88 @@ export default function RightSidebar() {
   useHotkeys('q', () => {
     const eventType = eventTypes.find(e => e.key === 'q');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: Q -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('w', () => {
     const eventType = eventTypes.find(e => e.key === 'w');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: W -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('e', () => {
     const eventType = eventTypes.find(e => e.key === 'e');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: E -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('r', () => {
     const eventType = eventTypes.find(e => e.key === 'r');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: R -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('t', () => {
     const eventType = eventTypes.find(e => e.key === 't');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: T -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('y', () => {
     const eventType = eventTypes.find(e => e.key === 'y');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: Y -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('u', () => {
     const eventType = eventTypes.find(e => e.key === 'u');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: U -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('i', () => {
     const eventType = eventTypes.find(e => e.key === 'i');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: I -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
 
   useHotkeys('n', () => {
     const eventType = eventTypes.find(e => e.key === 'n');
     if (eventType) {
-      setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name);
+      handleTennisEventSelection(eventType.name);
       console.log(`Event hotkey pressed: N -> ${eventType.name}`);
     }
-  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent]);
+  }, eventHotkeyOptions, [selectedEvent, eventTypes, setSelectedEvent, selectedSport, selectedTennisAttribute]);
+
+  // Helper function to handle tennis event selection with attributes
+  const handleTennisEventSelection = (eventName: string) => {
+    const tennisEventsWithAttributes = ['forehand', 'backhand', 'serve', 'overhead'];
+    
+    if (selectedSport === 'tennis' && tennisEventsWithAttributes.includes(eventName)) {
+      // For tennis events with attributes, combine event with attribute
+      const fullEventName = `${eventName} ${selectedTennisAttribute}`;
+      setSelectedEvent(selectedEvent === fullEventName ? null : fullEventName);
+    } else {
+      // For regular events (like bounce, net) or non-tennis sports
+      setSelectedEvent(selectedEvent === eventName ? null : eventName);
+    }
+  };
 
   const handleSelectId = (id: number) => {
     setSelectedTrackletId(id);
@@ -605,9 +625,11 @@ export default function RightSidebar() {
                       {eventTypes.map((eventType) => (
                         <button
                           key={eventType.name}
-                          onClick={() => setSelectedEvent(selectedEvent === eventType.name ? null : eventType.name)}
+                          onClick={() => handleTennisEventSelection(eventType.name)}
                           className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
-                            selectedEvent === eventType.name
+                            (selectedSport === 'tennis' && ['forehand', 'backhand', 'serve', 'overhead'].includes(eventType.name) ? 
+                              selectedEvent === `${eventType.name} ${selectedTennisAttribute}` :
+                              selectedEvent === eventType.name)
                               ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
                               : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
                           }`}
@@ -616,7 +638,9 @@ export default function RightSidebar() {
                             <span className="font-bold">{eventType.key}</span>
                             <span className="text-xs">{eventType.label}</span>
                           </div>
-                          {selectedEvent === eventType.name && (
+                          {(selectedSport === 'tennis' && ['forehand', 'backhand', 'serve', 'overhead'].includes(eventType.name) ? 
+                            selectedEvent === `${eventType.name} ${selectedTennisAttribute}` :
+                            selectedEvent === eventType.name) && (
                             <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
                               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                             </div>
@@ -625,6 +649,33 @@ export default function RightSidebar() {
                       ))}
                     </div>
                   </div>
+                  
+                  {/* Tennis Event Attributes */}
+                  {selectedSport === 'tennis' && selectedEvent && ['forehand', 'backhand', 'serve', 'overhead'].some(event => selectedEvent.includes(event)) && (
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-2">Shot Attribute</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['flat', 'drive', 'slice'].map((attribute) => (
+                          <button
+                            key={attribute}
+                            onClick={() => {
+                              setSelectedTennisAttribute(attribute);
+                              // Update the selected event with the new attribute
+                              const baseEvent = selectedEvent.split(' ')[0];
+                              setSelectedEvent(`${baseEvent} ${attribute}`);
+                            }}
+                            className={`p-2 rounded text-xs font-medium transition-all border-2 ${
+                              selectedTennisAttribute === attribute
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-400'
+                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                            }`}
+                          >
+                            {attribute.charAt(0).toUpperCase() + attribute.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Clear Event Button */}
                   <button

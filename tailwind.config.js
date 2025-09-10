@@ -48,6 +48,9 @@ module.exports = {
     'border-blue-400',
     'border-blue-500',
     'border-yellow-500',
+    'border-green-500',
+    'border-red-500',
+    'border-purple-500',
     'border-orange-400',
     'border-orange-600',
     'border-2',
@@ -141,6 +144,21 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities }) {
+      addUtilities({
+        '.scrollbar-hide': {
+          /* IE and Edge */
+          '-ms-overflow-style': 'none',
+          /* Firefox */
+          'scrollbar-width': 'none',
+          /* Safari and Chrome */
+          '&::-webkit-scrollbar': {
+            display: 'none'
+          }
+        }
+      })
+    }
+  ],
   darkMode: 'class',
 }
