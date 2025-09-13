@@ -40,6 +40,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
   
   // Duplicate operation states
   const [duplicateTrackletId, setDuplicateTrackletId] = useState<string>('');
+  const [duplicateSourceFrame, setDuplicateSourceFrame] = useState<string>('');
   const [duplicateFrameRange, setDuplicateFrameRange] = useState<string>('');
   const [overwriteExisting, setOverwriteExisting] = useState<boolean>(true); // Default to true for convenience
   
@@ -342,15 +343,35 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         return;
       }
       
-      // Find source annotation for the tracklet (from any frame)
+      // Find source annotation for the tracklet
       const currentFrame = getCurrentFrameNumber();
-      let sourceAnnotation = annotations.find(ann => 
-        ann.tracklet_id === trackletId && ann.frame === currentFrame
-      );
+      let sourceAnnotation: AnnotationData | undefined;
       
-      // If not found in current frame, find from any frame
+      // Use specific source frame if provided
+      if (duplicateSourceFrame.trim()) {
+        const sourceFrame = parseInt(duplicateSourceFrame);
+        if (!isNaN(sourceFrame)) {
+          sourceAnnotation = annotations.find(ann => 
+            ann.tracklet_id === trackletId && ann.frame === sourceFrame
+          );
+          if (!sourceAnnotation) {
+            showAlert(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+            return;
+          }
+        }
+      }
+      
+      // If no source frame specified or not found, use auto-detection
       if (!sourceAnnotation) {
-        sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+        // Try current frame first
+        sourceAnnotation = annotations.find(ann => 
+          ann.tracklet_id === trackletId && ann.frame === currentFrame
+        );
+        
+        // If not found in current frame, find from any frame
+        if (!sourceAnnotation) {
+          sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+        }
       }
       
       if (!sourceAnnotation) {
@@ -543,7 +564,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     } finally {
       setIsLoadingPreviews(false);
     }
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t, duplicateTrackletId, duplicateFrameRange, getCurrentFrameNumber]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, getCurrentFrameNumber]);
 
   // Perform the actual operation
   const performOperation = useCallback(async (id1?: number, id2?: number) => {
@@ -562,21 +583,41 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         );
         
       } else if (operationType === 'duplicate') {
-        // Duplicate: copy annotation from source tracklet (any frame) to target frames with same tracklet ID
+        // Duplicate: copy annotation from source tracklet to target frames with same tracklet ID
         const trackletId = parseInt(duplicateTrackletId);
         const targetFrames = parseFrameRange(duplicateFrameRange);
         
-        console.log('🔧 Duplicate operation:', { trackletId, targetFrames, overwriteExisting });
+        console.log('🔧 Duplicate operation:', { trackletId, targetFrames, overwriteExisting, sourceFrame: duplicateSourceFrame });
         
-        // Find source annotation (try current frame first, then any frame)
-        const currentFrame = getCurrentFrameNumber();
-        let sourceAnnotation = annotations.find(ann => 
-          ann.tracklet_id === trackletId && ann.frame === currentFrame
-        );
+        // Find source annotation based on source frame input or auto-detection
+        let sourceAnnotation: AnnotationData | undefined;
         
-        // If not found in current frame, find from any frame
+        // Use specific source frame if provided
+        if (duplicateSourceFrame.trim()) {
+          const sourceFrame = parseInt(duplicateSourceFrame);
+          if (!isNaN(sourceFrame)) {
+            sourceAnnotation = annotations.find(ann => 
+              ann.tracklet_id === trackletId && ann.frame === sourceFrame
+            );
+            if (!sourceAnnotation) {
+              throw new Error(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+            }
+          }
+        }
+        
+        // If no source frame specified or not found, use auto-detection
         if (!sourceAnnotation) {
-          sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+          const currentFrame = getCurrentFrameNumber();
+          
+          // Try current frame first
+          sourceAnnotation = annotations.find(ann => 
+            ann.tracklet_id === trackletId && ann.frame === currentFrame
+          );
+          
+          // If not found in current frame, find from any frame
+          if (!sourceAnnotation) {
+            sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+          }
         }
         
         if (!sourceAnnotation) {
@@ -673,7 +714,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       console.error('Error applying operation:', error);
       showAlert(t('ui.errorApplyingOperation'), 'destructive');
     }
-  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t, duplicateTrackletId, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
+  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
 
   // Apply the operation - first validation step
   const validateAndStartOperation = useCallback(() => {
@@ -699,20 +740,41 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         return;
       }
       
-      // Check if source annotation exists (try current frame first, then any frame)
-      const currentFrame = getCurrentFrameNumber();
-      let sourceAnnotation = annotations.find(ann => 
-        ann.tracklet_id === trackletId && ann.frame === currentFrame
-      );
+      // Check if source annotation exists based on source frame input or auto-detection
+      let sourceAnnotation: AnnotationData | undefined;
       
-      // If not found in current frame, find from any frame
-      if (!sourceAnnotation) {
-        sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
-      }
-      
-      if (!sourceAnnotation) {
-        showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
-        return;
+      // Use specific source frame if provided
+      if (duplicateSourceFrame.trim()) {
+        const sourceFrame = parseInt(duplicateSourceFrame);
+        if (isNaN(sourceFrame)) {
+          showAlert('Please enter a valid source frame number');
+          return;
+        }
+        
+        sourceAnnotation = annotations.find(ann => 
+          ann.tracklet_id === trackletId && ann.frame === sourceFrame
+        );
+        
+        if (!sourceAnnotation) {
+          showAlert(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+          return;
+        }
+      } else {
+        // If no source frame specified, use auto-detection
+        const currentFrame = getCurrentFrameNumber();
+        sourceAnnotation = annotations.find(ann => 
+          ann.tracklet_id === trackletId && ann.frame === currentFrame
+        );
+        
+        // If not found in current frame, find from any frame
+        if (!sourceAnnotation) {
+          sourceAnnotation = annotations.find(ann => ann.tracklet_id === trackletId);
+        }
+        
+        if (!sourceAnnotation) {
+          showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
+          return;
+        }
       }
       
       // Count how many annotations will be created/affected
@@ -823,7 +885,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         }, 'destructive');
       }, 100);
     }, 'destructive');
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t, duplicateTrackletId, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
 
   if (!isOpen) return null;
 
@@ -961,6 +1023,18 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                       onChange={(e) => setDuplicateTrackletId(e.target.value)}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
                       placeholder="Enter tracklet ID to duplicate"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Source Frame (leave empty for auto-detection)
+                    </label>
+                    <input
+                      type="number"
+                      value={duplicateSourceFrame}
+                      onChange={(e) => setDuplicateSourceFrame(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                      placeholder="e.g., 100 (optional - auto-detects if empty)"
                     />
                   </div>
                   <div>

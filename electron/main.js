@@ -417,6 +417,36 @@ ipcMain.handle('save-annotation-file', async (event, annotationFilePath, content
   }
 });
 
+// Read patch notes from PATCH_NOTES.md file
+ipcMain.handle('read-patch-notes', async () => {
+  try {
+    console.log('Reading patch notes file...');
+    const patchNotesPath = path.join(__dirname, '..', 'PATCH_NOTES.md');
+    console.log('Patch notes path:', patchNotesPath);
+    
+    if (!fs.existsSync(patchNotesPath)) {
+      console.log('PATCH_NOTES.md not found, trying public directory...');
+      const publicPatchNotesPath = path.join(__dirname, '..', 'public', 'PATCH_NOTES.md');
+      console.log('Public patch notes path:', publicPatchNotesPath);
+      
+      if (fs.existsSync(publicPatchNotesPath)) {
+        const content = fs.readFileSync(publicPatchNotesPath, 'utf8');
+        console.log('Successfully read patch notes from public directory, length:', content.length);
+        return content;
+      } else {
+        throw new Error('PATCH_NOTES.md not found in either root or public directory');
+      }
+    }
+    
+    const content = fs.readFileSync(patchNotesPath, 'utf8');
+    console.log('Successfully read patch notes from root directory, length:', content.length);
+    return content;
+  } catch (error) {
+    console.error('Error reading patch notes:', error);
+    throw error;
+  }
+});
+
 // Get image as base64 data URL for secure loading in renderer
 ipcMain.handle('get-image-data', async (event, imagePath) => {
   try {

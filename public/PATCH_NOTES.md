@@ -1,6 +1,22 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.3.0 - Current Release
+## Version 1.3.1 - Current Release
+*Release Date: September 13, 2025*
+
+### 🎯 New Update
+- **Secure File Access**: Uses Electron IPC instead of direct file system access for security
+- **Enhanced Error Handling**: Proper fallback mechanisms and error reporting
+- **Type Safety**: Full TypeScript support for all new functionality
+- **User Experience**: More intuitive interfaces and better feedback
+- **Documentation**: Comprehensive project documentation for future reference
+
+
+### 🔧 Technical Improvements
+- Add patch notes reading functionality
+- Enhance duplicate operation with source frame selection
+---
+
+## Version 1.3.0 - Previous Release
 *Release Date: September 11, 2025*
 
 ### 🎯 New Features

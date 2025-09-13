@@ -32,16 +32,27 @@ export default function PatchNotesModal({ isOpen, onClose }: PatchNotesModalProp
   const loadPatchNotes = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading patch notes from /PATCH_NOTES.md');
+      console.log('Loading patch notes...');
       
-      // Read the PATCH_NOTES.md file from the public directory
-      const response = await fetch('/PATCH_NOTES.md');
+      let content: string;
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch patch notes: ${response.status}`);
+      // Check if we're in Electron environment
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        // Use Electron IPC to read the file
+        console.log('Using Electron IPC to read patch notes');
+        content = await window.electronAPI.readPatchNotes();
+      } else {
+        // Fallback to fetch for web environment
+        console.log('Using fetch to load patch notes from /PATCH_NOTES.md');
+        const response = await fetch('/PATCH_NOTES.md');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch patch notes: ${response.status}`);
+        }
+        
+        content = await response.text();
       }
       
-      const content = await response.text();
       console.log('Patch notes content length:', content.length);
       console.log('First 200 characters:', content.substring(0, 200));
       

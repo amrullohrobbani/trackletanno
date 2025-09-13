@@ -17,6 +17,7 @@ export interface ElectronAPI {
   getImageData: (imagePath: string) => Promise<string>;
   loadAnnotationFile: (annotationFilePath: string) => Promise<string>;
   saveAnnotationFile: (annotationFilePath: string, content: string) => Promise<boolean>;
+  readPatchNotes: () => Promise<string>;
   extractDominantColor: (imagePath: string, x: number, y: number, width: number, height: number) => Promise<{
     color: { r: number; g: number; b: number };
     confidence: number;
