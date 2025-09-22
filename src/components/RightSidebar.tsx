@@ -85,19 +85,47 @@ export default function RightSidebar() {
       { key: 'i', name: 'score', label: t('events.score'), color: 'bg-indigo-600' },
       { key: 'n', name: '', label: t('events.no_event'), color: 'bg-gray-600' }
     ],
-    tennis: [
-      { key: 'q', name: 'forehand', label: 'Forehand', color: 'bg-red-600' },
-      { key: 'w', name: 'backhand', label: 'Backhand', color: 'bg-blue-600' },
-      { key: 'e', name: 'serve', label: 'Serve', color: 'bg-green-600' },
-      { key: 'r', name: 'overhead', label: 'Overhead', color: 'bg-yellow-600' },
-      { key: 't', name: 'bounce', label: 'Bounce', color: 'bg-purple-600' },
-      { key: 'y', name: 'net', label: 'Net', color: 'bg-orange-600' },
-      { key: 'n', name: '', label: 'No Event', color: 'bg-gray-600' }
-    ]
+    tennis: {
+      serve: [
+        { key: 'e', name: 'serve', label: 'Serve', color: 'bg-green-600' }
+      ],
+      strokes: [
+        { key: 'q', name: 'forehand', label: 'Forehand', color: 'bg-red-600' },
+        { key: 'w', name: 'backhand', label: 'Backhand', color: 'bg-blue-600' },
+        { key: 'r', name: 'overhead', label: 'Overhead', color: 'bg-yellow-600' }
+      ],
+      volleys: [
+        { key: 'y', name: 'smash', label: 'Smash', color: 'bg-orange-600' },
+        { key: 'u', name: 'volley', label: 'Volley', color: 'bg-pink-600' }
+      ],
+      court: [
+        { key: 't', name: 'net', label: 'Net', color: 'bg-purple-600' },
+        { key: 'i', name: 'bounce', label: 'Bounce', color: 'bg-indigo-600' }
+      ],
+      other: [
+        { key: 'n', name: '', label: 'No Event', color: 'bg-gray-600' }
+      ]
+    }
   }), [t]);
 
   // Event types with hotkeys (memoized to prevent dependency issues)
-  const eventTypes = useMemo(() => sportEventTypes[selectedSport as keyof typeof sportEventTypes] || sportEventTypes.volleyball, [sportEventTypes, selectedSport]);
+  const eventTypes = useMemo(() => {
+    if (selectedSport === 'tennis') {
+      // For tennis, flatten all groups into a single array for hotkey handling
+      const allTennisEvents = [
+        ...sportEventTypes.tennis.serve,
+        ...sportEventTypes.tennis.strokes,
+        ...sportEventTypes.tennis.volleys,
+        ...sportEventTypes.tennis.court,
+        ...sportEventTypes.tennis.other
+      ];
+      return allTennisEvents;
+    }
+    return sportEventTypes.volleyball;
+  }, [sportEventTypes, selectedSport]);
+
+  // Tennis event groups for UI rendering
+  const tennisEventGroups = useMemo(() => sportEventTypes.tennis, [sportEventTypes]);
 
   // Auto-load annotation data when selectedTrackletId changes
   useEffect(() => {
@@ -255,14 +283,14 @@ export default function RightSidebar() {
 
   // Helper function to handle tennis event selection with attributes
   const handleTennisEventSelection = (eventName: string) => {
-    const tennisEventsWithAttributes = ['forehand', 'backhand', 'serve', 'overhead'];
+    const tennisEventsWithAttributes = ['forehand', 'backhand', 'serve']; // removed 'overhead'
     
     if (selectedSport === 'tennis' && tennisEventsWithAttributes.includes(eventName)) {
       // For tennis events with attributes, combine event with attribute
       const fullEventName = `${eventName} ${selectedTennisAttribute}`;
       setSelectedEvent(selectedEvent === fullEventName ? null : fullEventName);
     } else {
-      // For regular events (like bounce, net) or non-tennis sports
+      // For regular events (like bounce, net, overhead) or non-tennis sports
       setSelectedEvent(selectedEvent === eventName ? null : eventName);
     }
   };
@@ -621,41 +649,188 @@ export default function RightSidebar() {
                   
                   <div>
                     <label className="block text-xs text-gray-400 mb-2">{t('eventAnnotation.selectEventType')}</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {eventTypes.map((eventType) => (
-                        <button
-                          key={eventType.name}
-                          onClick={() => handleTennisEventSelection(eventType.name)}
-                          className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
-                            (selectedSport === 'tennis' && ['forehand', 'backhand', 'serve', 'overhead'].includes(eventType.name) ? 
-                              selectedEvent === `${eventType.name} ${selectedTennisAttribute}` :
-                              selectedEvent === eventType.name)
-                              ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
-                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
-                          }`}
-                        >
-                          <div className="flex flex-col items-center">
-                            <span className="font-bold">{eventType.key}</span>
-                            <span className="text-xs">{eventType.label}</span>
+                    {selectedSport === 'tennis' ? (
+                      <div className="space-y-3">
+                        {/* Serve Row */}
+                        <div>
+                          <h4 className="text-xs text-gray-300 mb-1 font-medium">Serve</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {tennisEventGroups.serve.map((eventType) => (
+                              <button
+                                key={eventType.name}
+                                onClick={() => handleTennisEventSelection(eventType.name)}
+                                className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                                  selectedEvent === `${eventType.name} ${selectedTennisAttribute}`
+                                    ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold">{eventType.key}</span>
+                                  <span className="text-xs">{eventType.label}</span>
+                                </div>
+                                {selectedEvent === `${eventType.name} ${selectedTennisAttribute}` && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
                           </div>
-                          {(selectedSport === 'tennis' && ['forehand', 'backhand', 'serve', 'overhead'].includes(eventType.name) ? 
-                            selectedEvent === `${eventType.name} ${selectedTennisAttribute}` :
-                            selectedEvent === eventType.name) && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        </div>
+
+                        {/* Strokes Row */}
+                        <div>
+                          <h4 className="text-xs text-gray-300 mb-1 font-medium">Forehand, Backhand, Overhead</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {tennisEventGroups.strokes.map((eventType) => (
+                              <button
+                                key={eventType.name}
+                                onClick={() => handleTennisEventSelection(eventType.name)}
+                                className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                                  (eventType.name === 'overhead' ? 
+                                    selectedEvent === eventType.name :
+                                    selectedEvent === `${eventType.name} ${selectedTennisAttribute}`)
+                                    ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold">{eventType.key}</span>
+                                  <span className="text-xs">{eventType.label}</span>
+                                </div>
+                                {(eventType.name === 'overhead' ? 
+                                  selectedEvent === eventType.name :
+                                  selectedEvent === `${eventType.name} ${selectedTennisAttribute}`) && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Volleys Row */}
+                        <div>
+                          <h4 className="text-xs text-gray-300 mb-1 font-medium">Smash, Volley</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {tennisEventGroups.volleys.map((eventType) => (
+                              <button
+                                key={eventType.name}
+                                onClick={() => handleTennisEventSelection(eventType.name)}
+                                className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                                  selectedEvent === eventType.name
+                                    ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold">{eventType.key}</span>
+                                  <span className="text-xs">{eventType.label}</span>
+                                </div>
+                                {selectedEvent === eventType.name && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Court Events Row */}
+                        <div>
+                          <h4 className="text-xs text-gray-300 mb-1 font-medium">Net, Bounce</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {tennisEventGroups.court.map((eventType) => (
+                              <button
+                                key={eventType.name}
+                                onClick={() => handleTennisEventSelection(eventType.name)}
+                                className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                                  selectedEvent === eventType.name
+                                    ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold">{eventType.key}</span>
+                                  <span className="text-xs">{eventType.label}</span>
+                                </div>
+                                {selectedEvent === eventType.name && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Other Events Row */}
+                        <div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {tennisEventGroups.other.map((eventType) => (
+                              <button
+                                key={eventType.name}
+                                onClick={() => handleTennisEventSelection(eventType.name)}
+                                className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                                  selectedEvent === eventType.name
+                                    ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold">{eventType.key}</span>
+                                  <span className="text-xs">{eventType.label}</span>
+                                </div>
+                                {selectedEvent === eventType.name && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Volleyball layout (original grid)
+                      <div className="grid grid-cols-3 gap-2">
+                        {eventTypes.map((eventType) => (
+                          <button
+                            key={eventType.name}
+                            onClick={() => handleTennisEventSelection(eventType.name)}
+                            className={`p-2 rounded text-xs font-medium transition-all border-2 relative ${
+                              selectedEvent === eventType.name
+                                ? `${eventType.color} hover:opacity-90 text-white shadow-lg ring-2 ring-white ring-opacity-50`
+                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center">
+                              <span className="font-bold">{eventType.key}</span>
+                              <span className="text-xs">{eventType.label}</span>
                             </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                            {selectedEvent === eventType.name && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Tennis Event Attributes */}
-                  {selectedSport === 'tennis' && selectedEvent && ['forehand', 'backhand', 'serve', 'overhead'].some(event => selectedEvent.includes(event)) && (
+                  {/* Tennis Event Attributes - Only show for forehand, backhand, serve */}
+                  {selectedSport === 'tennis' && selectedEvent && ['forehand', 'backhand', 'serve'].some(event => selectedEvent.includes(event)) && (
                     <div>
                       <label className="block text-xs text-gray-400 mb-2">Shot Attribute</label>
                       <div className="grid grid-cols-3 gap-2">
-                        {['flat', 'drive', 'slice'].map((attribute) => (
+                        {(selectedEvent && selectedEvent.includes('serve') ? 
+                          ['flat', 'kick', 'slice'] : 
+                          ['flat', 'drive', 'slice']
+                        ).map((attribute) => (
                           <button
                             key={attribute}
                             onClick={() => {

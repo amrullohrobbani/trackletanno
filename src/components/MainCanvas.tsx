@@ -28,6 +28,8 @@ export default function MainCanvas() {
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isAnimatingFrames, setIsAnimatingFrames] = useState(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     getCurrentImagePath,
@@ -71,7 +73,10 @@ export default function MainCanvas() {
     getCurrentFrameBallAnnotation,
     removeCurrentFrameBallAnnotation,
     highQualityMode,
-    setHighQualityMode
+    setHighQualityMode,
+    frameBuffer,
+    isBuffering,
+    isFrameBuffered
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -90,6 +95,153 @@ export default function MainCanvas() {
       setImageError(false);
     }
   }, [imagePath]);
+
+  // Animated frame transition system for smooth scrubbing effect
+  const animateFrameTransition = useCallback(async (targetFrame: number) => {
+    const currentFrame = currentFrameIndex;
+    const rally = getCurrentRally();
+    
+    if (!rally || currentFrame === targetFrame) {
+      return;
+    }
+
+    // Clear any existing animation
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
+    setIsAnimatingFrames(true);
+    
+    // Calculate frame sequence for animation - optimized for rapid navigation
+    const frameSequence: number[] = [];
+    const direction = targetFrame > currentFrame ? 1 : -1;
+    
+    // For rapid navigation, only show immediate steps (no sampling)
+    for (let i = currentFrame + direction; 
+         direction > 0 ? i <= targetFrame : i >= targetFrame; 
+         i += direction) {
+      frameSequence.push(i);
+    }
+    
+    console.log(`🎬 Rapid navigation: ${currentFrame} → [${frameSequence.join(', ')}]`);
+    
+    // Preload all frames in the sequence for smooth animation
+    const preloadPromises = frameSequence.map(async (frameIndex) => {
+      if (!isFrameBuffered(frameIndex)) {
+        const arrayIndex = frameIndex - 1;
+        const imagePath = rally.imageFiles[arrayIndex];
+        if (imagePath) {
+          try {
+            const imageDataUrl = await window.electronAPI.getImageData(imagePath);
+            // Update buffer immediately for smooth playback
+            const store = useAppStore.getState();
+            const newBuffer = new Map(store.frameBuffer);
+            newBuffer.set(imagePath, imageDataUrl);
+            useAppStore.setState({ frameBuffer: newBuffer });
+          } catch (error) {
+            console.warn(`Failed to preload frame ${frameIndex} for animation:`, error);
+          }
+        }
+      }
+    });
+    
+    // Wait for preloading to complete
+    await Promise.all(preloadPromises);
+    
+    // Play the animation sequence with fast timing for responsiveness
+    const playFrame = (index: number) => {
+      if (index >= frameSequence.length) {
+        setIsAnimatingFrames(false);
+        return;
+      }
+      
+      const frameToShow = frameSequence[index];
+      
+      // Update frame index directly in store for immediate effect
+      useAppStore.setState({ currentFrameIndex: frameToShow });
+      
+      // Fast timing for rapid navigation (50ms per frame for smooth but responsive feel)
+      const delay = 50;
+      
+      animationTimeoutRef.current = setTimeout(() => {
+        playFrame(index + 1);
+      }, delay);
+    };
+    
+    // Start animation
+    playFrame(0);
+    
+  }, [currentFrameIndex, getCurrentRally, isFrameBuffered]);
+
+  // Enhanced smooth navigation optimized for rapid consecutive moves
+  const smoothPreviousFrame = useCallback(() => {
+    const targetFrame = currentFrameIndex - 1;
+    
+    if (targetFrame >= 1) {
+      // If already animating, interrupt and continue from current animation position
+      if (isAnimatingFrames) {
+        if (animationTimeoutRef.current) {
+          clearTimeout(animationTimeoutRef.current);
+        }
+        // Get the actual current frame from the store and animate from there
+        const actualCurrentFrame = useAppStore.getState().currentFrameIndex;
+        const newTargetFrame = Math.max(1, actualCurrentFrame - 1);
+        animateFrameTransition(newTargetFrame);
+      } else {
+        // Start new animation
+        animateFrameTransition(targetFrame);
+      }
+    }
+  }, [currentFrameIndex, isAnimatingFrames, animateFrameTransition]);
+
+  const smoothNextFrame = useCallback(() => {
+    const rally = getCurrentRally();
+    const targetFrame = currentFrameIndex + 1;
+    
+    if (rally && targetFrame <= rally.imageFiles.length) {
+      // If already animating, interrupt and continue from current animation position
+      if (isAnimatingFrames) {
+        if (animationTimeoutRef.current) {
+          clearTimeout(animationTimeoutRef.current);
+        }
+        // Get the actual current frame from the store and animate from there
+        const actualCurrentFrame = useAppStore.getState().currentFrameIndex;
+        const newTargetFrame = Math.min(rally.imageFiles.length, actualCurrentFrame + 1);
+        animateFrameTransition(newTargetFrame);
+      } else {
+        // Start new animation
+        animateFrameTransition(targetFrame);
+      }
+    }
+  }, [currentFrameIndex, isAnimatingFrames, animateFrameTransition, getCurrentRally]);
+
+  // Preload adjacent frames for smoother transitions
+  useEffect(() => {
+    const rally = getCurrentRally();
+    if (!rally || !rally.imageFiles.length) return;
+
+    const preloadFrame = async (frameIndex: number) => {
+      try {
+        const imagePath = rally.imageFiles[frameIndex];
+        if (imagePath && typeof window !== 'undefined' && window.electronAPI) {
+          // Preload image in background for smoother navigation
+          await window.electronAPI.getImageData(imagePath);
+        }
+      } catch (error) {
+        console.warn('Failed to preload frame:', frameIndex, error);
+      }
+    };
+
+    // Preload previous frame
+    if (currentFrameIndex > 1) {
+      preloadFrame(currentFrameIndex - 2); // Convert to 0-based index
+    }
+
+    // Preload next frame
+    if (currentFrameIndex < rally.imageFiles.length) {
+      preloadFrame(currentFrameIndex); // Convert to 0-based index
+    }
+  }, [currentFrameIndex, getCurrentRally]);
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
@@ -134,7 +286,7 @@ export default function MainCanvas() {
     return annotation?.event || null;
   }, [annotations]);
 
-  // Load and display image securely
+  // Load and display image securely using buffer system
   // Add state for the processed image data URL
   const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null);
 
@@ -145,16 +297,63 @@ export default function MainCanvas() {
     }
 
     try {
-      // Use the secure image loading method
+      // First check if image is already in buffer - immediate loading
+      const bufferedImage = frameBuffer.get(imagePath);
+      if (bufferedImage) {
+        console.log(`⚡ Buffer hit: Frame loaded instantly`);
+        setProcessedImageSrc(bufferedImage);
+        
+        // Preload adjacent frames immediately for even smoother navigation
+        const rally = getCurrentRally();
+        if (rally) {
+          const currentIndex = currentFrameIndex;
+          
+          // Preload next frame if not already buffered
+          if (currentIndex < rally.imageFiles.length) {
+            const nextImagePath = rally.imageFiles[currentIndex]; // currentIndex is 1-based, array is 0-based
+            if (nextImagePath && !frameBuffer.has(nextImagePath)) {
+              window.electronAPI.getImageData(nextImagePath).then(data => {
+                // Only update if still the same frame (avoid race conditions)
+                if (getCurrentImagePath() === imagePath) {
+                  const store = useAppStore.getState();
+                  const newBuffer = new Map(store.frameBuffer);
+                  newBuffer.set(nextImagePath, data);
+                  useAppStore.setState({ frameBuffer: newBuffer });
+                }
+              }).catch(err => console.warn('Failed to preload next frame:', err));
+            }
+          }
+          
+          // Preload previous frame if not already buffered
+          if (currentIndex > 1) {
+            const prevImagePath = rally.imageFiles[currentIndex - 2]; // currentIndex is 1-based, array is 0-based
+            if (prevImagePath && !frameBuffer.has(prevImagePath)) {
+              window.electronAPI.getImageData(prevImagePath).then(data => {
+                // Only update if still the same frame (avoid race conditions)
+                if (getCurrentImagePath() === imagePath) {
+                  const store = useAppStore.getState();
+                  const newBuffer = new Map(store.frameBuffer);
+                  newBuffer.set(prevImagePath, data);
+                  useAppStore.setState({ frameBuffer: newBuffer });
+                }
+              }).catch(err => console.warn('Failed to preload previous frame:', err));
+            }
+          }
+        }
+        
+        return;
+      }
+
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
       setProcessedImageSrc(imageDataUrl);
+      
     } catch (error) {
       console.error('Error loading image:', error);
       setProcessedImageSrc(null);
     }
-  }, [imagePath]);
+  }, [imagePath, frameBuffer, currentFrameIndex, getCurrentRally, getCurrentImagePath]);
 
-  // Load image when path changes
+  // Load image immediately when path changes (should hit buffer most of the time)
   useEffect(() => {
     loadImage();
   }, [loadImage]);
@@ -215,8 +414,6 @@ export default function MainCanvas() {
             lastBoundingBoxesRef.current = boxes;
           }
         });
-        
-        console.log(`📍 Frame ${frameNumber}: ${boxes.length} bounding boxes, ${currentFrameAnnotations.filter(ann => ann.tracklet_id === 99).length} ball annotations`);
         
         // Debug annotation-frame connection when no annotations are found
         if (process.env.NODE_ENV === 'development' && currentFrameAnnotations.length === 0) {
@@ -513,9 +710,9 @@ export default function MainCanvas() {
           const ballCenterX = ballAnnotation.x;
           const ballCenterY = ballAnnotation.y;
           
-          // Smaller, more distinct ball indicator
-          const ballRadius = Math.max(ballAnnotationRadius, ballAnnotationRadius / zoomLevel); // Use dynamic radius from store
-          const borderWidth = Math.max(2, 2 / zoomLevel);
+          // Smaller, more distinct ball indicator - absolute visual size (scaled inversely to zoom)
+          const ballRadius = ballAnnotationRadius / zoomLevel; // Scale inversely to zoom for absolute visual size
+          const borderWidth = 2 / zoomLevel; // Scale border inversely to zoom
           
           // Draw outer white border circle for better visibility
           ctx.beginPath();
@@ -535,25 +732,25 @@ export default function MainCanvas() {
           ctx.fillStyle = '#FFB347'; // Light orange highlight
           ctx.fill();
           
-          // Draw center crosshair for precise positioning
-          const crosshairSize = Math.max(1, 1 / zoomLevel);
+          // Draw center crosshair for precise positioning - maintain size relative to zoom for visibility
+          const crosshairSize = 1 / zoomLevel; // Adjust for zoom to maintain visual size
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = crosshairSize;
           ctx.beginPath();
           // Horizontal line
-          ctx.moveTo(ballCenterX - 2, ballCenterY);
-          ctx.lineTo(ballCenterX + 2, ballCenterY);
+          ctx.moveTo(ballCenterX - 2 / zoomLevel, ballCenterY);
+          ctx.lineTo(ballCenterX + 2 / zoomLevel, ballCenterY);
           // Vertical line
-          ctx.moveTo(ballCenterX, ballCenterY - 2);
-          ctx.lineTo(ballCenterX, ballCenterY + 2);
+          ctx.moveTo(ballCenterX, ballCenterY - 2 / zoomLevel);
+          ctx.lineTo(ballCenterX, ballCenterY + 2 / zoomLevel);
           ctx.stroke();
           
           // Draw tracklet ID label for ball (always 99) - Position above the ball
           if (showTrackletLabels) {
-            const labelWidth = 50;
-            const labelHeight = 25;
+            const labelWidth = 50 / zoomLevel; // Scale width inversely to zoom
+            const labelHeight = 25 / zoomLevel; // Scale height inversely to zoom
             const labelX = ballAnnotation.x - labelWidth / 2;
-            const labelY = ballAnnotation.y - ballRadius - labelHeight - 10; // Moved up more to avoid overlap
+            const labelY = ballAnnotation.y - ballRadius - labelHeight - (10 / zoomLevel); // Scale spacing inversely to zoom
             
             // Draw label background
             ctx.fillStyle = 'rgba(255, 107, 53, 0.9)'; // Semi-transparent orange
@@ -561,19 +758,19 @@ export default function MainCanvas() {
             
             // Draw label border
             ctx.strokeStyle = '#FF4500'; // Use the same orange as the ball
-            ctx.lineWidth = 2 / zoomLevel;
+            ctx.lineWidth = 2 / zoomLevel; // Scale line width inversely to zoom
             ctx.strokeRect(labelX, labelY, labelWidth, labelHeight);
             
-            // Draw label text
-            const fontSize = Math.max(12, 12 / zoomLevel);
+            // Draw label text - scale font size inversely to zoom for absolute visual size
+            const fontSize = 12 / zoomLevel; // Scale font size inversely to zoom
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Add text stroke for better visibility
+            // Add text stroke for better visibility - scale stroke width inversely to zoom
             ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1 / zoomLevel;
+            ctx.lineWidth = 1 / zoomLevel; // Scale stroke width inversely to zoom
             ctx.strokeText('Ball 99', labelX + labelWidth / 2, labelY + labelHeight / 2);
             ctx.fillText('Ball 99', labelX + labelWidth / 2, labelY + labelHeight / 2);
             
@@ -585,32 +782,32 @@ export default function MainCanvas() {
           // Draw event label for ball if enabled and event exists - Position above the ball label
           if (showEventLabels && ballAnnotation.event && ballAnnotation.event.trim() !== '') {
             const eventText = ballAnnotation.event.toUpperCase();
-            const indicatorHeight = Math.max(20, 20 / zoomLevel);
-            const padding = 4 / zoomLevel;
+            const indicatorHeight = 20 / zoomLevel; // Scale height inversely to zoom for absolute visual size
+            const padding = 4 / zoomLevel; // Scale padding inversely to zoom
             
-            // Measure text to determine indicator width
-            ctx.font = `bold ${Math.max(12, 12 / zoomLevel)}px Arial`;
+            // Measure text to determine indicator width - scale font size inversely to zoom
+            ctx.font = `bold ${12 / zoomLevel}px Arial`; // Scale font size inversely to zoom
             const textWidth = ctx.measureText(eventText).width;
             const indicatorWidth = textWidth + (padding * 2);
             
             // Position indicator above the ball label (or above ball if no label)
             const indicatorX = ballAnnotation.x - indicatorWidth / 2;
             const indicatorY = showTrackletLabels 
-              ? ballAnnotation.y - ballRadius - 25 - indicatorHeight - 15 // Above the tracklet label
-              : ballAnnotation.y - ballRadius - indicatorHeight - 10; // Above the ball if no tracklet label
+              ? ballAnnotation.y - ballRadius - (25 / zoomLevel) - indicatorHeight - (15 / zoomLevel) // Above the tracklet label (scale spacing)
+              : ballAnnotation.y - ballRadius - indicatorHeight - (10 / zoomLevel); // Above the ball if no tracklet label (scale spacing)
             
             // Draw background rectangle
             ctx.fillStyle = '#FFD700'; // Gold for ball events
             ctx.fillRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
             
-            // Draw border
+            // Draw border - scale line width inversely to zoom
             ctx.strokeStyle = '#FFA500';
-            ctx.lineWidth = 2 / zoomLevel;
+            ctx.lineWidth = 2 / zoomLevel; // Scale line width inversely to zoom
             ctx.strokeRect(indicatorX, indicatorY, indicatorWidth, indicatorHeight);
             
-            // Draw event text
+            // Draw event text - scale font size inversely to zoom for absolute visual size
             ctx.fillStyle = 'black';
-            ctx.font = `bold ${Math.max(11, 11 / zoomLevel)}px Arial`;
+            ctx.font = `bold ${11 / zoomLevel}px Arial`; // Scale font size inversely to zoom
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(eventText, indicatorX + indicatorWidth / 2, indicatorY + indicatorHeight / 2);
@@ -1294,23 +1491,37 @@ export default function MainCanvas() {
         console.log('ESC pressed - All modes and selections cleared');
       }
 
-      // Home key to go to first frame
+      // Z key or Left Arrow for previous frame
+      if (event.key.toLowerCase() === 'z' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        smoothPreviousFrame();
+        console.log(`${event.key} pressed - Previous frame`);
+      }
+
+      // X key or Right Arrow for next frame
+      if (event.key.toLowerCase() === 'x' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        smoothNextFrame();
+        console.log(`${event.key} pressed - Next frame`);
+      }
+
+      // Home key to go to first frame (instant)
       if (event.key === 'Home') {
         event.preventDefault();
         const { getCurrentRally, goToFrame } = useAppStore.getState();
         const rally = getCurrentRally();
         if (rally && rally.imageFiles.length > 0) {
-          goToFrame(1); // Go to first frame (1-based)
+          goToFrame(1); // Instant jump to first frame
         }
       }
 
-      // End key to go to last frame
+      // End key to go to last frame (instant)
       if (event.key === 'End') {
         event.preventDefault();
         const { getCurrentRally, goToFrame } = useAppStore.getState();
         const rally = getCurrentRally();
         if (rally && rally.imageFiles.length > 0) {
-          goToFrame(rally.imageFiles.length); // Go to last frame (1-based)
+          goToFrame(rally.imageFiles.length); // Instant jump to last frame
         }
       }
 
@@ -1337,7 +1548,7 @@ export default function MainCanvas() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox, ballAnnotationMode, ballAnnotations, currentFrameIndex, removeBallAnnotation, t, getCurrentFrameBallAnnotation, removeCurrentFrameBallAnnotation]);
+  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox, ballAnnotationMode, ballAnnotations, currentFrameIndex, removeBallAnnotation, t, getCurrentFrameBallAnnotation, removeCurrentFrameBallAnnotation, smoothPreviousFrame, smoothNextFrame, animateFrameTransition, getCurrentRally]);
 
   if (!imagePath) {
     return (
@@ -1356,7 +1567,7 @@ export default function MainCanvas() {
       <div className="relative w-full h-full flex items-center justify-center">
         {/* Loading indicator */}
         {imageLoading && (
-          <div className="absolute inset-0 bg-gray-800 bg-opacity-0 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-gray-800 bg-opacity-0 hidden items-center justify-center z-10">
             <div className="text-white text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2 mx-auto"></div>
               <div className="text-sm">Loading frame...</div>
@@ -1389,9 +1600,14 @@ export default function MainCanvas() {
                 width: img.naturalWidth, 
                 height: img.naturalHeight 
               });
-              setImageLoading(false);
-              setImageError(false);
-              // Use requestAnimationFrame to ensure smooth rendering
+              
+              // Smooth transition by delaying the loading state change slightly
+              setTimeout(() => {
+                setImageLoading(false);
+                setImageError(false);
+              }, 50);
+              
+              // Use requestAnimationFrame for smooth rendering
               requestAnimationFrame(() => {
                 drawCanvas();
               });
@@ -1460,6 +1676,7 @@ export default function MainCanvas() {
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
           {t('common.frame')} {currentFrameIndex} • {boundingBoxes.length} boxes • 
+          {isBuffering && <span className="text-yellow-400">Buffering... • </span>}
           <button
             onClick={() => {
               // Reset zoom to 100% and center the image

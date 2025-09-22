@@ -33,37 +33,26 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
   const [loadingProgress, setLoadingProgress] = useState<LoadingProgress>({ loaded: 0, total: 0, isComplete: false });
   const [currentFrameIndex, setCurrentFrameIndex] = useState(1);
   const [showPlaceholders, setShowPlaceholders] = useState(true);
-  const [croppedImages, setCroppedImages] = useState<Map<string, string>>(new Map());
   const croppedImagesRef = useRef<Map<string, string>>(new Map());
 
   const {
+    timelineImageCache,
+    clearTimelineImageCache,
     annotations,
     getCurrentRally,
     currentFrameIndex: globalFrameIndex,
     goToFrame,
-    trackletDetails
+    trackletDetails,
+    rallyFolders,
+    currentRallyIndex
   } = useAppStore();
 
-  // Cleanup cached images when modal closes to prevent memory leaks
+  // Clear cache when rally/directory changes
   useEffect(() => {
-    if (!isOpen) {
-      // Revoke all blob URLs to free memory
-      setCroppedImages(prev => {
-        prev.forEach((url) => {
-          if (url.startsWith('blob:')) {
-            URL.revokeObjectURL(url);
-          }
-        });
-        return new Map();
-      });
-      croppedImagesRef.current.clear();
-    }
-  }, [isOpen]); // Removed croppedImages from dependencies to prevent infinite loop
-
-  // Sync ref with state
-  useEffect(() => {
-    croppedImagesRef.current = croppedImages;
-  }, [croppedImages]);
+    clearTimelineImageCache();
+    // Access cache directly in callback to avoid dependency issues
+    croppedImagesRef.current = useAppStore.getState().timelineImageCache;
+  }, [rallyFolders, currentRallyIndex, clearTimelineImageCache]); // Use specific values instead of getCurrentRally function
 
   // Generate cropped image for a frame
   const generateCroppedImage = useCallback(async (frame: FrameData): Promise<string | null> => {
@@ -73,8 +62,8 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
 
     const cacheKey = `${frame.frameNumber}-${trackletId}`;
     
-    // Check if image is already cached using ref to avoid dependency issues
-    const cachedImage = croppedImagesRef.current.get(cacheKey);
+    // Check if image is already cached in global store
+    const cachedImage = timelineImageCache.get(cacheKey);
     if (cachedImage) {
       return cachedImage;
     }
@@ -148,8 +137,8 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
             
             const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
             
-            // Update cache using setState to avoid stale closure
-            setCroppedImages(prev => new Map(prev.set(cacheKey, croppedDataUrl)));
+            // Update global cache in store
+            timelineImageCache.set(cacheKey, croppedDataUrl);
             
             resolve(croppedDataUrl);
           } catch (canvasError) {
@@ -167,7 +156,7 @@ export default function TrackletTimelineModal({ isOpen, onClose, trackletId }: T
       console.error('Error generating cropped image:', error);
       return null;
     }
-  }, [trackletId]); // Removed croppedImages from dependencies
+  }, [trackletId, timelineImageCache]);
 
   // Load frame data when modal opens or tracklet changes
   useEffect(() => {

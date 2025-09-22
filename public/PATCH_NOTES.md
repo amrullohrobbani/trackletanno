@@ -1,6 +1,61 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.3.1 - Current Release
+## Version 1.4.0 - Current Release
+*Release Date: September 22, 2025*
+
+### 🎯 New Features
+
+#### Event Management Enhancements
+- **Event Delete Functionality**: Added delete button for individual events in Rally Events Modal
+  - Delete button (🗑️) appears next to each event in the events list
+  - Confirmation dialog prevents accidental deletions
+  - Deletes only the event annotation, preserves underlying bounding box and tracking data
+  - Frame-specific deletion - only removes event from specific frame/tracklet combination
+  - Automatic file saving ensures changes are immediately persisted
+
+#### Enhanced User Interface
+- **Improved Rally Events Modal**: 
+  - Clean layout with event emoji and delete button side by side
+  - Red hover highlight for delete button (`hover:text-red-400`)
+  - Non-disruptive click handling prevents event navigation when deleting
+  - Visual feedback and smooth interactions
+
+### 🔧 Technical Improvements
+
+#### Store Management
+- **New Store Function**: `deleteEventFromAnnotation(frame, trackletId)`
+  - Removes event property from specific annotation
+  - Maintains data integrity by preserving all other annotation properties
+  - Console feedback for successful deletions
+
+#### Enhanced Navigation System
+- **Buffer Size Optimization**: Confirmed 15-frame buffer for ultra-smooth navigation
+  - 15 frames before and after current frame (31 frames total)
+  - Smooth rapid Z/X key navigation with 50ms frame timing
+  - Animation interruption for responsive consecutive keypresses
+
+### 🎮 Usage Instructions
+
+#### Event Deletion
+1. Open Rally Events Modal from left sidebar
+2. Locate the event you want to delete
+3. Click the 🗑️ delete button next to the event
+4. Confirm deletion in the dialog
+5. Event is removed while preserving the annotation
+
+#### Navigation
+- **Z/X Keys**: Smooth frame-by-frame navigation with animation
+- **Home/End Keys**: Instant jumps to first/last frame
+- **Rapid Navigation**: Hold or rapidly press Z/X for smooth transitions
+
+### 📦 Dependencies
+- Maintained compatibility with existing codebase
+- Uses Heroicons TrashIcon for delete button
+- Integrated with existing Zustand store management
+
+---
+
+## Version 1.3.1 - Previous Release
 *Release Date: September 13, 2025*
 
 ### 🎯 New Update

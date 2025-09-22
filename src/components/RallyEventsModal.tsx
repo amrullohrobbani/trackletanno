@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface RallyEventsModalProps {
   isOpen: boolean;
@@ -23,7 +23,8 @@ export default function RallyEventsModal({ isOpen, onClose, eventTypes }: RallyE
     setSelectedBoundingBox,
     boundingBoxes,
     currentFrameIndex,
-    getCurrentRally
+    getCurrentRally,
+    deleteEventFromAnnotation
   } = useAppStore();
 
   // Close modal on Escape key
@@ -105,6 +106,19 @@ export default function RallyEventsModal({ isOpen, onClose, eventTypes }: RallyE
     onClose();
   };
 
+  const handleDeleteEvent = async (annotation: typeof annotations[0], event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the event click
+    
+    if (confirm(`Are you sure you want to delete the event "${annotation.event}" from frame ${annotation.frame}, tracklet ${annotation.tracklet_id}?`)) {
+      try {
+        await deleteEventFromAnnotation(annotation.frame, annotation.tracklet_id);
+        console.log(`✅ Event deleted from frame ${annotation.frame}, tracklet ${annotation.tracklet_id}`);
+      } catch (error) {
+        console.error('❌ Error deleting event:', error);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-2xl max-h-[80vh] overflow-hidden">
@@ -172,8 +186,17 @@ export default function RallyEventsModal({ isOpen, onClose, eventTypes }: RallyE
                           </div>
                         </div>
                       </div>
-                      <div className="text-lg">
-                        {annotation.tracklet_id === 99 ? '⚽' : '👤'}
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg">
+                          {annotation.tracklet_id === 99 ? '⚽' : '👤'}
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteEvent(annotation, e)}
+                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                          title="Delete event"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   );
