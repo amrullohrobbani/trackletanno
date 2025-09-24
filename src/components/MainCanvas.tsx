@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Image from 'next/image';
 import { useAppStore } from '@/store/appStore';
 import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
@@ -9,9 +8,6 @@ import { annotationsToCSV } from '@/utils/annotationParser';
 import { debugAnnotationFrameConnection } from '@/utils/debugHelpers';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { showConfirm } from '@/utils/dialogUtils';
-
-const HIGH_QUALITY = 95;
-const LOW_QUALITY = 10;
 
 export default function MainCanvas() {
   const { t } = useLanguage();
