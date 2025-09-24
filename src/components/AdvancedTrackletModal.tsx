@@ -152,14 +152,22 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     const frameIndexToNumber: { [index: number]: number } = {};
     rally.imageFiles.forEach((imagePath, index) => {
       const filename = imagePath.split(/[/\\]/).pop() || '';
-      const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
-      if (!isNaN(frameNumber)) {
+      // Extract digits from filename (handles 000000.jpg, 000001.jpg, etc.)
+      const digitsOnly = filename.replace(/\D/g, '');
+      const frameNumber = parseInt(digitsOnly, 10);
+      
+      // Accept all valid frame numbers, including 0 (for 000000.jpg format)
+      if (!isNaN(frameNumber) && digitsOnly.length > 0) {
         const idx = index + 1; // 1-based index
         frameIndexToNumber[idx] = frameNumber;
+      } else {
+        console.warn(`🔢 Could not extract frame number from filename: ${filename}`);
       }
     });
-    
-    return frameIndexToNumber[frameIndex] || null;
+    console.log(`🔢 convertFrameIndexToNumber - frameIndex ${frameIndex}:`, frameIndexToNumber[frameIndex]);
+    const result = frameIndexToNumber[frameIndex];
+    console.log(`🔢 convertFrameIndexToNumber result: frameIndex ${frameIndex} -> frameNumber ${result}`);
+    return result;
   }, [getCurrentRally]);
 
   // Parse frame range string with enhanced syntax
@@ -186,8 +194,12 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     
     rally.imageFiles.forEach((imagePath, index) => {
       const filename = imagePath.split(/[/\\]/).pop() || '';
-      const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
-      if (!isNaN(frameNumber)) {
+      // Extract digits from filename (handles 000000.jpg, 000001.jpg, etc.)
+      const digitsOnly = filename.replace(/\D/g, '');
+      const frameNumber = parseInt(digitsOnly, 10);
+      
+      // Accept all valid frame numbers, including 0 (for 000000.jpg format)
+      if (!isNaN(frameNumber) && digitsOnly.length > 0) {
         const frameIndex = index + 1; // 1-based index
         frameIndexToNumber[frameIndex] = frameNumber;
         allFrameIndices.push(frameIndex);

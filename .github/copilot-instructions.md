@@ -32,4 +32,4 @@ Team values are numeric: 0=home, 1=away, -1=others
 - Keyboard shortcuts (Z/X for frame navigation, Home/End for first/last frame, D/A for modes, B for ball mode, ESC to clear)
 - Real-time bounding box drawing and editing
 - Automatic file saving with visual feedback
-- Support for 1920x1080 image frames
+- Support for multiple image resolutions (HD 1280x720, Full HD 1920x1080, etc.)

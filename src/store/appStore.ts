@@ -65,15 +65,6 @@ interface AppState {
   timelineImageCache: Map<string, string>;
   clearTimelineImageCache: () => void;
   
-  // Frame buffer for smooth navigation (5 frames before/after current)
-  frameBuffer: Map<string, string>;
-  bufferSize: number;
-  isBuffering: boolean;
-  loadFrameBuffer: (currentFrameIndex: number) => Promise<void>;
-  clearFrameBuffer: () => void;
-  isFrameBuffered: (frameIndex: number) => boolean;
-  getBufferedFrame: (frameIndex: number) => string | null;
-  
   // Canvas dimensions for coordinate scaling
   canvasDimensions: { width: number; height: number };
   setCanvasDimensions: (dimensions: { width: number; height: number }) => void;
@@ -225,12 +216,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   timelineImageCache: new Map<string, string>(),
   clearTimelineImageCache: () => set({ timelineImageCache: new Map<string, string>() }),
   
-  // Frame buffer for smooth navigation
-  frameBuffer: new Map<string, string>(),
-  bufferSize: 15, // 15 frames before and after current frame for ultra-smooth animation
-  isBuffering: false,
-  clearFrameBuffer: () => set({ frameBuffer: new Map<string, string>() }),
-  
   // Initial canvas dimensions (default 1920x1080)
   canvasDimensions: { width: 1920, height: 1080 },
   setCanvasDimensions: (dimensions) => set({ canvasDimensions: dimensions }),
@@ -246,8 +231,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Actions
   setSelectedDirectory: (dir) => set({ 
-    selectedDirectory: dir,
-    frameBuffer: new Map<string, string>() // Clear frame buffer when changing directory
+    selectedDirectory: dir
   }),
   
   setRallyFolders: async (folders) => {
@@ -285,8 +269,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       boundingBoxes: [],
       ballAnnotations: [],
       hasBallAnnotations: false,
-      visibleTrackletIds: new Set(), // Reset visibility
-      frameBuffer: new Map<string, string>() // Clear frame buffer when changing rally
+      visibleTrackletIds: new Set() // Reset visibility
     });
 
     // Load annotations if available and we're in an Electron environment
@@ -426,22 +409,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         
         console.log(`Loaded ${annotations.length} total annotations, ${ballAnnotations.length} ball annotations`);
         
-        // Preload initial buffer for smooth navigation
-        setTimeout(() => {
-          const currentState = get();
-          currentState.loadFrameBuffer(currentState.currentFrameIndex);
-        }, 100);
-        
       } catch (error) {
         console.error('Error loading annotations:', error);
         // Continue without annotations - they can be created manually
       }
-    } else {
-      // No annotation file, still preload buffer for navigation
-      setTimeout(() => {
-        const currentState = get();
-        currentState.loadFrameBuffer(currentState.currentFrameIndex);
-      }, 100);
     }
   },
   
@@ -492,11 +463,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (rally && state.currentFrameIndex < rally.imageFiles.length) {
       const newFrameIndex = state.currentFrameIndex + 1;
       set({ currentFrameIndex: newFrameIndex });
-      // Trigger buffer loading immediately for smooth navigation
-      setTimeout(() => {
-        const currentState = get();
-        currentState.loadFrameBuffer(newFrameIndex);
-      }, 0);
     }
   },
   
@@ -505,11 +471,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (state.currentFrameIndex > 1) {
       const newFrameIndex = state.currentFrameIndex - 1;
       set({ currentFrameIndex: newFrameIndex });
-      // Trigger buffer loading immediately for smooth navigation
-      setTimeout(() => {
-        const currentState = get();
-        currentState.loadFrameBuffer(newFrameIndex);
-      }, 0);
     }
   },
   
@@ -979,127 +940,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     const trackletIds = new Set(state.annotations.map(ann => ann.tracklet_id));
     return Array.from(trackletIds).sort((a, b) => a - b);
-  },
-
-  // Frame buffer management for smooth navigation
-  loadFrameBuffer: async (currentFrameIndex: number) => {
-    const state = get();
-    const rally = state.getCurrentRally();
-    
-    if (!rally || state.isBuffering) {
-      return;
-    }
-
-    set({ isBuffering: true });
-
-    try {
-      const { bufferSize } = state;
-      
-      // Calculate buffer range (10 frames before and after)
-      const startIndex = Math.max(1, currentFrameIndex - bufferSize);
-      const endIndex = Math.min(rally.imageFiles.length, currentFrameIndex + bufferSize);
-      
-      console.log(`🗂️ Buffer: Loading frames ${startIndex}-${endIndex} (current: ${currentFrameIndex})`);
-      
-      // Priority loading: current frame first, then immediate neighbors, then expanding outward
-      const loadOrder: number[] = [];
-      
-      // 1. Current frame (highest priority)
-      loadOrder.push(currentFrameIndex);
-      
-      // 2. Immediate neighbors (next and previous)
-      if (currentFrameIndex + 1 <= endIndex) loadOrder.push(currentFrameIndex + 1);
-      if (currentFrameIndex - 1 >= startIndex) loadOrder.push(currentFrameIndex - 1);
-      
-      // 3. Expand outward in waves
-      for (let distance = 2; distance <= bufferSize; distance++) {
-        if (currentFrameIndex + distance <= endIndex) loadOrder.push(currentFrameIndex + distance);
-        if (currentFrameIndex - distance >= startIndex) loadOrder.push(currentFrameIndex - distance);
-      }
-      
-      // Remove duplicates and filter out already buffered frames
-      const uniqueLoadOrder = [...new Set(loadOrder)].filter(frameIndex => {
-        const arrayIndex = frameIndex - 1;
-        const imagePath = rally.imageFiles[arrayIndex];
-        return imagePath && !state.frameBuffer.has(imagePath);
-      });
-      
-      console.log(`🎯 Priority buffer loading order: [${uniqueLoadOrder.join(', ')}]`);
-      
-      // Load frames in priority order with batching for performance
-      const batchSize = 5; // Load 5 frames simultaneously for faster preloading
-      for (let i = 0; i < uniqueLoadOrder.length; i += batchSize) {
-        const batch = uniqueLoadOrder.slice(i, i + batchSize);
-        const batchPromises = batch.map(async (frameIndex) => {
-          try {
-            const arrayIndex = frameIndex - 1;
-            const imagePath = rally.imageFiles[arrayIndex];
-            if (imagePath) {
-              const imageDataUrl = await window.electronAPI.getImageData(imagePath);
-              // Update buffer map
-              set((prevState) => {
-                const newBuffer = new Map(prevState.frameBuffer);
-                newBuffer.set(imagePath, imageDataUrl);
-                return { frameBuffer: newBuffer };
-              });
-              console.log(`✅ Buffered frame ${frameIndex}`);
-            }
-          } catch (error) {
-            console.warn(`Failed to buffer frame ${frameIndex}:`, error);
-          }
-        });
-        
-        // Wait for this batch to complete before starting next batch
-        await Promise.all(batchPromises);
-      }
-      
-      const finalBufferSize = get().frameBuffer.size;
-      console.log(`🎉 Buffer loading complete: ${uniqueLoadOrder.length} new frames loaded, total buffered: ${finalBufferSize}`);
-      
-      // Clean up buffer if it gets too large (keep only 2x buffer size)
-      const maxBufferSize = bufferSize * 4; // 120 frames total with 15-frame buffer
-      const currentBuffer = get().frameBuffer;
-      if (currentBuffer.size > maxBufferSize) {
-        // Remove frames that are furthest from current frame
-        const framePaths = Array.from(currentBuffer.keys());
-        const framesToKeep = framePaths.slice(-maxBufferSize);
-        const cleanedBuffer = new Map();
-        framesToKeep.forEach(key => {
-          cleanedBuffer.set(key, currentBuffer.get(key)!);
-        });
-        
-        set({ frameBuffer: cleanedBuffer });
-        console.log(`🧹 Buffer: Cleaned up buffer, now contains ${cleanedBuffer.size} frames`);
-      }
-      
-    } catch (error) {
-      console.error('Error loading frame buffer:', error);
-    } finally {
-      set({ isBuffering: false });
-    }
-  },
-
-  // Buffer helper functions for synchronous checks
-  isFrameBuffered: (frameIndex: number) => {
-    const state = get();
-    const rally = state.getCurrentRally();
-    if (!rally || frameIndex < 1 || frameIndex > rally.imageFiles.length) {
-      return false;
-    }
-    const arrayIndex = frameIndex - 1;
-    const imagePath = rally.imageFiles[arrayIndex];
-    return imagePath ? state.frameBuffer.has(imagePath) : false;
-  },
-
-  getBufferedFrame: (frameIndex: number) => {
-    const state = get();
-    const rally = state.getCurrentRally();
-    if (!rally || frameIndex < 1 || frameIndex > rally.imageFiles.length) {
-      return null;
-    }
-    const arrayIndex = frameIndex - 1;
-    const imagePath = rally.imageFiles[arrayIndex];
-    return imagePath ? state.frameBuffer.get(imagePath) || null : null;
   },
 
   // ID Analysis actions

@@ -1,6 +1,43 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.4.1 - Current Release
+## Version 1.4.2 - Current Release
+*Release Date: September 24, 2025*
+
+### 🚀 Performance Improvements
+
+#### Image Loading System Overhaul
+- **Reverted to Simple Image Loading**: Removed complex frame buffering system that was causing slower image loading
+  - Eliminated 15-frame buffer system that was preloading 30+ frames simultaneously
+  - Removed `frameBuffer`, `bufferSize`, `isBuffering`, `loadFrameBuffer`, `clearFrameBuffer`, `isFrameBuffered`, and `getBufferedFrame` from store
+  - Simplified MainCanvas image loading to load images on-demand only
+  - Removed preloading logic for adjacent frames
+
+#### User Experience Enhancements  
+- **Faster Frame Navigation**: Images now load directly when needed instead of waiting for buffer operations
+- **Reduced Memory Usage**: No longer caching multiple frames in memory simultaneously
+- **Simplified Architecture**: Cleaner, more maintainable codebase without complex buffer management
+
+#### Technical Changes
+- **MainCanvas Simplification**: 
+  - Removed all frame buffer checks and preloading logic
+  - Streamlined `loadImage()` function to use direct `window.electronAPI.getImageData()` calls
+  - Eliminated animation frame preloading system
+  - Removed buffering status indicator from UI
+
+- **Store Cleanup**:
+  - Removed frame buffer related state and functions
+  - Simplified navigation functions (`nextFrame`, `previousFrame`)
+  - Removed buffer clearing when changing directories or rallies
+
+### 🎮 Usage Impact
+- Frame navigation (Z/X keys) now loads images on-demand for faster response
+- Initial frame loading is more responsive without buffer initialization delays
+- Memory usage is significantly reduced during extended annotation sessions
+
+---
+
+## Version 1.4.1
+*Release Date: September 24, 2025*
 *Release Date: September 24, 2025*
 
 ### 🔧 Bug Fixes

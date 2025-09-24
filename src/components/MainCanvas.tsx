@@ -28,8 +28,6 @@ export default function MainCanvas() {
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [isAnimatingFrames, setIsAnimatingFrames] = useState(false);
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     getCurrentImagePath,
@@ -73,10 +71,7 @@ export default function MainCanvas() {
     getCurrentFrameBallAnnotation,
     removeCurrentFrameBallAnnotation,
     highQualityMode,
-    setHighQualityMode,
-    frameBuffer,
-    isBuffering,
-    isFrameBuffered
+    setHighQualityMode
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -95,153 +90,6 @@ export default function MainCanvas() {
       setImageError(false);
     }
   }, [imagePath]);
-
-  // Animated frame transition system for smooth scrubbing effect
-  const animateFrameTransition = useCallback(async (targetFrame: number) => {
-    const currentFrame = currentFrameIndex;
-    const rally = getCurrentRally();
-    
-    if (!rally || currentFrame === targetFrame) {
-      return;
-    }
-
-    // Clear any existing animation
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current);
-    }
-
-    setIsAnimatingFrames(true);
-    
-    // Calculate frame sequence for animation - optimized for rapid navigation
-    const frameSequence: number[] = [];
-    const direction = targetFrame > currentFrame ? 1 : -1;
-    
-    // For rapid navigation, only show immediate steps (no sampling)
-    for (let i = currentFrame + direction; 
-         direction > 0 ? i <= targetFrame : i >= targetFrame; 
-         i += direction) {
-      frameSequence.push(i);
-    }
-    
-    console.log(`🎬 Rapid navigation: ${currentFrame} → [${frameSequence.join(', ')}]`);
-    
-    // Preload all frames in the sequence for smooth animation
-    const preloadPromises = frameSequence.map(async (frameIndex) => {
-      if (!isFrameBuffered(frameIndex)) {
-        const arrayIndex = frameIndex - 1;
-        const imagePath = rally.imageFiles[arrayIndex];
-        if (imagePath) {
-          try {
-            const imageDataUrl = await window.electronAPI.getImageData(imagePath);
-            // Update buffer immediately for smooth playback
-            const store = useAppStore.getState();
-            const newBuffer = new Map(store.frameBuffer);
-            newBuffer.set(imagePath, imageDataUrl);
-            useAppStore.setState({ frameBuffer: newBuffer });
-          } catch (error) {
-            console.warn(`Failed to preload frame ${frameIndex} for animation:`, error);
-          }
-        }
-      }
-    });
-    
-    // Wait for preloading to complete
-    await Promise.all(preloadPromises);
-    
-    // Play the animation sequence with fast timing for responsiveness
-    const playFrame = (index: number) => {
-      if (index >= frameSequence.length) {
-        setIsAnimatingFrames(false);
-        return;
-      }
-      
-      const frameToShow = frameSequence[index];
-      
-      // Update frame index directly in store for immediate effect
-      useAppStore.setState({ currentFrameIndex: frameToShow });
-      
-      // Fast timing for rapid navigation (50ms per frame for smooth but responsive feel)
-      const delay = 50;
-      
-      animationTimeoutRef.current = setTimeout(() => {
-        playFrame(index + 1);
-      }, delay);
-    };
-    
-    // Start animation
-    playFrame(0);
-    
-  }, [currentFrameIndex, getCurrentRally, isFrameBuffered]);
-
-  // Enhanced smooth navigation optimized for rapid consecutive moves
-  const smoothPreviousFrame = useCallback(() => {
-    const targetFrame = currentFrameIndex - 1;
-    
-    if (targetFrame >= 1) {
-      // If already animating, interrupt and continue from current animation position
-      if (isAnimatingFrames) {
-        if (animationTimeoutRef.current) {
-          clearTimeout(animationTimeoutRef.current);
-        }
-        // Get the actual current frame from the store and animate from there
-        const actualCurrentFrame = useAppStore.getState().currentFrameIndex;
-        const newTargetFrame = Math.max(1, actualCurrentFrame - 1);
-        animateFrameTransition(newTargetFrame);
-      } else {
-        // Start new animation
-        animateFrameTransition(targetFrame);
-      }
-    }
-  }, [currentFrameIndex, isAnimatingFrames, animateFrameTransition]);
-
-  const smoothNextFrame = useCallback(() => {
-    const rally = getCurrentRally();
-    const targetFrame = currentFrameIndex + 1;
-    
-    if (rally && targetFrame <= rally.imageFiles.length) {
-      // If already animating, interrupt and continue from current animation position
-      if (isAnimatingFrames) {
-        if (animationTimeoutRef.current) {
-          clearTimeout(animationTimeoutRef.current);
-        }
-        // Get the actual current frame from the store and animate from there
-        const actualCurrentFrame = useAppStore.getState().currentFrameIndex;
-        const newTargetFrame = Math.min(rally.imageFiles.length, actualCurrentFrame + 1);
-        animateFrameTransition(newTargetFrame);
-      } else {
-        // Start new animation
-        animateFrameTransition(targetFrame);
-      }
-    }
-  }, [currentFrameIndex, isAnimatingFrames, animateFrameTransition, getCurrentRally]);
-
-  // Preload adjacent frames for smoother transitions
-  useEffect(() => {
-    const rally = getCurrentRally();
-    if (!rally || !rally.imageFiles.length) return;
-
-    const preloadFrame = async (frameIndex: number) => {
-      try {
-        const imagePath = rally.imageFiles[frameIndex];
-        if (imagePath && typeof window !== 'undefined' && window.electronAPI) {
-          // Preload image in background for smoother navigation
-          await window.electronAPI.getImageData(imagePath);
-        }
-      } catch (error) {
-        console.warn('Failed to preload frame:', frameIndex, error);
-      }
-    };
-
-    // Preload previous frame
-    if (currentFrameIndex > 1) {
-      preloadFrame(currentFrameIndex - 2); // Convert to 0-based index
-    }
-
-    // Preload next frame
-    if (currentFrameIndex < rally.imageFiles.length) {
-      preloadFrame(currentFrameIndex); // Convert to 0-based index
-    }
-  }, [currentFrameIndex, getCurrentRally]);
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
@@ -297,53 +145,7 @@ export default function MainCanvas() {
     }
 
     try {
-      // First check if image is already in buffer - immediate loading
-      const bufferedImage = frameBuffer.get(imagePath);
-      if (bufferedImage) {
-        console.log(`⚡ Buffer hit: Frame loaded instantly`);
-        setProcessedImageSrc(bufferedImage);
-        
-        // Preload adjacent frames immediately for even smoother navigation
-        const rally = getCurrentRally();
-        if (rally) {
-          const currentIndex = currentFrameIndex;
-          
-          // Preload next frame if not already buffered
-          if (currentIndex < rally.imageFiles.length) {
-            const nextImagePath = rally.imageFiles[currentIndex]; // currentIndex is 1-based, array is 0-based
-            if (nextImagePath && !frameBuffer.has(nextImagePath)) {
-              window.electronAPI.getImageData(nextImagePath).then(data => {
-                // Only update if still the same frame (avoid race conditions)
-                if (getCurrentImagePath() === imagePath) {
-                  const store = useAppStore.getState();
-                  const newBuffer = new Map(store.frameBuffer);
-                  newBuffer.set(nextImagePath, data);
-                  useAppStore.setState({ frameBuffer: newBuffer });
-                }
-              }).catch(err => console.warn('Failed to preload next frame:', err));
-            }
-          }
-          
-          // Preload previous frame if not already buffered
-          if (currentIndex > 1) {
-            const prevImagePath = rally.imageFiles[currentIndex - 2]; // currentIndex is 1-based, array is 0-based
-            if (prevImagePath && !frameBuffer.has(prevImagePath)) {
-              window.electronAPI.getImageData(prevImagePath).then(data => {
-                // Only update if still the same frame (avoid race conditions)
-                if (getCurrentImagePath() === imagePath) {
-                  const store = useAppStore.getState();
-                  const newBuffer = new Map(store.frameBuffer);
-                  newBuffer.set(prevImagePath, data);
-                  useAppStore.setState({ frameBuffer: newBuffer });
-                }
-              }).catch(err => console.warn('Failed to preload previous frame:', err));
-            }
-          }
-        }
-        
-        return;
-      }
-
+      // Use the secure image loading method
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
       setProcessedImageSrc(imageDataUrl);
       
@@ -351,7 +153,7 @@ export default function MainCanvas() {
       console.error('Error loading image:', error);
       setProcessedImageSrc(null);
     }
-  }, [imagePath, frameBuffer, currentFrameIndex, getCurrentRally, getCurrentImagePath]);
+  }, [imagePath]);
 
   // Load image immediately when path changes (should hit buffer most of the time)
   useEffect(() => {
@@ -1491,20 +1293,6 @@ export default function MainCanvas() {
         console.log('ESC pressed - All modes and selections cleared');
       }
 
-      // Z key or Left Arrow for previous frame
-      if (event.key.toLowerCase() === 'z' || event.key === 'ArrowLeft') {
-        event.preventDefault();
-        smoothPreviousFrame();
-        console.log(`${event.key} pressed - Previous frame`);
-      }
-
-      // X key or Right Arrow for next frame
-      if (event.key.toLowerCase() === 'x' || event.key === 'ArrowRight') {
-        event.preventDefault();
-        smoothNextFrame();
-        console.log(`${event.key} pressed - Next frame`);
-      }
-
       // Home key to go to first frame (instant)
       if (event.key === 'Home') {
         event.preventDefault();
@@ -1548,7 +1336,7 @@ export default function MainCanvas() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox, ballAnnotationMode, ballAnnotations, currentFrameIndex, removeBallAnnotation, t, getCurrentFrameBallAnnotation, removeCurrentFrameBallAnnotation, smoothPreviousFrame, smoothNextFrame, animateFrameTransition, getCurrentRally]);
+  }, [setDrawingMode, setAssignMode, setBallAnnotationMode, setSelectedTrackletId, setSelectedBoundingBox, ballAnnotationMode, ballAnnotations, currentFrameIndex, removeBallAnnotation, t, getCurrentFrameBallAnnotation, removeCurrentFrameBallAnnotation, getCurrentRally]);
 
   if (!imagePath) {
     return (
@@ -1602,10 +1390,8 @@ export default function MainCanvas() {
               });
               
               // Smooth transition by delaying the loading state change slightly
-              setTimeout(() => {
-                setImageLoading(false);
-                setImageError(false);
-              }, 50);
+              setImageLoading(false);
+              setImageError(false);
               
               // Use requestAnimationFrame for smooth rendering
               requestAnimationFrame(() => {
@@ -1676,7 +1462,6 @@ export default function MainCanvas() {
         {/* Frame info */}
         <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
           {t('common.frame')} {currentFrameIndex} • {boundingBoxes.length} boxes • 
-          {isBuffering && <span className="text-yellow-400">Buffering... • </span>}
           <button
             onClick={() => {
               // Reset zoom to 100% and center the image
