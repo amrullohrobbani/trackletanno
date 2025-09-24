@@ -36,17 +36,17 @@ export default function BallAnnotationControls() {
 
   const handleImportJson = async () => {
     if (!selectedDirectory) {
-      showAlert('Please select a directory first.');
+      showAlert(t('dialogs.selectDirectoryFirst'));
       return;
     }
 
     setIsImporting(true);
     try {
       await loadBallAnnotationsFromJson();
-      showSuccess(`Successfully imported ball annotations!`);
+      showSuccess(t('dialogs.importSuccess'));
     } catch (error) {
       console.error('Import error:', error);
-      showError('Error importing ball annotations from JSON files.');
+      showError(t('dialogs.importError'));
     } finally {
       setIsImporting(false);
     }
@@ -55,7 +55,7 @@ export default function BallAnnotationControls() {
   const handleExportJson = async () => {
     const rally = getCurrentRally();
     if (!rally) {
-      showAlert('No rally selected.');
+      showAlert(t('dialogs.noRallySelected'));
       return;
     }
 
@@ -63,9 +63,9 @@ export default function BallAnnotationControls() {
     try {
       const success = await exportAnnotationsAsJson();
       if (success) {
-        showSuccess(`Successfully exported annotations to JSON!`);
+        showSuccess(t('dialogs.exportSuccess'));
       } else {
-        showError('Error exporting annotations to JSON.');
+        showError(t('dialogs.exportError'));
       }
     } catch (error) {
       console.error('Export error:', error);

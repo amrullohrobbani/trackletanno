@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsPromises = require('fs').promises;
 const isDev = process.env.NODE_ENV === 'development';
 
 // Check Node.js version compatibility
@@ -72,7 +73,7 @@ ipcMain.handle('select-directory', async () => {
 
 ipcMain.handle('read-directory', async (event, dirPath) => {
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
     return entries.map(entry => ({
       name: entry.name,
       isDirectory: entry.isDirectory(),
@@ -86,7 +87,7 @@ ipcMain.handle('read-directory', async (event, dirPath) => {
 
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
-    const content = await fs.readFile(filePath, 'utf8');
+    const content = await fsPromises.readFile(filePath, 'utf8');
     return content;
   } catch (error) {
     console.error('Error reading file:', error);
@@ -96,7 +97,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
-    await fs.writeFile(filePath, content, 'utf8');
+    await fsPromises.writeFile(filePath, content, 'utf8');
     return true;
   } catch (error) {
     console.error('Error writing file:', error);
@@ -106,7 +107,7 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 
 ipcMain.handle('file-exists', async (event, filePath) => {
   try {
-    await fs.access(filePath);
+    await fsPromises.access(filePath);
     return true;
   } catch {
     return false;
@@ -137,7 +138,7 @@ async function checkAndRenameImages(folderPath, imageFiles) {
       const newPath = path.join(folderPath, newFilename);
 
       try {
-        await fs.rename(oldPath, newPath);
+        await fsPromises.rename(oldPath, newPath);
         renamedCount++;
         console.log(`Renamed: ${oldFilename} -> ${newFilename}`);
       } catch (renameError) {
@@ -155,7 +156,7 @@ async function checkAndRenameImages(folderPath, imageFiles) {
 ipcMain.handle('get-rally-folders', async (event, basePath) => {
   try {
     console.log('Scanning directory:', basePath);
-    const entries = await fs.readdir(basePath, { withFileTypes: true });
+    const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
     const rallyFolders = [];
     const validationResults = [];
     
@@ -179,7 +180,7 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
 
       try {
         // Check folder contents for images
-        const folderEntries = await fs.readdir(folderPath);
+        const folderEntries = await fsPromises.readdir(folderPath);
         
         // Look for image files
         const imageFiles = folderEntries.filter(file => 
@@ -205,7 +206,7 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
           if (needsRenaming.renamed) {
             validation.issues.push(`Renamed ${needsRenaming.count} images to use frame numbering`);
             // Refresh the sorted list after renaming
-            const renamedEntries = await fs.readdir(folderPath);
+            const renamedEntries = await fsPromises.readdir(folderPath);
             const renamedImages = renamedEntries.filter(file => 
               /\.(jpg|jpeg|png|bmp|webp|gif)$/i.test(file)
             ).sort((a, b) => {
@@ -219,14 +220,14 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
 
           // Check for annotation file
           const annotationFilePath = path.join(basePath, `${dirEntry.name}.txt`);
-          const annotationExists = await fs.access(annotationFilePath).then(() => true).catch(() => false);
+          const annotationExists = await fsPromises.access(annotationFilePath).then(() => true).catch(() => false);
           
           if (!annotationExists) {
             // Create empty annotation file
             console.log(`Creating empty annotation file: ${annotationFilePath}`);
             const emptyAnnotation = ''; // Empty CSV content
             try {
-              await fs.writeFile(annotationFilePath, emptyAnnotation, 'utf8');
+              await fsPromises.writeFile(annotationFilePath, emptyAnnotation, 'utf8');
               validation.issues.push('Created new empty annotation file');
             } catch (writeError) {
               validation.issues.push(`Could not create annotation file: ${writeError.message}`);
@@ -234,7 +235,7 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
           } else {
             // Validate existing annotation file
             try {
-              const annotationContent = await fs.readFile(annotationFilePath, 'utf8');
+              const annotationContent = await fsPromises.readFile(annotationFilePath, 'utf8');
               if (annotationContent.trim().length === 0) {
                 validation.issues.push('Annotation file is empty');
               } else {
@@ -320,7 +321,7 @@ async function checkAndRenameImages(folderPath, imageFiles) {
       const newPath = path.join(folderPath, newFilename);
 
       try {
-        await fs.rename(oldPath, newPath);
+        await fsPromises.rename(oldPath, newPath);
         renamedCount++;
         console.log(`Renamed: ${oldFilename} -> ${newFilename}`);
       } catch (renameError) {
@@ -369,7 +370,7 @@ ipcMain.handle('debug-directory', async (event, dirPath) => {
     console.log('=== DEBUG: Directory contents ===');
     console.log('Path:', dirPath);
     
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
     console.log('Total entries found:', entries.length);
     
     const directories = entries.filter(e => e.isDirectory());
@@ -386,7 +387,7 @@ ipcMain.handle('debug-directory', async (event, dirPath) => {
     for (const dir of directories) {
       try {
         const subPath = path.join(dirPath, dir.name);
-        const subEntries = await fs.readdir(subPath, { withFileTypes: true });
+        const subEntries = await fsPromises.readdir(subPath, { withFileTypes: true });
         const subRallies = subEntries.filter(e => e.isDirectory() && e.name.startsWith('rally_'));
         if (subRallies.length > 0) {
           console.log(`Rally folders in ${dir.name}:`, subRallies.map(r => r.name));
@@ -412,7 +413,7 @@ ipcMain.handle('debug-directory', async (event, dirPath) => {
 ipcMain.handle('load-annotation-file', async (event, annotationFilePath) => {
   try {
     console.log('Loading annotation file:', annotationFilePath);
-    const content = await fs.readFile(annotationFilePath, 'utf8');
+    const content = await fsPromises.readFile(annotationFilePath, 'utf8');
     console.log('Annotation file loaded, size:', content.length, 'bytes');
     return content;
   } catch (error) {
@@ -425,7 +426,7 @@ ipcMain.handle('load-annotation-file', async (event, annotationFilePath) => {
 ipcMain.handle('save-annotation-file', async (event, annotationFilePath, content) => {
   try {
     console.log('Saving annotation file:', annotationFilePath);
-    await fs.writeFile(annotationFilePath, content, 'utf8');
+    await fsPromises.writeFile(annotationFilePath, content, 'utf8');
     console.log('Annotation file saved successfully');
     return true;
   } catch (error) {
@@ -479,7 +480,7 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
     const normalizedPath = path.normalize(imagePath);
     
     // Check if file exists first
-    if (!await fs.access(normalizedPath).then(() => true).catch(() => false)) {
+    if (!await fsPromises.access(normalizedPath).then(() => true).catch(() => false)) {
       console.error('Image file does not exist:', normalizedPath);
       console.error('Original path:', imagePath);
       console.error('Working directory:', process.cwd());
@@ -491,14 +492,14 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
       if (!isAbsolute) {
         const absolutePath = path.resolve(normalizedPath);
         console.error('Resolved absolute path:', absolutePath);
-        const absoluteExists = await fs.access(absolutePath).then(() => true).catch(() => false);
+        const absoluteExists = await fsPromises.access(absolutePath).then(() => true).catch(() => false);
         console.error('Absolute path exists:', absoluteExists);
       }
       
       throw new Error(`Image file not found: ${normalizedPath}`);
     }
     
-    const imageBuffer = await fs.readFile(normalizedPath);
+    const imageBuffer = await fsPromises.readFile(normalizedPath);
     console.log('Image buffer size:', imageBuffer.length);
     
     // Validate image buffer
@@ -555,7 +556,7 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
 // Extract dominant color from a specific region of an image
 ipcMain.handle('extract-dominant-color', async (event, imagePath, x, y, width, height) => {
   try {
-    const imageBuffer = await fs.readFile(imagePath);
+    const imageBuffer = await fsPromises.readFile(imagePath);
     
     // For a basic implementation, we'll use a simple approach:
     // 1. Generate a color based on the image file and bounding box
@@ -596,7 +597,7 @@ ipcMain.handle('extract-dominant-color', async (event, imagePath, x, y, width, h
 // JSON annotation file handlers
 ipcMain.handle('find-json-files', async (event, dirPath) => {
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
     const jsonFiles = entries
       .filter(entry => !entry.isDirectory() && entry.name.endsWith('.json'))
       .map(entry => path.join(dirPath, entry.name));
@@ -611,7 +612,7 @@ ipcMain.handle('find-json-files', async (event, dirPath) => {
 
 ipcMain.handle('export-to-json', async (event, filePath, content) => {
   try {
-    await fs.writeFile(filePath, content, 'utf8');
+    await fsPromises.writeFile(filePath, content, 'utf8');
     console.log('Successfully exported to JSON:', filePath);
     return true;
   } catch (error) {

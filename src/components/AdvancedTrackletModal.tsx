@@ -143,6 +143,25 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     // Users can manually enter the values they want
   }, [operationType]);
 
+  // Convert single frame index (1-based) to actual frame number
+  const convertFrameIndexToNumber = useCallback((frameIndex: number): number | null => {
+    const rally = getCurrentRally();
+    if (!rally || frameIndex < 1) return null;
+    
+    // Create mapping from frame index to frame number
+    const frameIndexToNumber: { [index: number]: number } = {};
+    rally.imageFiles.forEach((imagePath, index) => {
+      const filename = imagePath.split(/[/\\]/).pop() || '';
+      const frameNumber = parseInt(filename.replace(/\D/g, ''), 10);
+      if (!isNaN(frameNumber)) {
+        const idx = index + 1; // 1-based index
+        frameIndexToNumber[idx] = frameNumber;
+      }
+    });
+    
+    return frameIndexToNumber[frameIndex] || null;
+  }, [getCurrentRally]);
+
   // Parse frame range string with enhanced syntax
   // Examples: "1-10", "1,3,5", "15", "-20" (start to index 20), "200-" (index 200 to end), "" (all frames)
   // Works with frame indices (1-based): 1, 2, 3, 4... instead of actual frame numbers
@@ -328,7 +347,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       const trackletId = parseInt(duplicateTrackletId);
       
       if (isNaN(trackletId)) {
-        showAlert('Please enter a valid tracklet ID');
+        showAlert(t('dialogs.pleaseEnterValidTrackletId'));
         return;
       }
       
@@ -349,13 +368,18 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
       // Use specific source frame if provided
       if (duplicateSourceFrame.trim()) {
-        const sourceFrame = parseInt(duplicateSourceFrame);
-        if (!isNaN(sourceFrame)) {
+        const sourceFrameIndex = parseInt(duplicateSourceFrame);
+        if (!isNaN(sourceFrameIndex)) {
+          const actualFrameNumber = convertFrameIndexToNumber(sourceFrameIndex);
+          if (actualFrameNumber === null) {
+            showAlert(t('dialogs.invalidFrameIndex', { frameIndex: sourceFrameIndex }));
+            return;
+          }
           sourceAnnotation = annotations.find(ann => 
-            ann.tracklet_id === trackletId && ann.frame === sourceFrame
+            ann.tracklet_id === trackletId && ann.frame === actualFrameNumber
           );
           if (!sourceAnnotation) {
-            showAlert(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+            showAlert(t('dialogs.noAnnotationFoundForTrackletInFrame', { trackletId, frame: actualFrameNumber }));
             return;
           }
         }
@@ -375,7 +399,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       }
       
       if (!sourceAnnotation) {
-        showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
+        showAlert(t('dialogs.noAnnotationFoundForTrackletInAnyFrame', { trackletId }));
         return;
       }
       
@@ -415,7 +439,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
           }
         } else {
           setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
-          showAlert('No source annotation found in current frame');
+          showAlert(t('dialogs.noSourceAnnotationFound'));
         }
         
       } catch (error) {
@@ -564,7 +588,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
     } finally {
       setIsLoadingPreviews(false);
     }
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, getCurrentFrameNumber]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, getCurrentRally, parseFrameRange, generateCroppedImage, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, getCurrentFrameNumber, convertFrameIndexToNumber]);
 
   // Perform the actual operation
   const performOperation = useCallback(async (id1?: number, id2?: number) => {
@@ -594,13 +618,17 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         
         // Use specific source frame if provided
         if (duplicateSourceFrame.trim()) {
-          const sourceFrame = parseInt(duplicateSourceFrame);
-          if (!isNaN(sourceFrame)) {
+          const sourceFrameIndex = parseInt(duplicateSourceFrame);
+          if (!isNaN(sourceFrameIndex)) {
+            const actualFrameNumber = convertFrameIndexToNumber(sourceFrameIndex);
+            if (actualFrameNumber === null) {
+              throw new Error(`Invalid frame index: ${sourceFrameIndex}`);
+            }
             sourceAnnotation = annotations.find(ann => 
-              ann.tracklet_id === trackletId && ann.frame === sourceFrame
+              ann.tracklet_id === trackletId && ann.frame === actualFrameNumber
             );
             if (!sourceAnnotation) {
-              throw new Error(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+              throw new Error(`No annotation found for tracklet ID ${trackletId} in frame ${actualFrameNumber}`);
             }
           }
         }
@@ -714,7 +742,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       console.error('Error applying operation:', error);
       showAlert(t('ui.errorApplyingOperation'), 'destructive');
     }
-  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
+  }, [frameRange1, operationType, annotations, parseFrameRange, setAnnotations, saveAnnotationsToFile, onClose, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber, convertFrameIndexToNumber]);
 
   // Apply the operation - first validation step
   const validateAndStartOperation = useCallback(() => {
@@ -725,7 +753,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       const trackletId = parseInt(duplicateTrackletId);
       
       if (isNaN(trackletId)) {
-        showAlert('Please enter a valid tracklet ID');
+        showAlert(t('dialogs.pleaseEnterValidTrackletId'));
         return;
       }
       
@@ -745,18 +773,24 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
       
       // Use specific source frame if provided
       if (duplicateSourceFrame.trim()) {
-        const sourceFrame = parseInt(duplicateSourceFrame);
-        if (isNaN(sourceFrame)) {
-          showAlert('Please enter a valid source frame number');
+        const sourceFrameIndex = parseInt(duplicateSourceFrame);
+        if (isNaN(sourceFrameIndex)) {
+          showAlert(t('dialogs.pleaseEnterValidSourceFrame'));
+          return;
+        }
+        
+        const actualFrameNumber = convertFrameIndexToNumber(sourceFrameIndex);
+        if (actualFrameNumber === null) {
+          showAlert(t('dialogs.invalidFrameIndex', { frameIndex: sourceFrameIndex }));
           return;
         }
         
         sourceAnnotation = annotations.find(ann => 
-          ann.tracklet_id === trackletId && ann.frame === sourceFrame
+          ann.tracklet_id === trackletId && ann.frame === actualFrameNumber
         );
         
         if (!sourceAnnotation) {
-          showAlert(`No annotation found for tracklet ID ${trackletId} in frame ${sourceFrame}`);
+          showAlert(t('dialogs.noAnnotationFoundForTrackletInFrame', { trackletId, frame: actualFrameNumber }));
           return;
         }
       } else {
@@ -772,7 +806,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         }
         
         if (!sourceAnnotation) {
-          showAlert(`No annotation found for tracklet ID ${trackletId} in any frame`);
+          showAlert(t('dialogs.noAnnotationFoundForTrackletInAnyFrame', { trackletId }));
           return;
         }
       }
@@ -885,7 +919,7 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
         }, 'destructive');
       }, 100);
     }, 'destructive');
-  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber]);
+  }, [trackletId1, trackletId2, frameRange1, operationType, annotations, parseFrameRange, performOperation, t, duplicateTrackletId, duplicateSourceFrame, duplicateFrameRange, overwriteExisting, getCurrentFrameNumber, convertFrameIndexToNumber]);
 
   if (!isOpen) return null;
 
@@ -1027,26 +1061,26 @@ export default function AdvancedTrackletModal({ isOpen, onClose }: AdvancedTrack
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Source Frame (leave empty for auto-detection)
+                      Source Frame Index (leave empty for auto-detection)
                     </label>
                     <input
                       type="number"
                       value={duplicateSourceFrame}
                       onChange={(e) => setDuplicateSourceFrame(e.target.value)}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                      placeholder="e.g., 100 (optional - auto-detects if empty)"
+                      placeholder="e.g., 5 (frame index 5, not literal frame number)"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">
-                      Target Frame(s)
+                      Target Frame Index(es)
                     </label>
                     <input
                       type="text"
                       value={duplicateFrameRange}
                       onChange={(e) => setDuplicateFrameRange(e.target.value)}
                       className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-                      placeholder="e.g., 10, 15-20, 25"
+                      placeholder="e.g., 10, 15-20, 25 (frame indices, not literal frame numbers)"
                     />
                   </div>
                   <div className="flex items-center">

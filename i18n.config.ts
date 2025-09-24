@@ -28,6 +28,25 @@ i18n
     
     ns: ['common'],
     defaultNS: 'common',
+    
+    // Additional configuration for better stability
+    load: 'languageOnly', // Load only the language part (en, ko) not the full locale
+    preload: ['en', 'ko'], // Preload both languages
+    cleanCode: true, // Clean language codes
+    
+    // React specific options
+    react: {
+      useSuspense: false, // Disable suspense to prevent SSR issues
+    },
+    
+    // Backend options for better error handling
+    saveMissing: false, // Don't save missing keys
+    returnEmptyString: false, // Return key instead of empty string for missing translations
+    returnNull: false, // Don't return null for missing keys
+    
+    // Key separator and nesting
+    keySeparator: '.', // Use dots for nested keys
+    nsSeparator: false, // Disable namespace separator
   });
 
 export default i18n;

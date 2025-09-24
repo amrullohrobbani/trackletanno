@@ -1,6 +1,37 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.4.0 - Current Release
+## Version 1.4.1 - Current Release
+*Release Date: September 24, 2025*
+
+### 🔧 Bug Fixes
+
+#### Advanced Tracklet Modal - Duplicate Operation
+- **Fixed Frame Index Handling**: Corrected duplicate operation to properly use frame indices instead of literal frame numbers
+  - Added `convertFrameIndexToNumber()` helper function for consistent frame index to frame number conversion
+  - Updated source frame lookup in `generatePreview`, `performOperation`, and `validateAndStartOperation` functions
+  - Enhanced error handling with proper frame index validation
+  - Improved UI labels to clarify frame index vs. literal frame number usage
+
+#### User Interface Improvements
+- **Updated Input Labels**: 
+  - Changed "Source Frame" to "Source Frame Index" for clarity
+  - Changed "Target Frame(s)" to "Target Frame Index(es)" for consistency
+  - Added helpful placeholder text explaining frame indices vs. literal frame numbers
+
+#### Technical Enhancements
+- **Consistent Frame Handling**: Duplicate operation now follows the same frame indexing system as other operations
+  - Frame index 1 = first image file, index 2 = second image file, etc.
+  - Proper conversion to actual frame numbers from image filenames
+  - Updated all dependency arrays to include new helper function
+
+### 🎮 Usage Notes
+- When using duplicate operation, enter frame indices (1, 2, 3...) rather than literal frame numbers from filenames
+- This ensures consistency with frame range parsing throughout the application
+
+---
+
+## Version 1.4.0
+*Release Date: September 22, 2025*
 *Release Date: September 22, 2025*
 
 ### 🎯 New Features

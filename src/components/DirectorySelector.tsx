@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function DirectorySelector() {
   const [isSelecting, setIsSelecting] = useState(false);
   const { setSelectedDirectory, setRallyFolders, setLoading } = useAppStore();
+  const { t } = useLanguage();
 
   interface ValidationResult {
     folderName: string;
@@ -17,7 +19,7 @@ export default function DirectorySelector() {
 
   const handleSelectDirectory = async () => {
     if (typeof window === 'undefined' || !window.electronAPI) {
-      alert('This feature is only available in the desktop application.');
+      alert(t('dialogs.featureDesktopOnly'));
       return;
     }
 
@@ -39,39 +41,39 @@ export default function DirectorySelector() {
           const debugInfo = await window.electronAPI.debugDirectory(selectedPath);
           console.log('Debug info:', debugInfo);
           
-          let errorMessage = `No valid rally folders found in the selected directory.\n\n`;
+          let errorMessage = t('dialogs.noRallyFoldersFound') + '\n\n';
           
           // Show validation results if available
           const validationResults = (rallyFolders as unknown as { validationResults?: ValidationResult[] }).validationResults;
           if (validationResults && validationResults.length > 0) {
-            errorMessage += `Found ${validationResults.length} directories:\n\n`;
+            errorMessage += t('dialogs.foundDirectories', { count: validationResults.length }) + '\n\n';
             
             for (const result of validationResults) {
               errorMessage += `📁 ${result.folderName}:\n`;
               if (result.status === 'valid') {
-                errorMessage += `  ✅ Valid rally folder\n`;
+                errorMessage += `  ${t('dialogs.validRallyFolder')}\n`;
               } else if (result.status === 'warning') {
-                errorMessage += `  ⚠️  Has issues but may work:\n`;
+                errorMessage += `  ${t('dialogs.hasIssuesButMayWork')}\n`;
                 result.issues.forEach((issue: string) => errorMessage += `     • ${issue}\n`);
               } else {
-                errorMessage += `  ❌ Issues found:\n`;
+                errorMessage += `  ${t('dialogs.issuesFound')}\n`;
                 result.issues.forEach((issue: string) => errorMessage += `     • ${issue}\n`);
               }
               errorMessage += `\n`;
             }
           } else {
-            errorMessage += `Debug info:\n`;
-            errorMessage += `- Total entries: ${debugInfo.totalEntries || 0}\n`;
-            errorMessage += `- Directories: ${debugInfo.directories?.join(', ') || 'none'}\n`;
-            errorMessage += `- Rally directories: ${debugInfo.rallyDirectories?.join(', ') || 'none'}\n\n`;
+            errorMessage += `${t('dialogs.debugInfo')}\n`;
+            errorMessage += `${t('dialogs.totalEntries', { count: debugInfo.totalEntries || 0 })}\n`;
+            errorMessage += `${t('dialogs.directories', { list: debugInfo.directories?.join(', ') || 'none' })}\n`;
+            errorMessage += `${t('dialogs.rallyDirectories', { list: debugInfo.rallyDirectories?.join(', ') || 'none' })}\n\n`;
           }
           
-          errorMessage += `Requirements for rally folders:\n`;
-          errorMessage += `1. Folder name format: [gameId]s[set]rally[number] (e.g., 207s2rally001)\n`;
-          errorMessage += `2. Matching .txt file in parent directory (e.g., 207s2rally001.txt)\n`;
-          errorMessage += `3. Image files (.jpg, .png, etc.) inside the folder\n`;
-          errorMessage += `4. Annotation file with at least 7 columns: frame,tracklet_id,x,y,w,h,score\n\n`;
-          errorMessage += `Check the console for detailed logs.`;
+          errorMessage += `${t('dialogs.requirementsForRallyFolders')}\n`;
+          errorMessage += `${t('dialogs.folderNameFormat')}\n`;
+          errorMessage += `${t('dialogs.matchingTxtFile')}\n`;
+          errorMessage += `${t('dialogs.imageFiles')}\n`;
+          errorMessage += `${t('dialogs.annotationFileFormat')}\n\n`;
+          errorMessage += `${t('dialogs.checkConsoleForLogs')}`;
 
           alert(errorMessage);
           setSelectedDirectory(null);
@@ -81,7 +83,7 @@ export default function DirectorySelector() {
       }
     } catch (error) {
       console.error('Error selecting directory:', error);
-      alert('Error accessing the selected directory.');
+      alert(t('dialogs.errorAccessingDirectory'));
     } finally {
       setIsSelecting(false);
       setLoading(false);
@@ -91,15 +93,15 @@ export default function DirectorySelector() {
   return (
     <div className="text-center max-w-md mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">Tracklet Annotation Tool</h1>
+        <h1 className="text-3xl font-bold mb-4">{t('app.title')}</h1>
         <p className="text-gray-400 text-lg">
-          Select a directory containing your tracklet annotation data to get started.
+          {t('app.selectDirectory')}
         </p>
       </div>
       
       <div className="mb-6">
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-          <h3 className="text-lg font-semibold mb-3">Expected Directory Structure:</h3>
+          <h3 className="text-lg font-semibold mb-3">{t('ui.expectedDirectoryStructure')}:</h3>
           <div className="text-left text-sm text-gray-300 font-mono">
             <div>📁 selected_directory/</div>
             <div className="ml-4">📁 207s2rally001/</div>
@@ -118,15 +120,15 @@ export default function DirectorySelector() {
         disabled={isSelecting}
         className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold text-lg transition-colors"
       >
-        {isSelecting ? 'Selecting...' : 'Search Directory'}
+        {isSelecting ? t('ui.loading') : t('app.selectDirectory')}
       </button>
       
       <div className="mt-6 text-sm text-gray-500">
-        <p>Annotation files should contain data in this format:</p>
+        <p>{t('ui.annotationFileFormat')}:</p>
         <code className="bg-gray-800 px-2 py-1 rounded text-xs">
           frame,tracklet_id,x,y,w,h,score[,role,jersey_number,jersey_color,team,event]
         </code>
-        <p className="mt-1 text-xs">At least 7 columns required, up to 12 columns supported. No header required.</p>
+        <p className="mt-1 text-xs">{t('ui.columnsRequired')}</p>
       </div>
     </div>
   );
