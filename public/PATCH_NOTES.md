@@ -3,6 +3,74 @@
 ## Version 1.4.2 - Current Release
 *Release Date: September 24, 2025*
 
+### 🚀 Performance & User Experience Improvements
+
+#### Faster Image Loading System
+- **File Protocol Implementation**: Replaced base64 image encoding with custom `local-file://` protocol
+  - Significantly faster image loading and reduced memory usage
+  - Browser caching enabled for better performance on revisited frames
+  - Cross-platform compatibility (Windows, Linux, macOS)
+
+#### Smooth Frame Navigation
+- **Anti-Flicker System**: Images no longer blink when switching frames
+  - Previous frame stays visible while next frame loads
+  - Seamless transitions between frames
+  - Subtle loading indicator during frame changes
+
+#### Technical Improvements
+- **Electron Protocol Handler**: Custom file protocol for secure local file access
+- **Dual Image Buffer**: Current and next image states prevent visual interruptions
+- **Smart Loading States**: Full loading screen only for initial loads, minimal indicators for transitions
+
+### 🎮 User Impact
+- Frame navigation (Z/X keys) feels much smoother and faster
+- No more flickering or blank screens between frames
+- Reduced memory usage and faster performance overall
+- Better caching means revisiting frames loads instantly
+
+---
+
+## Version 1.4.1
+*Release Date: September 24, 2025*
+
+### � Bug Fixes
+- **Frame Index Resolution**: Enhanced frame-to-filename mapping for better compatibility
+- **Auto-Conversion Feature**: Improved detection of images that need frame number conversion
+- **Duplicate Operation**: Fixed frame index handling in Advanced Tracklet Modal
+
+---
+
+## Version 1.4.0
+*Release Date: September 22, 2025*
+
+### 🎯 New Features
+- **Event Delete Functionality**: Added delete button for individual events in Rally Events Modal
+- **Enhanced Navigation System**: 15-frame buffer for ultra-smooth navigation
+- **Improved Rally Events Modal**: Clean layout with event management capabilities
+
+---
+
+## Version 1.3.1
+*Release Date: September 13, 2025*
+
+### 🎯 Updates
+- **Secure File Access**: Uses Electron IPC for enhanced security
+- **Enhanced Error Handling**: Better fallback mechanisms and error reporting
+- **Type Safety**: Full TypeScript support for all functionality
+
+---
+
+## Version 1.3.0
+*Release Date: September 11, 2025*
+
+### 🎯 New Features
+- **Enhanced Patch Notes Modal**: Improved UI with better UX
+- **Dynamic Patch Notes Loading**: Loads directly from PATCH_NOTES.md file
+- **Annotation Duplication Feature**: Duplicate annotations to multiple frames
+- **Tennis Event System**: Tennis-specific event annotations
+- **Timeline and Tracklet Features**: Enhanced annotation management
+*Release Date: September 24, 2025*
+
 ### 🚀 Performance Improvements
 
 #### Image Loading System Overhaul
@@ -133,10 +201,10 @@
 - **User Experience**: More intuitive interfaces and better feedback
 - **Documentation**: Comprehensive project documentation for future reference
 
-
 ### 🔧 Technical Improvements
 - Add patch notes reading functionality
 - Enhance duplicate operation with source frame selection
+
 ---
 
 ## Version 1.3.0 - Previous Release
@@ -147,119 +215,6 @@
 - **Dynamic Patch Notes Loading**: Patch notes now load directly from PATCH_NOTES.md file (single source of truth)
 - **Annotation Duplication Feature**: Added ability to duplicate annotations to multiple frames
 - **Tennis Event System**: Added tennis-specific event annotations with attributes
-  - Events: forehand, backhand, serve, overhead, bounce, net
-  - Attributes for forehand/backhand/serve/overhead: flat (default), drive, slice
-  - Formatted as "event attribute" (e.g., "serve flat", "forehand slice")
-- **Copyright Footer**: Added KIST Human Data Intelligence Lab copyright notice in footer
-- **Improved Tracklet Selection**: Enhanced tracklet ID selection persistence after bounding box assignment
-
-### 🐛 Bug Fixes
-- **Windows Compatibility**: Fixed annotation display issues on Windows systems
-  - Enhanced filename extraction to support both Windows and Unix path separators
-  - Resolved path separator handling across multiple components
-- **Scrollbar Visibility**: Hidden scrollbars in patch notes for cleaner appearance
-
-### 🔧 Technical Improvements
-- Single source of truth for patch notes documentation
-- Enhanced Advanced Tracklet Modal with three operation types (merge, switch, duplicate)
-- Tailwind CSS utility additions for scrollbar hiding
-- Cross-platform path handling improvements
-
----
-
-## Version 1.2.4 - Previous Release
-*Release Date: September 7, 2025*
-
-### 🎯 New Features
-- **1-Based Frame Indexing**: Updated frame number handling to use 1-based indexing across the application
-- **Improved Frame Input**: Enhanced frame number input handling in LeftSidebar
-- **Custom Role Selection**: Added custom role selection and team positioning information in RightSidebar
-
-### 🐛 Bug Fixes
-- **Frame Number Logic**: Improved frame number extraction logic to handle NaN cases
-- **Annotation Parsing**: Enhanced annotation parsing precision
-- **Duplicate Removal**: Implemented duplicate annotation removal functionality
-
-### 🔧 Technical Improvements
-- Better localization for frame input prompts
-- Enhanced tracklet information display in TrackletTimelineModal
-- Improved annotation details localization
-
----
-
-## Version 1.2.2 - Previous Release
-*Release Date: August 2025*
-
-### 🎯 New Features
-- **Auto-Conversion Feature**: Implemented auto-conversion of old annotation formats to dual-file system on directory open
-- **Enhanced Timeline Modal**: Updated tracklet information display in TrackletTimelineModal
-
-### 🐛 Bug Fixes
-- **Ball Annotation**: Streamlined ball annotation deletion logic
-- **Annotation Details**: Fixed annotation details handling
-- **Ball Import**: Fixed handle ball import and no_event issues
-
-### 🔧 Technical Improvements
-- Enhanced annotation preservation logic for tracklets and balls
-- Improved annotation details function
-
----
-
-## Version 1.1.3 - Major Update
-*Release Date: July 2025*
-
-### 🎯 New Features
-- **Enhanced UI**: Added crosshair cursor on drawing mode
-- **Dialog Improvements**: Enter key support for dialog confirmations and ball mode
-- **Event Annotation**: Added event annotation system with bounding box integration
-
-### 🐛 Bug Fixes
-- **Selection Management**: Clear selection on deleting annotations
-- **Dialog Width**: Fixed dialog width to respect content
-- **Event Annotation**: Don't select bounding box when annotating events
-
-### 🔧 Technical Improvements
-- Better user interaction feedback
-- Improved dialog system
-- Enhanced annotation workflow
-
----
-
-## Version 1.0.0 - Initial Release
-*Release Date: June 2025*
-
-### 🎯 New Features
-- **Core Annotation System**: Basic tracklet annotation functionality
-- **Canvas Interaction**: Draw and edit bounding boxes on video frames
-- **File Management**: Load and save annotation data in CSV format
-- **Rally Navigation**: Browse and annotate multiple rally sequences
-- **Tracklet Management**: Assign and manage tracklet IDs
-
-### 🔧 Technical Improvements
-- Electron + Next.js architecture
-- TypeScript implementation
-- Zustand state management
-- HTML5 Canvas rendering
-
-### 🎯 New Features
-- **Copyright Footer**: Added KIST Human Data Intelligence Lab copyright notice in footer
-- **Patch Notes Modal**: Added accessible patch notes modal with version history
-- **Improved Tracklet Selection**: Enhanced tracklet ID selection persistence after bounding box assignment
-- **Tennis Event System**: Added tennis-specific event annotations with attributes
-  - Events: forehand, backhand, serve, overhead, bounce, net
-  - Attributes for forehand/backhand/serve/overhead: flat (default), drive, slice
-  - Formatted as "event attribute" (e.g., "serve flat", "forehand slice")
-
-### 🐛 Bug Fixes
-- **Windows Compatibility**: Fixed annotation display issues on Windows systems
-  - Resolved path separator handling (Windows `\` vs Unix `/`)
-  - Fixed filename extraction for frame number calculation
-  - Disabled problematic image preloading that caused 404 errors
-- **Frame Navigation**: Improved frame navigation smoothness and reliability
-- **Canvas Rendering**: Enhanced annotation rendering performance
-
-### 🔧 Technical Improvements
-- Cross-platform path handling for better Windows support
-- Secure Electron IPC image loading
-- Optimized canvas redraw operations
-- Enhanced debugging utilities for development
+- Smooth frame navigation system
+- Enhanced buffer management
+- Timeline and tracklet features

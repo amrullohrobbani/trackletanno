@@ -1,63 +1,74 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.4.3 - Current Release
+## Version 1.4.2 - Current Release
 *Release Date: September 24, 2025*
 
-### 🚀 Major Performance Improvements - Held-Down Navigation INP Optimization
+### 🚀 Performance & User Experience Improvements
 
-#### ⚡ Frame-by-Frame Animation Performance (368ms → <200ms INP)
-- **Smooth Animation Preserved**: Maintains frame-by-frame animation for held-down keys while optimizing loading
-- **Immediate Navigation Response**: Removed debouncing delays for instant response to held navigation keys
-- **16ms Animation Timing**: Optimized to 60fps (16ms per frame) for buttery smooth held-down navigation
-- **No Frame Skipping**: Every frame is shown during animation for complete smoothness
+#### Faster Image Loading System
+- **File Protocol Implementation**: Replaced base64 image encoding with custom `local-file://` protocol
+  - Significantly faster image loading and reduced memory usage
+  - Browser caching enabled for better performance on revisited frames
+  - Cross-platform compatibility (Windows, Linux, macOS)
 
-#### 🖼️ Advanced Frame Caching & Preloading System
-- **Triple-Layer Loading Strategy**: 
-  1. **Instant Cache Hits**: Preloaded frames load immediately (0ms delay)
-  2. **Buffer Fallback**: Background buffer system for secondary speed
-  3. **Disk Loading**: Direct file loading as last resort
-- **Smart Frame Cache**: 20-frame intelligent cache with position-based management
-- **Batch Preloading**: Loads 4 frames ahead during animation + 8-frame radius preloading
-- **Adaptive Cache Management**: Keeps frames near current position, removes distant frames
+#### Smooth Frame Navigation
+- **Anti-Flicker System**: Images no longer blink when switching frames
+  - Previous frame stays visible while next frame loads
+  - Seamless transitions between frames
+  - Subtle loading indicator during frame changes
 
-#### 🎨 Canvas Rendering Optimizations  
-- **Debounced Canvas Drawing**: 8ms debounced canvas drawing with requestAnimationFrame
-- **Non-Blocking Updates**: All canvas updates use requestAnimationFrame for smooth rendering
-- **Optimized Image Loading**: Immediate requestAnimationFrame callbacks eliminate blocking delays
+#### Technical Improvements
+- **Electron Protocol Handler**: Custom file protocol for secure local file access
+- **Dual Image Buffer**: Current and next image states prevent visual interruptions
+- **Smart Loading States**: Full loading screen only for initial loads, minimal indicators for transitions
 
-#### 🔧 Advanced Technical Implementation
-- **Multi-Priority Loading**: Cache → Buffer → Disk loading hierarchy for optimal performance
-- **Intelligent Preloading**: During animation, loads 4 frames ahead every 2nd frame
-- **Batch Processing**: Preloads in groups of 4 with 50ms intervals to prevent system overload
-- **Memory Efficient**: Smart cache eviction keeps memory usage optimal while maximizing hit rates
-
-#### 📊 Performance Metrics for Held-Down Navigation
-- **Target INP**: <200ms (down from 368ms) 
-- **Animation Speed**: 16ms per frame (60fps smooth animation)
-- **Cache Hit Rate**: ~95% for adjacent frames, approaching 100% for revisited frames in same rally
-- **Preload Range**: ±8 frames around current position for instant access
-- **Memory Strategy**: Unlimited caching per rally session, complete cache reset only on rally change
-- **Navigation Performance**: Near-instant frame switching for previously visited frames
-- **Zero Animation Delays**: Complete frame sequence preloaded before animation starts, eliminating stutters and pauses
-
-#### 🔧 Image Loading Simplification & Enhancement
-- **Reverted to Simple IMG Element**: Replaced complex Next.js Image component with simple HTML img element from commit 29d97df
-- **Enhanced Dual-Cache System**: Integrated existing preload cache with new frame cache for maximum hit rates
-- **Previous Frame Preservation**: Eliminates blinking during frame transitions by preserving previous frame while loading
-- **Cache-First Loading Strategy**: Checks preloaded frames → frame cache → disk loading for optimal performance
-- **Pre-Animation Frame Loading**: Preloads ALL frames in animation sequence before starting for seamless frame-by-frame playback
-- **Automatic Adjacent Frame Preloading**: Triggers smart preloading of nearby frames after each load for smooth navigation
-- **Infinite Rally Caching**: Unlimited frame cache throughout rally session for maximum performance, only resets when changing rallies
+### 🎮 User Impact
+- Frame navigation (Z/X keys) feels much smoother and faster
+- No more flickering or blank screens between frames
+- Reduced memory usage and faster performance overall
+- Better caching means revisiting frames loads instantly
 
 ---
 
-## Version 1.4.2
+## Version 1.4.1
 *Release Date: September 24, 2025*
 
-### 🚀 Performance Improvements
+### � Bug Fixes
+- **Frame Index Resolution**: Enhanced frame-to-filename mapping for better compatibility
+- **Auto-Conversion Feature**: Improved detection of images that need frame number conversion
+- **Duplicate Operation**: Fixed frame index handling in Advanced Tracklet Modal
 
-#### Image Loading System Overhaul
-- **Reverted to Simple Image Loading**: Removed complex frame buffering system that was causing slower image loading
+---
+
+## Version 1.4.0
+*Release Date: September 22, 2025*
+
+### 🎯 New Features
+- **Event Delete Functionality**: Added delete button for individual events in Rally Events Modal
+- **Enhanced Navigation System**: 15-frame buffer for ultra-smooth navigation
+- **Improved Rally Events Modal**: Clean layout with event management capabilities
+
+---
+
+## Version 1.3.1
+*Release Date: September 13, 2025*
+
+### 🎯 Updates
+- **Secure File Access**: Uses Electron IPC for enhanced security
+- **Enhanced Error Handling**: Better fallback mechanisms and error reporting
+- **Type Safety**: Full TypeScript support for all functionality
+
+---
+
+## Version 1.3.0
+*Release Date: September 11, 2025*
+
+### 🎯 New Features
+- **Enhanced Patch Notes Modal**: Improved UI with better UX
+- **Dynamic Patch Notes Loading**: Loads directly from PATCH_NOTES.md file
+- **Annotation Duplication Feature**: Duplicate annotations to multiple frames
+- **Tennis Event System**: Tennis-specific event annotations
+- **Timeline and Tracklet Features**: Enhanced annotation management
 *Release Date: September 24, 2025*
 
 ### 🚀 Performance Improvements

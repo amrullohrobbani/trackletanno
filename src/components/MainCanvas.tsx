@@ -28,6 +28,11 @@ export default function MainCanvas() {
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  
+  // Use two image states to prevent blinking during transitions
+  const [currentImageSrc, setCurrentImageSrc] = useState<string | null>(null);
+  const [nextImageSrc, setNextImageSrc] = useState<string | null>(null);
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
 
   const {
     getCurrentImagePath,
@@ -86,10 +91,13 @@ export default function MainCanvas() {
   // Track image loading state changes
   useEffect(() => {
     if (imagePath) {
-      setImageLoading(true);
+      // Only show loading if we don't have a current image to display
+      if (!currentImageSrc) {
+        setImageLoading(true);
+      }
       setImageError(false);
     }
-  }, [imagePath]);
+  }, [imagePath, currentImageSrc]);
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
@@ -135,27 +143,26 @@ export default function MainCanvas() {
   }, [annotations]);
 
   // Load and display image securely using buffer system
-  // Add state for the processed image data URL
-  const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null);
 
   const loadImage = useCallback(async () => {
     if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
-      setProcessedImageSrc(null);
       return;
     }
 
     try {
+      setIsLoadingNext(true);
       // Use the secure image loading method
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
-      setProcessedImageSrc(imageDataUrl);
+      setNextImageSrc(imageDataUrl);
       
     } catch (error) {
       console.error('Error loading image:', error);
-      setProcessedImageSrc(null);
+      setIsLoadingNext(false);
+      setImageError(true);
     }
   }, [imagePath]);
 
-  // Load image immediately when path changes (should hit buffer most of the time)
+  // Load image immediately when path changes
   useEffect(() => {
     loadImage();
   }, [loadImage]);
@@ -1353,12 +1360,22 @@ export default function MainCanvas() {
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden">
       <div className="relative w-full h-full flex items-center justify-center">
-        {/* Loading indicator */}
-        {imageLoading && (
-          <div className="absolute inset-0 bg-gray-800 bg-opacity-0 hidden items-center justify-center z-10">
+        {/* Loading indicator - only show if no current image */}
+        {imageLoading && !currentImageSrc && (
+          <div className="absolute inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-10">
             <div className="text-white text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2 mx-auto"></div>
               <div className="text-sm">Loading frame...</div>
+            </div>
+          </div>
+        )}
+        
+        {/* Subtle loading indicator when transitioning between images */}
+        {isLoadingNext && currentImageSrc && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-3 py-1 rounded-full z-10">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent"></div>
+              <span className="text-xs">Loading...</span>
             </div>
           </div>
         )}
@@ -1373,37 +1390,56 @@ export default function MainCanvas() {
           </div>
         )}
         
-        {processedImageSrc && (
-          <Image
-            key={`${imagePath}-${highQualityMode}`} // Force re-render when quality changes
+        {/* Current image - visible on canvas */}
+        {currentImageSrc && (
+          <img
             ref={imageRef}
-            src={processedImageSrc}
+            src={currentImageSrc}
             alt="Frame"
-            fill
-            quality={highQualityMode ? HIGH_QUALITY : LOW_QUALITY}
-            className="hidden"
+            style={{ display: 'none' }}
+          />
+        )}
+        
+        {/* Next image - preloaded invisibly */}
+        {nextImageSrc && (
+          <img
+            key={`${imagePath}-${highQualityMode}`}
+            src={nextImageSrc}
+            alt="Next Frame"
+            style={{ display: 'none' }}
             onLoad={(e) => {
               const img = e.target as HTMLImageElement;
-              setCanvasDimensions({ 
-                width: img.naturalWidth, 
-                height: img.naturalHeight 
+              
+              // Update canvas dimensions if needed
+              setCanvasDimensions({
+                width: img.naturalWidth,
+                height: img.naturalHeight
               });
               
-              // Smooth transition by delaying the loading state change slightly
+              // Seamlessly switch to the new image
+              setCurrentImageSrc(nextImageSrc);
+              setNextImageSrc(null);
+              setIsLoadingNext(false);
               setImageLoading(false);
               setImageError(false);
               
-              // Use requestAnimationFrame for smooth rendering
+              // Update the ref to point to the current image
+              if (imageRef.current) {
+                imageRef.current.src = nextImageSrc;
+              }
+              
+              // Redraw canvas with new image
               requestAnimationFrame(() => {
                 drawCanvas();
               });
             }}
             onError={(e) => {
-              console.error('Error loading image:', e);
+              console.error('Error loading next image:', e);
+              setNextImageSrc(null);
+              setIsLoadingNext(false);
               setImageLoading(false);
               setImageError(true);
             }}
-            unoptimized={true} // Important for local files in Electron
           />
         )}
         <canvas

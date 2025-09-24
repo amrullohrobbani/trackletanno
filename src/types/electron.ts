@@ -14,7 +14,7 @@ export interface ElectronAPI {
     rallyDirectories?: string[];
     error?: string;
   }>;
-  getImageData: (imagePath: string) => Promise<string>;
+  getImageData: (imagePath: string) => Promise<string>; // Returns file:// URL instead of base64 data URL
   loadAnnotationFile: (annotationFilePath: string) => Promise<string>;
   saveAnnotationFile: (annotationFilePath: string, content: string) => Promise<boolean>;
   readPatchNotes: () => Promise<string>;

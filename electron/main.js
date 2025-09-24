@@ -22,6 +22,20 @@ console.log('Platform info:', {
 
 let mainWindow;
 
+// Register privilege for file protocol
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'file',
+    privileges: {
+      supportFetchAPI: true,
+      corsEnabled: true,
+      secure: true,
+      standard: true,
+      stream: true
+    }
+  }
+]);
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
@@ -29,7 +43,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false, // Disable for local file access
+      webSecurity: false, // Disable for local file access with file:// protocol
+      allowRunningInsecureContent: true, // Allow loading local files
       preload: path.join(__dirname, 'preload.js'),
     },
   });
@@ -45,7 +60,9 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -465,16 +482,11 @@ ipcMain.handle('read-patch-notes', async () => {
   }
 });
 
-// Get image as base64 data URL for secure loading in renderer
+// Get image URL using custom file protocol for fast loading with caching
 ipcMain.handle('get-image-data', async (event, imagePath) => {
   try {
-    console.log('Reading image file:', imagePath);
+    console.log('Getting image URL for:', imagePath);
     console.log('Platform:', process.platform);
-    console.log('Path separators in path:', {
-      hasBackslash: imagePath.includes('\\'),
-      hasForwardSlash: imagePath.includes('/'),
-      normalizedPath: path.normalize(imagePath)
-    });
     
     // Normalize path for cross-platform compatibility
     const normalizedPath = path.normalize(imagePath);
@@ -483,7 +495,6 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
     if (!await fsPromises.access(normalizedPath).then(() => true).catch(() => false)) {
       console.error('Image file does not exist:', normalizedPath);
       console.error('Original path:', imagePath);
-      console.error('Working directory:', process.cwd());
       
       // Try to check if it's a path resolution issue
       const isAbsolute = path.isAbsolute(normalizedPath);
@@ -499,47 +510,26 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
       throw new Error(`Image file not found: ${normalizedPath}`);
     }
     
-    const imageBuffer = await fsPromises.readFile(normalizedPath);
-    console.log('Image buffer size:', imageBuffer.length);
+    // Convert to absolute path if needed
+    const absolutePath = path.isAbsolute(normalizedPath) ? normalizedPath : path.resolve(normalizedPath);
     
-    // Validate image buffer
-    if (imageBuffer.length === 0) {
-      throw new Error('Image file is empty');
+    // Create file protocol URL with proper encoding for cross-platform compatibility
+    let fileUrl;
+    if (process.platform === 'win32') {
+      // For Windows, convert to file:// URL format
+      const urlPath = absolutePath.replace(/\\/g, '/');
+      fileUrl = `file:///${urlPath}`;
+    } else {
+      // For Unix-like systems, use the standard file:// format
+      fileUrl = `file://${absolutePath}`;
     }
     
-    const ext = path.extname(normalizedPath).toLowerCase();
+    console.log('Generated file URL:', fileUrl);
+    console.log('Absolute path:', absolutePath);
     
-    let mimeType;
-    switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        mimeType = 'image/jpeg';
-        break;
-      case '.png':
-        mimeType = 'image/png';
-        break;
-      case '.gif':
-        mimeType = 'image/gif';
-        break;
-      case '.bmp':
-        mimeType = 'image/bmp';
-        break;
-      case '.webp':
-        mimeType = 'image/webp';
-        break;
-      default:
-        console.warn('Unknown image extension:', ext, 'defaulting to JPEG');
-        mimeType = 'image/jpeg'; // Default fallback
-    }
-    
-    const base64Data = imageBuffer.toString('base64');
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
-    console.log('Generated data URL length:', dataUrl.length);
-    console.log('MIME type used:', mimeType);
-    
-    return dataUrl;
+    return fileUrl;
   } catch (error) {
-    console.error('Error reading image file:', error);
+    console.error('Error getting image URL:', error);
     console.error('Details:', {
       path: imagePath,
       platform: process.platform,
