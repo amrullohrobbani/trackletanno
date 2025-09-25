@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import { getTrackletColor, getTrackletDarkColor } from '@/utils/trackletColors';
 import { AnnotationData, BoundingBox } from '@/types/electron';
 import { annotationsToCSV } from '@/utils/annotationParser';
-import { debugAnnotationFrameConnection } from '@/utils/debugHelpers';
+
 import { useLanguage } from '@/contexts/LanguageContext';
 import { showConfirm } from '@/utils/dialogUtils';
 
@@ -29,6 +29,8 @@ export default function MainCanvas() {
   const [currentImageSrc, setCurrentImageSrc] = useState<string | null>(null);
   const [nextImageSrc, setNextImageSrc] = useState<string | null>(null);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
+  const [nextFrameBoxes, setNextFrameBoxes] = useState<BoundingBox[]>([]);
+
 
   const {
     getCurrentImagePath,
@@ -147,7 +149,35 @@ export default function MainCanvas() {
 
     try {
       setIsLoadingNext(true);
-      // Use the secure image loading method
+      
+      // First, resolve the frame number for this image path
+      const filename = imagePath.split(/[/\\]/).pop() || '';
+      const frameNumber = await window.electronAPI.getFrameNumber(filename);
+      
+      // Update frame number reference immediately
+      currentFrameNumberRef.current = frameNumber;
+      
+      // Prepare annotations for this frame while image is loading
+      const currentFrameAnnotations = annotations.filter(ann => ann.frame === frameNumber);
+      const boxes: BoundingBox[] = currentFrameAnnotations
+        .filter(ann => ann.tracklet_id !== 99) // Exclude ball annotations (ID 99) from bounding boxes
+        .map((ann, index) => ({
+          id: `annotation-${ann.frame}-${ann.tracklet_id}-${index}`,
+          tracklet_id: ann.tracklet_id,
+          x: ann.x,
+          y: ann.y,
+          width: ann.w,
+          height: ann.h,
+          team: ann.team,
+          jersey_number: ann.jersey_number,
+          selected: false
+        }));
+      
+      // Store the boxes for this frame to apply when image loads
+      setNextFrameBoxes(boxes);
+      
+
+      // Load the image
       const imageDataUrl = await window.electronAPI.getImageData(imagePath);
       setNextImageSrc(imageDataUrl);
       
@@ -155,56 +185,49 @@ export default function MainCanvas() {
       console.error('Error loading image:', error);
       setIsLoadingNext(false);
       setImageError(true);
+      setBoundingBoxes([]);
+      setNextFrameBoxes([]);
+      currentFrameNumberRef.current = 1;
     }
-  }, [imagePath]);
+  }, [imagePath, annotations, setBoundingBoxes]);
 
   // Load image immediately when path changes
   useEffect(() => {
     loadImage();
   }, [loadImage]);
 
-  // Convert annotations to bounding boxes for current frame
+  // Handle annotation changes for the current frame (when annotations are modified)
   useEffect(() => {
-    // Skip recreation if we're in the middle of deleting a box
-    if (isDeletingBox) {
-      console.log('Skipping bounding box recreation - deletion in progress');
+    // Skip if we're in the middle of deleting a box or if no current image
+    if (isDeletingBox || !currentImageSrc || !imagePath) {
       return;
     }
 
-    const getCurrentFrameNumber = async () => {
-      if (!imagePath || typeof window === 'undefined' || !window.electronAPI) {
-        return;
-      }
-
+    // Only update annotations if they changed for the current frame
+    const updateCurrentFrameAnnotations = async () => {
       try {
-        // Extract filename from path (handle both Windows and Unix path separators)
         const filename = imagePath.split(/[/\\]/).pop() || '';
         const frameNumber = await window.electronAPI.getFrameNumber(filename);
         
-        // Update the frame number ref immediately to ensure consistency
-        currentFrameNumberRef.current = frameNumber;
-        
-        // Filter annotations for this specific frame number
-        const currentFrameAnnotations = annotations.filter(ann => ann.frame === frameNumber);
-        
-        const boxes: BoundingBox[] = currentFrameAnnotations
-          .filter(ann => ann.tracklet_id !== 99) // Exclude ball annotations (ID 99) from bounding boxes
-          .map((ann, index) => ({
-            id: `annotation-${ann.frame}-${ann.tracklet_id}-${index}`,
-            tracklet_id: ann.tracklet_id,
-            x: ann.x,
-            y: ann.y,
-            width: ann.w,
-            height: ann.h,
-            team: ann.team,
-            jersey_number: ann.jersey_number,
-            selected: false
-          }));
-        
-        // Use requestAnimationFrame to batch updates and reduce blinking
-        requestAnimationFrame(() => {
-          // Only update bounding boxes if they are actually different
-          // This prevents unnecessary re-renders and potential conflicts with deletion
+        // Only update if this matches our current frame
+        if (frameNumber === currentFrameNumberRef.current) {
+          const currentFrameAnnotations = annotations.filter(ann => ann.frame === frameNumber);
+          
+          const boxes: BoundingBox[] = currentFrameAnnotations
+            .filter(ann => ann.tracklet_id !== 99)
+            .map((ann, index) => ({
+              id: `annotation-${ann.frame}-${ann.tracklet_id}-${index}`,
+              tracklet_id: ann.tracklet_id,
+              x: ann.x,
+              y: ann.y,
+              width: ann.w,
+              height: ann.h,
+              team: ann.team,
+              jersey_number: ann.jersey_number,
+              selected: false
+            }));
+          
+          // Check if annotations actually changed to avoid unnecessary updates
           const currentBoxes = lastBoundingBoxesRef.current;
           const boxesChanged = currentBoxes.length !== boxes.length || 
             !currentBoxes.every((box, index) => {
@@ -218,21 +241,14 @@ export default function MainCanvas() {
             setBoundingBoxes(boxes);
             lastBoundingBoxesRef.current = boxes;
           }
-        });
-        
-        // Debug annotation-frame connection when no annotations are found
-        if (process.env.NODE_ENV === 'development' && currentFrameAnnotations.length === 0) {
-          debugAnnotationFrameConnection(imagePath, annotations, frameNumber);
         }
       } catch (error) {
-        console.error('Error getting frame number:', error);
-        setBoundingBoxes([]);
-        currentFrameNumberRef.current = 1;
+        console.error('Error updating current frame annotations:', error);
       }
     };
 
-    getCurrentFrameNumber();
-  }, [imagePath, annotations, setBoundingBoxes, currentFrameIndex, isDeletingBox]);
+    updateCurrentFrameAnnotations();
+  }, [annotations, setBoundingBoxes, isDeletingBox, currentImageSrc, imagePath]);
 
   // Update ref when boundingBoxes change from store
   useEffect(() => {
@@ -1419,12 +1435,21 @@ export default function MainCanvas() {
               setImageLoading(false);
               setImageError(false);
               
+              // Apply annotations synchronously with image loading
+              if (nextFrameBoxes.length >= 0) { // Apply even if empty to clear previous annotations
+                setBoundingBoxes(nextFrameBoxes);
+                lastBoundingBoxesRef.current = nextFrameBoxes;
+              }
+              setNextFrameBoxes([]);
+              
+
+              
               // Update the ref to point to the current image
               if (imageRef.current) {
                 imageRef.current.src = nextImageSrc;
               }
               
-              // Redraw canvas with new image
+              // Redraw canvas with new image and annotations
               requestAnimationFrame(() => {
                 drawCanvas();
               });
@@ -1432,6 +1457,7 @@ export default function MainCanvas() {
             onError={(e) => {
               console.error('Error loading next image:', e);
               setNextImageSrc(null);
+              setNextFrameBoxes([]);
               setIsLoadingNext(false);
               setImageLoading(false);
               setImageError(true);
