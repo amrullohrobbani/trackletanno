@@ -1,6 +1,44 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.4.2 - Current Release
+## Version 1.4.3 - Current Release
+*Release Date: September 30, 2025*
+
+### 🎨 Left Sidebar Navigation Improvements
+
+#### Enhanced Directory Navigation
+- **Sticky Directory Header**: Rally Datasets header now stays fixed when scrolling reaches the top
+  - Directory header remains accessible while browsing long lists
+  - Seamless transition from scrollable to fixed positioning
+  - Maintains clean layout without sacrificing functionality
+
+#### Improved Directory Scrolling
+- **Custom Directory Scrollbar**: Enhanced scrollbar specifically for directory tree navigation
+  - More visible 10px wide scrollbar with contrasting colors
+  - Easy grab-and-scroll functionality for quick navigation
+  - Hover effects for better user feedback
+  - Optimized for jumping to end of long directory lists
+
+#### Layout Optimizations
+- **Flexible Content Areas**: Better space utilization in left sidebar
+  - Frame navigation and annotation controls in upper scrollable section
+  - Directory content takes remaining space with independent scrolling
+  - Responsive layout adapts to different content sizes
+
+#### Annotation Synchronization
+- **Ball Annotation Sync**: Improved synchronization of ball annotations with frame loading
+  - Ball annotations now appear instantly with frame changes
+  - No lag or delay when navigating between frames
+  - Consistent rendering performance across all annotation types
+
+### 🎮 User Experience Impact
+- Directory navigation feels more responsive and intuitive
+- No more losing track of directory header when scrolling
+- Quick access to any part of long directory structures
+- Smoother overall workflow for annotation tasks
+
+---
+
+## Version 1.4.2
 *Release Date: September 24, 2025*
 
 ### 🚀 Performance & User Experience Improvements

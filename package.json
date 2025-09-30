@@ -1,6 +1,6 @@
 {
   "name": "matchtagger",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "A tool for annotating tracklet IDs in video frames",
   "author": {
     "name": "MatchTagger Development Team",

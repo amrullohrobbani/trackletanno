@@ -87,20 +87,20 @@ export default function RightSidebar() {
     ],
     tennis: {
       serve: [
-        { key: 'e', name: 'serve', label: 'Serve', color: 'bg-green-600' }
+        { key: 'w', name: 'serve', label: 'Serve', color: 'bg-green-600' }
       ],
       strokes: [
-        { key: 'q', name: 'forehand', label: 'Forehand', color: 'bg-red-600' },
-        { key: 'w', name: 'backhand', label: 'Backhand', color: 'bg-blue-600' },
-        { key: 'r', name: 'overhead', label: 'Overhead', color: 'bg-yellow-600' }
+        { key: 'e', name: 'forehand', label: 'Forehand', color: 'bg-red-600' },
+        { key: 'r', name: 'backhand', label: 'Backhand', color: 'bg-blue-600' },
+        { key: 't', name: 'overhead', label: 'Overhead', color: 'bg-yellow-600' }
       ],
       volleys: [
         { key: 'y', name: 'smash', label: 'Smash', color: 'bg-orange-600' },
         { key: 'u', name: 'volley', label: 'Volley', color: 'bg-pink-600' }
       ],
       court: [
-        { key: 't', name: 'net', label: 'Net', color: 'bg-purple-600' },
-        { key: 'i', name: 'bounce', label: 'Bounce', color: 'bg-indigo-600' }
+        { key: 'i', name: 'net', label: 'Net', color: 'bg-purple-600' },
+        { key: 'q', name: 'bounce', label: 'Bounce', color: 'bg-indigo-600' }
       ],
       other: [
         { key: 'n', name: '', label: 'No Event', color: 'bg-gray-600' }

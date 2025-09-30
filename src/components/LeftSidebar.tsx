@@ -260,24 +260,27 @@ export default function LeftSidebar() {
       {/* Ball Annotation Sidebar */}
       <BallAnnotationSidebar />
 
-      {/* Directory Tree - Improved */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <FolderIcon className="w-5 h-5 text-yellow-400" />
-            {t('ui.rallyDatasets')}
-          </h2>
-          <button
-            onClick={handleChangeDirectory}
-            className="text-xs text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 bg-blue-900/30 rounded-lg"
-          >
-            {t('ui.browse')}
-          </button>
+      {/* Directory Tree with sticky header */}
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Sticky Directory Header */}
+        <div className="sticky top-0 z-10 bg-gray-900 p-4 pb-2 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <FolderIcon className="w-5 h-5 text-yellow-400" />
+              {t('ui.rallyDatasets')}
+            </h2>
+            <button
+              onClick={handleChangeDirectory}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 bg-blue-900/30 rounded-lg"
+            >
+              {t('ui.browse')}
+            </button>
+          </div>
         </div>
         
-        {/* Directory content */}
-        <div className="space-y-2">
-          {selectedDirectory ? (
+        {/* Directory content with full remaining space scrolling */}
+        <div className="flex-1 overflow-y-auto pr-2 pl-4 pb-4 directory-scrollbar min-h-0 max-h-screen">
+          <div className="space-y-2 pt-2">{selectedDirectory ? (
             <div className="space-y-2">
               {/* Root directory */}
               <div
@@ -366,6 +369,7 @@ export default function LeftSidebar() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
       {/* End of scrollable content container */}

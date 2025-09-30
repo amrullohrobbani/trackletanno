@@ -49,6 +49,40 @@ body {
   background-color: #1f2937;
 }
 
+/* Directory scrollbar - more visible for easier navigation */
+.directory-scrollbar {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #374151;
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+.directory-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.directory-scrollbar::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+}
+
+.directory-scrollbar::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 6px;
+  border: 1px solid #9ca3af;
+}
+
+.directory-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+  border-color: #d1d5db;
+}
+
+.directory-scrollbar::-webkit-scrollbar-corner {
+  background: #374151;
+}
+
 /* Advanced Tracklet Modal Preview Scrollbar */
 .custom-scrollbar {
   /* Firefox */
