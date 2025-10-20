@@ -36,6 +36,7 @@
   },
   "events": {
     "serve": "Serve",
+    "underhand_serve": "Underhand Serve",
     "receive": "Receive", 
     "dig": "Dig",
     "pass": "Pass",
@@ -43,8 +44,20 @@
     "spike": "Spike",
     "block": "Block",
     "score": "Score",
+    "net": "Net",
     "no_event": "No Event",
-    "view_rally_events": "View Rally Events"
+    "view_rally_events": "View Rally Events",
+    "tennis": {
+      "serve": "Serve",
+      "forehand": "Forehand",
+      "backhand": "Backhand",
+      "overhead": "Overhead",
+      "smash": "Smash",
+      "volley": "Volley",
+      "net": "Net",
+      "bounce": "Bounce",
+      "no_event": "No Event"
+    }
   },
   "idAnalysis": {
     "title": "ID Analysis",

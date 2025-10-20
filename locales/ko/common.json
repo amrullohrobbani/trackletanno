@@ -60,6 +60,7 @@
   },
   "events": {
     "serve": "서브",
+    "underhand_serve": "언더핸드 서브",
     "receive": "리시브",
     "dig": "디그",
     "pass": "패스",
@@ -67,8 +68,20 @@
     "spike": "스파이크",
     "block": "블록",
     "score": "득점",
+    "net": "네트",
     "no_event": "이벤트 없음",
-    "view_rally_events": "랠리 이벤트 보기"
+    "view_rally_events": "랠리 이벤트 보기",
+    "tennis": {
+      "serve": "서브",
+      "forehand": "포핸드",
+      "backhand": "백핸드",
+      "overhead": "오버헤드",
+      "smash": "스매시",
+      "volley": "발리",
+      "net": "네트",
+      "bounce": "바운스",
+      "no_event": "이벤트 없음"
+    }
   },
   "idAnalysis": {
     "title": "ID 분석",

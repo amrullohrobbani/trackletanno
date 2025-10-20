@@ -1,6 +1,168 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.4.3 - Current Release
+## Version 1.5.0 - Current Release
+*Release Date: October 20, 2025*
+
+### 🎯 New Features
+
+#### Sport Selection Persistence
+- **Automatic Sport Memory**: Application now remembers your last selected sport (volleyball/tennis)
+  - Sport preference saved to browser localStorage
+  - Automatically restores your sport selection when reopening the app
+  - No need to manually select your sport every session
+  - Seamless workflow continuation across app restarts
+
+#### Customizable Hotkey System
+- **Per-Sport Hotkey Configuration**: Configure custom keyboard shortcuts for each sport independently
+  - Click "⌨️ Configure Hotkeys" button in right sidebar to open configuration modal
+  - Customize hotkeys for all event types per sport (volleyball and tennis have separate configs)
+  - Real-time validation prevents duplicate key assignments
+  - Visual indicators show which keys are modified from defaults
+  - Individual reset buttons to restore default hotkey for specific events
+  - Bulk "Reset All to Defaults" button for complete hotkey reset
+
+#### Hotkey Configuration Modal Features
+- **Intuitive Interface**: User-friendly modal for hotkey customization
+  - Click on any hotkey field to set a new key
+  - Type a single character (a-z, 0-9) to assign new hotkey
+  - Duplicate key detection with conflict highlighting
+  - Shows conflicting event name when duplicate detected
+  - Modified keys highlighted with blue border for easy identification
+  - Sport-specific configuration tabs (volleyball/tennis)
+
+#### Data Persistence
+- **localStorage Integration**: All preferences stored locally
+  - Sport selection persists across sessions
+  - Custom hotkeys saved per sport
+  - Data survives app restarts and updates
+  - Simple API for easy maintenance
+
+### 🔧 Technical Improvements
+
+#### New Components & Utilities
+- **HotkeyConfigModal.tsx**: Full-featured hotkey configuration interface (250+ lines)
+  - Real-time keyboard input handling
+  - Duplicate detection with visual feedback
+  - Individual and bulk reset functionality
+  - Type-safe implementation with TypeScript
+
+- **sportStorage.ts**: Centralized localStorage management utility
+  - `saveSelectedSport()` / `loadSelectedSport()`: Sport preference persistence
+  - `saveHotkeyConfig()` / `loadHotkeyConfig()`: Hotkey configuration persistence
+  - `resetHotkeyConfig()`: Restore default hotkeys for a sport
+  - `clearAllSportData()`: Clear all stored preferences
+  - Default configurations: `DEFAULT_VOLLEYBALL_HOTKEYS` and `DEFAULT_TENNIS_HOTKEYS`
+
+#### Enhanced Right Sidebar
+- **Dynamic Hotkey Loading**: Hotkeys now load from localStorage on mount
+  - useEffect hooks for automatic load/save operations
+  - useMemo for efficient hotkey computation
+  - Type-safe sport selection with proper TypeScript casting
+  - Integration with existing event annotation system
+
+#### Internationalization
+- **Multi-language Support**: Full translation support for volleyball and tennis events
+  - English and Korean translations for all event types
+  - Volleyball events: underhand_serve, overhand_serve, receive, dig, pass, set, spike, block, kill, net, no_event
+  - Tennis events: serve, forehand, backhand, overhead, smash, volley, net, bounce, no_event
+  - Seamless language switching with existing i18n system
+
+### 🎮 Usage Instructions
+
+#### Changing Sport Selection
+1. Right sidebar → Sport dropdown
+2. Select "Volleyball" or "Tennis"
+3. Selection automatically saved to localStorage
+4. Next time you open the app, your sport selection is restored
+
+#### Configuring Custom Hotkeys
+1. Right sidebar → Click "⌨️ Configure Hotkeys" button
+2. Modal opens showing current hotkey configuration
+3. Click on any hotkey field (shows current key)
+4. Press a new key (a-z, 0-9) to assign
+5. If key is already used, conflict warning appears with event name
+6. Click "Reset" next to individual event to restore default
+7. Click "Reset All to Defaults" to restore all hotkeys
+8. Click "Save" to apply changes (saved to localStorage)
+9. Click "Cancel" to discard changes
+
+#### Hotkey Validation Rules
+- Only single characters allowed (a-z, 0-9)
+- Each key can only be assigned once per sport
+- Duplicate assignments show error with conflicting event name
+- Modified keys highlighted with blue border
+- Save button disabled if validation errors exist
+
+### 📦 Default Hotkey Configurations
+
+#### Volleyball Events
+- `q`: Underhand Serve
+- `w`: Overhand Serve
+- `e`: Receive
+- `r`: Dig
+- `t`: Pass
+- `y`: Set
+- `u`: Spike
+- `i`: Block
+- `o`: Kill
+- `p`: Net
+- `n`: No Event
+
+#### Tennis Events
+- `w`: Serve
+- `e`: Forehand
+- `r`: Backhand
+- `t`: Overhead
+- `y`: Smash
+- `u`: Volley
+- `i`: Net
+- `q`: Bounce
+- `n`: No Event
+
+### 🔍 Technical Details
+
+#### localStorage Structure
+```json
+{
+  "matchtagger_selected_sport": "volleyball" | "tennis",
+  "matchtagger_volleyball_hotkeys": {
+    "underhand_serve": "q",
+    "overhand_serve": "w",
+    ...
+  },
+  "matchtagger_tennis_hotkeys": {
+    "serve": "w",
+    "forehand": "e",
+    ...
+  }
+}
+```
+
+#### Key Benefits of localStorage
+- **Larger Storage**: 5-10MB capacity vs cookies' 4KB limit
+- **Desktop Optimization**: Perfect for Electron apps (no HTTP overhead)
+- **Simpler API**: Easier to work with than cookies
+- **Better Performance**: Synchronous access, no network requests
+- **Data Persistence**: Survives app restarts and updates
+
+### 📚 Documentation
+- **Comprehensive Guide**: New documentation file `docs/sport-hotkey-persistence.md`
+  - Feature descriptions and use cases
+  - API reference for all functions
+  - Default configurations documented
+  - Testing checklist for validation
+  - Future enhancement suggestions
+
+### 🎨 User Experience Impact
+- **Workflow Continuity**: No need to reconfigure sport selection each session
+- **Personalization**: Customize hotkeys to match your muscle memory
+- **Efficiency**: Faster annotation with personalized keyboard shortcuts
+- **Flexibility**: Different hotkey sets for volleyball vs tennis workflows
+- **Visual Feedback**: Clear indicators for modified settings and conflicts
+
+---
+
+## Version 1.4.3
 *Release Date: September 30, 2025*
 
 ### 🎨 Left Sidebar Navigation Improvements
