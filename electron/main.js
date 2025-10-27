@@ -610,3 +610,66 @@ ipcMain.handle('export-to-json', async (event, filePath, content) => {
     throw error;
   }
 });
+
+// Field registration homography data handlers
+ipcMain.handle('save-field-registration', async (event, data) => {
+  try {
+    const { rallyPath, folderName, frameNumber, homographyMatrix, imageSpacePoints, templateSpacePoints } = data;
+    
+    // Create the field registration folder path
+    const fieldRegistrationPath = path.join(rallyPath, folderName);
+    
+    // Ensure the directory exists
+    await fsPromises.mkdir(fieldRegistrationPath, { recursive: true });
+    
+    // Prepare frame number with zero padding (6 digits)
+    const frameStr = frameNumber.toString().padStart(6, '0');
+    
+    // Save homography matrix as .npy file (for now, we'll save as JSON since we can't create real .npy files easily)
+    const homographyFilePath = path.join(fieldRegistrationPath, `${frameStr}.npy`);
+    
+    // Convert homography matrix to flat array for numpy-like format
+    const flatMatrix = [];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        flatMatrix.push(homographyMatrix[i][j]);
+      }
+    }
+    
+    // Save as binary file (simple approach - save as text for now, can be enhanced later)
+    const homographyData = JSON.stringify({
+      shape: [3, 3],
+      data: flatMatrix,
+      dtype: 'float64'
+    });
+    await fsPromises.writeFile(homographyFilePath, homographyData, 'utf8');
+    
+    // Save coordinate mapping as text file
+    const coordinatesFilePath = path.join(fieldRegistrationPath, `${frameStr}_coordinates.txt`);
+    let coordinatesContent = `Frame ${frameNumber} - Field Registration Coordinates\n`;
+    coordinatesContent += `Image Space Points -> Template Space Points\n\n`;
+    
+    for (let i = 0; i < imageSpacePoints.length; i++) {
+      const imgPoint = imageSpacePoints[i];
+      const tmpPoint = templateSpacePoints[i];
+      coordinatesContent += `Point ${i + 1}: (${imgPoint.x.toFixed(2)}, ${imgPoint.y.toFixed(2)}) -> (${tmpPoint.x}, ${tmpPoint.y})\n`;
+    }
+    
+    coordinatesContent += `\nHomography Matrix:\n`;
+    for (let i = 0; i < 3; i++) {
+      const row = homographyMatrix[i].map(val => val.toFixed(6)).join(', ');
+      coordinatesContent += `[${row}]\n`;
+    }
+    
+    await fsPromises.writeFile(coordinatesFilePath, coordinatesContent, 'utf8');
+    
+    console.log(`Field registration saved for frame ${frameNumber}:`);
+    console.log(`- Homography: ${homographyFilePath}`);
+    console.log(`- Coordinates: ${coordinatesFilePath}`);
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving field registration:', error);
+    throw error;
+  }
+});

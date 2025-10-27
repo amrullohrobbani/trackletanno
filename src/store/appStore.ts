@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox, IDAnalysisResult } from '@/types/electron';
 import { parseAnnotations, parseTrackletDetails, trackletDetailsToCSV, getTrackletFilePath, extractTrackletDetailsFromAnnotations, TrackletDetails } from '@/utils/annotationParser';
 import { loadJsonBallAnnotations, exportAnnotationsToJson, BALL_TRACKLET_ID } from '@/utils/ballAnnotationParser';
+import { calculateHomography } from '../utils/homographyUtils';
 
 interface AppState {
   // Directory and data management
@@ -61,6 +62,15 @@ interface AppState {
   ballAnnotations: AnnotationData[];
   hasBallAnnotations: boolean;
 
+  // Field registration homography mode state
+  fieldRegistrationMode: boolean;
+  fieldKeypointsTemplateSpace: Array<{ x: number; y: number }>;
+  fieldKeypointsImageSpace: Array<{ x: number; y: number }>;
+  selectedFieldKeypoint: number | null;
+  fieldOverlayOpacity: number;
+  isFieldOverlayVisible: boolean;
+  homographyMatrix: number[][] | null;
+  
   // Timeline image cache for TrackletTimelineModal
   timelineImageCache: Map<string, string>;
   clearTimelineImageCache: () => void;
@@ -137,6 +147,18 @@ interface AppState {
   removeCurrentFrameBallAnnotation: () => void;
   getCurrentFrameNumber: () => number | null;
   
+  // Field registration homography actions
+  setFieldRegistrationMode: (enabled: boolean) => void;
+  addFieldKeypoint: (imageCoords: { x: number; y: number }) => void;
+  updateFieldKeypoint: (index: number, imageCoords: { x: number; y: number }) => void;
+  updateNonCornerKeypoints: () => void;
+  setSelectedFieldKeypoint: (index: number | null) => void;
+  resetFieldKeypoints: () => void;
+  setFieldOverlayOpacity: (opacity: number) => void;
+  setFieldOverlayVisible: (visible: boolean) => void;
+  calculateHomography: () => void;
+  saveFieldRegistration: () => Promise<void>;
+  
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
   getCurrentImagePath: () => string | null;
@@ -211,6 +233,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   ballAnnotationRadius: 6, // Default radius of 6 pixels
   ballAnnotations: [],
   hasBallAnnotations: false,
+
+  // Initial field registration homography mode state
+  fieldRegistrationMode: false,
+  fieldKeypointsTemplateSpace: [
+    { x: 0, y: 0 },      // Top-left corner
+    { x: 0, y: 720 },    // Bottom-left corner
+    { x: 426, y: 0 },    // First vertical line top (at 1/3)
+    { x: 426, y: 720 },  // First vertical line bottom
+    { x: 640, y: 0 },    // Center line top
+    { x: 640, y: 720 },  // Center line bottom
+    { x: 853, y: 0 },    // Second vertical line top (at 2/3)
+    { x: 853, y: 720 },  // Second vertical line bottom
+    { x: 1280, y: 0 },   // Top-right corner
+    { x: 1280, y: 720 }  // Bottom-right corner
+  ],
+  fieldKeypointsImageSpace: [
+    { x: 0, y: 0 },      // Top-left corner
+    { x: 0, y: 720 },    // Bottom-left corner
+    { x: 426, y: 0 },    // First vertical line top (at 1/3)
+    { x: 426, y: 720 },  // First vertical line bottom
+    { x: 640, y: 0 },    // Center line top
+    { x: 640, y: 720 },  // Center line bottom
+    { x: 853, y: 0 },    // Second vertical line top (at 2/3)
+    { x: 853, y: 720 },  // Second vertical line bottom
+    { x: 1280, y: 0 },   // Top-right corner
+    { x: 1280, y: 720 }  // Bottom-right corner
+  ],
+  selectedFieldKeypoint: null,
+  fieldOverlayOpacity: 0.5,
+  isFieldOverlayVisible: true,
+  homographyMatrix: null,
 
   // Timeline image cache for TrackletTimelineModal
   timelineImageCache: new Map<string, string>(),
@@ -1415,5 +1468,165 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     return frameNumber;
+  },
+  
+  // Field registration homography actions
+  setFieldRegistrationMode: (enabled: boolean) => {
+    set({ 
+      fieldRegistrationMode: enabled,
+      // Disable other modes when entering field registration mode
+      drawingMode: enabled ? false : get().drawingMode,
+      assignMode: enabled ? false : get().assignMode,
+      ballAnnotationMode: enabled ? false : get().ballAnnotationMode
+    });
+  },
+  
+  addFieldKeypoint: (imageCoords: { x: number; y: number }) => {
+    const { fieldKeypointsImageSpace } = get();
+    // Add new keypoint to the array if we don't have all 10 keypoints yet
+    if (fieldKeypointsImageSpace.length < 10) {
+      const updatedKeypoints = [...fieldKeypointsImageSpace, imageCoords];
+      set({ fieldKeypointsImageSpace: updatedKeypoints });
+    }
+  },
+  
+  updateFieldKeypoint: (index: number, imageCoords: { x: number; y: number }) => {
+    const { fieldKeypointsImageSpace } = get();
+    if (index >= 0 && index < fieldKeypointsImageSpace.length) {
+      const updatedKeypoints = [...fieldKeypointsImageSpace];
+      updatedKeypoints[index] = imageCoords;
+      set({ fieldKeypointsImageSpace: updatedKeypoints });
+    }
+  },
+  
+  updateNonCornerKeypoints: () => {
+    const { fieldKeypointsImageSpace, fieldKeypointsTemplateSpace } = get();
+    
+    // Get the current corner positions
+    const corners = [
+      fieldKeypointsImageSpace[0], // top-left
+      fieldKeypointsImageSpace[8], // top-right (changed from 12)
+      fieldKeypointsImageSpace[9], // bottom-right (changed from 13)
+      fieldKeypointsImageSpace[1]  // bottom-left
+    ];
+    
+    // Update all non-corner keypoints to maintain their relative positions
+    const updatedKeypoints = [...fieldKeypointsImageSpace];
+    
+    fieldKeypointsTemplateSpace.forEach((templatePos, index) => {
+      const isCorner = [0, 1, 8, 9].includes(index);
+      
+      if (!isCorner && corners.every(corner => corner.x !== undefined && corner.y !== undefined)) {
+        // Calculate relative position within the template court
+        const relativeX = templatePos.x / 1280;
+        const relativeY = templatePos.y / 720;
+        
+        // Map to the current court quadrilateral using bilinear interpolation
+        const topLeft = corners[0];     // index 0
+        const topRight = corners[1];    // index 8 (changed from 12)
+        const bottomRight = corners[2]; // index 9 (changed from 13) 
+        const bottomLeft = corners[3];  // index 1
+        
+        // Bilinear interpolation
+        const topInterp = {
+          x: topLeft.x + (topRight.x - topLeft.x) * relativeX,
+          y: topLeft.y + (topRight.y - topLeft.y) * relativeX
+        };
+        const bottomInterp = {
+          x: bottomLeft.x + (bottomRight.x - bottomLeft.x) * relativeX,
+          y: bottomLeft.y + (bottomRight.y - bottomLeft.y) * relativeX
+        };
+        
+        updatedKeypoints[index] = {
+          x: topInterp.x + (bottomInterp.x - topInterp.x) * relativeY,
+          y: topInterp.y + (bottomInterp.y - topInterp.y) * relativeY
+        };
+      }
+    });
+    
+    set({ fieldKeypointsImageSpace: updatedKeypoints });
+  },
+  
+  setSelectedFieldKeypoint: (index: number | null) => {
+    set({ selectedFieldKeypoint: index });
+  },
+  
+  resetFieldKeypoints: () => {
+    // Reset to default positions
+    set({
+      fieldKeypointsImageSpace: [
+        { x: 100, y: 100 },  { x: 100, y: 600 },  // Corners
+        { x: 400, y: 100 },  { x: 400, y: 600 },  // First vertical line (at 1/3)
+        { x: 700, y: 100 },  { x: 700, y: 600 },  // Center line 
+        { x: 1000, y: 100 }, { x: 1000, y: 600 }, // Second vertical line (at 2/3)
+        { x: 1300, y: 100 }, { x: 1300, y: 600 }  // Corners
+      ],
+      selectedFieldKeypoint: null,
+      homographyMatrix: null
+    });
+  },
+  
+  setFieldOverlayOpacity: (opacity: number) => {
+    set({ fieldOverlayOpacity: Math.max(0, Math.min(1, opacity)) });
+  },
+  
+  setFieldOverlayVisible: (visible: boolean) => {
+    set({ isFieldOverlayVisible: visible });
+  },
+  
+  calculateHomography: () => {
+    const { fieldKeypointsImageSpace, fieldKeypointsTemplateSpace } = get();
+    
+    try {
+      const matrix = calculateHomography(fieldKeypointsImageSpace, fieldKeypointsTemplateSpace);
+      set({ homographyMatrix: matrix });
+    } catch (error) {
+      console.error('Error calculating homography:', error);
+      set({ homographyMatrix: null });
+    }
+  },
+  
+  saveFieldRegistration: async () => {
+    const { 
+      homographyMatrix, 
+      fieldKeypointsImageSpace, 
+      fieldKeypointsTemplateSpace,
+      getCurrentRally,
+      getCurrentFrameNumber 
+    } = get();
+    
+    const rally = getCurrentRally();
+    const frameNumber = getCurrentFrameNumber();
+    
+    if (!rally || !homographyMatrix || frameNumber === null || typeof window === 'undefined' || !window.electronAPI) {
+      console.error('Cannot save field registration: missing data or not in Electron environment');
+      return;
+    }
+
+    try {
+      set({ saveStatus: 'saving' });
+      
+      // Create field registration folder name
+      const fieldRegistrationFolderName = `${rally.name}_field_registration`;
+      
+      // Save homography matrix as .npy file and coordinates as .txt file
+      await window.electronAPI.saveFieldRegistration({
+        rallyPath: rally.path,
+        folderName: fieldRegistrationFolderName,
+        frameNumber,
+        homographyMatrix,
+        imageSpacePoints: fieldKeypointsImageSpace,
+        templateSpacePoints: fieldKeypointsTemplateSpace
+      });
+      
+      set({ saveStatus: 'saved' });
+      setTimeout(() => set({ saveStatus: 'idle' }), 2000);
+      
+      console.log(`Field registration saved for frame ${frameNumber}`);
+    } catch (error) {
+      console.error('Error saving field registration:', error);
+      set({ saveStatus: 'error' });
+      setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+    }
   },
 }));

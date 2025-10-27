@@ -17,6 +17,7 @@ export default function MainCanvas() {
   const currentFrameNumberRef = useRef<number>(1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isDraggingKeypoint, setIsDraggingKeypoint] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -30,6 +31,11 @@ export default function MainCanvas() {
   const [nextImageSrc, setNextImageSrc] = useState<string | null>(null);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
   const [nextFrameBoxes, setNextFrameBoxes] = useState<BoundingBox[]>([]);
+  
+  // Field registration image state
+  const [volleyballCourtImage, setVolleyballCourtImage] = useState<HTMLImageElement | null>(null);
+  const [courtImageLoaded, setCourtImageLoaded] = useState(false);
+  const [hoveredKeypoint, setHoveredKeypoint] = useState<number | null>(null);
 
 
   const {
@@ -74,7 +80,15 @@ export default function MainCanvas() {
     getCurrentFrameBallAnnotation,
     removeCurrentFrameBallAnnotation,
     highQualityMode,
-    setHighQualityMode
+    setHighQualityMode,
+    fieldRegistrationMode,
+    isFieldOverlayVisible,
+    fieldOverlayOpacity,
+    fieldKeypointsImageSpace,
+    selectedFieldKeypoint,
+    setSelectedFieldKeypoint,
+    updateFieldKeypoint,
+    addFieldKeypoint
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -96,6 +110,344 @@ export default function MainCanvas() {
       setImageError(false);
     }
   }, [imagePath, currentImageSrc]);
+
+  // Load volleyball court template image for field registration
+  useEffect(() => {
+    if (fieldRegistrationMode && !courtImageLoaded) {
+      const img = new Image();
+      img.onload = () => {
+        setVolleyballCourtImage(img);
+        setCourtImageLoaded(true);
+      };
+      img.onerror = () => {
+        console.error('Failed to load volleyball court template');
+      };
+      img.src = '/volleyball_color.png';
+    }
+  }, [fieldRegistrationMode, courtImageLoaded]);
+
+  // Function to handle interactive keypoint movement with free movement for all points
+  const constrainKeypointMovement = useCallback((keypointIndex: number, clickCoords: { x: number; y: number }) => {
+    console.log(`constrainKeypointMovement called for keypoint ${keypointIndex} at (${clickCoords.x.toFixed(1)}, ${clickCoords.y.toFixed(1)})`);
+    
+    // Just return the coordinates - the update logic is handled in the mouse move handler
+    return clickCoords;
+  }, []);
+
+  // Function to update related keypoints when non-corner point moves
+  const updateRelatedKeypoints = useCallback((movedIndex: number, newPosition: { x: number; y: number }) => {
+    if (movedIndex < 2 || movedIndex > 7) return; // Changed from 11 to 7
+    
+    const isTopPoint = movedIndex % 2 === 0;
+    const lineIndex = Math.floor((movedIndex - 2) / 2);
+    const partnerIndex = isTopPoint ? movedIndex + 1 : movedIndex - 1;
+    
+    // Get corner positions (updated indices)
+    const topLeft = fieldKeypointsImageSpace[0];
+    const topRight = fieldKeypointsImageSpace[8];   // Changed from 12 to 8
+    const bottomLeft = fieldKeypointsImageSpace[1];
+    const bottomRight = fieldKeypointsImageSpace[9]; // Changed from 13 to 9
+    
+    const linePositions = [0.333, 0.5, 0.667]; // Removed 0.167 and 0.833
+    const relativeX = linePositions[lineIndex];
+    
+    // Calculate expected position of partner point
+    const expectedTopX = topLeft.x + (topRight.x - topLeft.x) * relativeX;
+    const expectedTopY = topLeft.y + (topRight.y - topLeft.y) * relativeX;
+    const expectedBottomX = bottomLeft.x + (bottomRight.x - bottomLeft.x) * relativeX;
+    const expectedBottomY = bottomLeft.y + (bottomRight.y - bottomLeft.y) * relativeX;
+    
+    // Calculate displacement from expected position
+    let displacementX = 0;
+    let displacementY = 0;
+    
+    if (isTopPoint) {
+      displacementX = newPosition.x - expectedTopX;
+      displacementY = newPosition.y - expectedTopY;
+    } else {
+      displacementX = newPosition.x - expectedBottomX;
+      displacementY = newPosition.y - expectedBottomY;
+    }
+    
+    // Update partner point with proportional adjustment
+    const adjustmentFactor = 0.4;
+    let partnerNewX, partnerNewY;
+    
+    if (isTopPoint) {
+      partnerNewX = expectedBottomX + displacementX * adjustmentFactor;
+      partnerNewY = expectedBottomY + displacementY * adjustmentFactor;
+    } else {
+      partnerNewX = expectedTopX + displacementX * adjustmentFactor;
+      partnerNewY = expectedTopY + displacementY * adjustmentFactor;
+    }
+    
+    updateFieldKeypoint(partnerIndex, { x: partnerNewX, y: partnerNewY });
+    
+    // Apply smaller adjustments to adjacent lines for smooth perspective
+    const adjacentFactor = 0.15;
+    for (let i = 2; i <= 7; i++) { // Changed from 11 to 7
+      if (i !== movedIndex && i !== partnerIndex) {
+        const adjLineIndex = Math.floor((i - 2) / 2);
+        const distance = Math.abs(adjLineIndex - lineIndex);
+        const factor = adjacentFactor / (distance + 1);
+        
+        const adjIsTopPoint = i % 2 === 0;
+        const adjRelativeX = linePositions[adjLineIndex];
+        
+        let expectedX, expectedY;
+        if (adjIsTopPoint) {
+          expectedX = topLeft.x + (topRight.x - topLeft.x) * adjRelativeX;
+          expectedY = topLeft.y + (topRight.y - topLeft.y) * adjRelativeX;
+        } else {
+          expectedX = bottomLeft.x + (bottomRight.x - bottomLeft.x) * adjRelativeX;
+          expectedY = bottomLeft.y + (bottomRight.y - bottomLeft.y) * adjRelativeX;
+        }
+        
+        updateFieldKeypoint(i, {
+          x: expectedX + displacementX * factor,
+          y: expectedY + displacementY * factor
+        });
+      }
+    }
+    
+    // Force canvas redraw to show template changes immediately
+    setTimeout(() => {
+      useAppStore.setState({ 
+        forceRedrawTimestamp: Date.now() 
+      });
+    }, 50);
+  }, [fieldKeypointsImageSpace, updateFieldKeypoint]);
+
+  // Function to update all non-corner keypoints when corner points move
+  const updateNonCornerKeypointsFromCorners = useCallback((excludeIndex?: number) => {
+    // Get fresh field keypoints from store
+    const currentFieldKeypoints = useAppStore.getState().fieldKeypointsImageSpace;
+    
+    console.log(`updateNonCornerKeypointsFromCorners called with excludeIndex: ${excludeIndex}, total points: ${currentFieldKeypoints.length}`);
+    
+    if (currentFieldKeypoints.length < 10) {
+      console.log(`Not enough points (${currentFieldKeypoints.length}) - need at least 10`);
+      return;
+    }
+
+    // Get corner positions (fresh from store)
+    const topLeft = currentFieldKeypoints[0];
+    const bottomLeft = currentFieldKeypoints[1];
+    const topRight = currentFieldKeypoints[8];   // Changed from 12 to 8
+    const bottomRight = currentFieldKeypoints[9]; // Changed from 13 to 9
+    
+    // Validate all corners exist
+    if (!topLeft || !bottomLeft || !topRight || !bottomRight) {
+      console.log(`Missing corners - TL:${!!topLeft}, BL:${!!bottomLeft}, TR:${!!topRight}, BR:${!!bottomRight}`);
+      return;
+    }
+    
+    console.log(`Corner positions - TL: (${topLeft?.x}, ${topLeft?.y}), TR: (${topRight?.x}, ${topRight?.y}), BL: (${bottomLeft?.x}, ${bottomLeft?.y}), BR: (${bottomRight?.x}, ${bottomRight?.y})`);
+    
+    // Volleyball court line positions (relative to court width) - removed 0.167 and 0.833
+    const linePositions = [0.333, 0.5, 0.667];
+    
+    // Define which corners are nearest to each non-corner point
+    const nearestCornerMapping: { [key: number]: [{ x: number; y: number }, { x: number; y: number }] } = {
+      2: [topLeft, topRight],      // First line top - interpolate between top corners
+      3: [bottomLeft, bottomRight], // First line bottom - interpolate between bottom corners
+      4: [topLeft, topRight],      // Center line top - interpolate between top corners
+      5: [bottomLeft, bottomRight], // Center line bottom - interpolate between bottom corners
+      6: [topLeft, topRight],      // Third line top - interpolate between top corners
+      7: [bottomLeft, bottomRight] // Third line bottom - interpolate between bottom corners
+    };
+    
+    console.log(`About to update non-corner points 2-7`);
+    
+    // Update each non-corner keypoint based on its nearest corners
+    for (let pointIndex = 2; pointIndex <= 7; pointIndex++) { // Changed from 11 to 7
+      if (excludeIndex !== undefined && pointIndex === excludeIndex) {
+        console.log(`Skipping point ${pointIndex} as it's excluded`);
+        continue; // Skip excluded point
+      }
+      
+      const lineIndex = Math.floor((pointIndex - 2) / 2);
+      const isTopPoint = pointIndex % 2 === 0;
+      const relativeX = linePositions[lineIndex];
+      
+      console.log(`Processing point ${pointIndex}: lineIndex=${lineIndex}, isTopPoint=${isTopPoint}, relativeX=${relativeX}`);
+      
+      // Get the relevant corners for this point
+      const relevantCorners = nearestCornerMapping[pointIndex];
+      
+      if (relevantCorners && relevantCorners.length === 2) {
+        // Calculate position based on interpolation between the two relevant corners
+        const corner1 = relevantCorners[0]; // Left corner (top-left or bottom-left)
+        const corner2 = relevantCorners[1]; // Right corner (top-right or bottom-right)
+        
+        const newX = corner1.x + (corner2.x - corner1.x) * relativeX;
+        const newY = corner1.y + (corner2.y - corner1.y) * relativeX;
+        
+        const oldPoint = currentFieldKeypoints[pointIndex];
+        console.log(`Updating point ${pointIndex} (line ${lineIndex}, ${isTopPoint ? 'top' : 'bottom'}) from (${oldPoint?.x?.toFixed(1) || 'undefined'}, ${oldPoint?.y?.toFixed(1) || 'undefined'}) to (${newX.toFixed(1)}, ${newY.toFixed(1)}) based on corners (${corner1.x.toFixed(1)}, ${corner1.y.toFixed(1)}) and (${corner2.x.toFixed(1)}, ${corner2.y.toFixed(1)})`);
+        
+        // Verify the calculation is meaningful
+        const distance = Math.sqrt((newX - (oldPoint?.x || 0))**2 + (newY - (oldPoint?.y || 0))**2);
+        console.log(`Distance moved for point ${pointIndex}: ${distance.toFixed(2)} pixels`);
+        
+        updateFieldKeypoint(pointIndex, { x: newX, y: newY });
+        
+        // Verify the update happened
+        setTimeout(() => {
+          const updatedPoint = useAppStore.getState().fieldKeypointsImageSpace[pointIndex];
+          console.log(`Point ${pointIndex} after update: (${updatedPoint?.x?.toFixed(1)}, ${updatedPoint?.y?.toFixed(1)})`);
+        }, 10);
+      } else {
+        console.log(`No relevant corners found for point ${pointIndex}`);
+      }
+    }
+    
+    console.log(`Finished updating non-corner points`);
+  }, [updateFieldKeypoint]);
+
+  // Function to update corner points based on non-corner keypoints movement
+  const updateCornersFromNonCornerPoints = useCallback((movedKeypointIndex?: number) => {
+    // Get fresh field keypoints from store
+    const currentFieldKeypoints = useAppStore.getState().fieldKeypointsImageSpace;
+    
+    if (currentFieldKeypoints.length < 10 || !movedKeypointIndex || movedKeypointIndex < 2 || movedKeypointIndex > 7) {
+      return;
+    }
+
+    console.log(`Updating corners based on moved point ${movedKeypointIndex}`);
+    
+    const linePositions = [0.333, 0.5, 0.667]; // Removed 0.167 and 0.833
+    
+    // Determine which line this point belongs to and if it's top or bottom
+    const lineIndex = Math.floor((movedKeypointIndex - 2) / 2);
+    const isTopPoint = movedKeypointIndex % 2 === 0;
+    const relativePosition = linePositions[lineIndex];
+    
+    // Use the moved point as one reference and find the best other reference point
+    const movedPoint = currentFieldKeypoints[movedKeypointIndex];
+    if (!movedPoint) {
+      console.log('Moved point not found');
+      return;
+    }
+    
+    // For corner estimation, we need two points on the same side (top or bottom)
+    // Find the best reference point on the same side that's furthest from the moved point
+    let referencePointIndex: number;
+    let referencePoint: { x: number; y: number };
+    
+    if (isTopPoint) {
+      // For top points, find the furthest top point
+      if (relativePosition <= 0.5) {
+        // If moved point is on left half, use rightmost top point as reference
+        referencePointIndex = 6; // Point 6 (0.667 top)
+      } else {
+        // If moved point is on right half, use leftmost top point as reference
+        referencePointIndex = 2; // Point 2 (0.333 top)
+      }
+    } else {
+      // For bottom points, find the furthest bottom point
+      if (relativePosition <= 0.5) {
+        // If moved point is on left half, use rightmost bottom point as reference
+        referencePointIndex = 7; // Point 7 (0.667 bottom)
+      } else {
+        // If moved point is on right half, use leftmost bottom point as reference
+        referencePointIndex = 3; // Point 3 (0.333 bottom)
+      }
+    }
+    
+    referencePoint = currentFieldKeypoints[referencePointIndex];
+    if (!referencePoint) {
+      console.log(`Reference point ${referencePointIndex} not found`);
+      return;
+    }
+    
+    // Calculate the relative positions of both points
+    const movedRelativePos = relativePosition;
+    const referenceRelativePos = linePositions[Math.floor((referencePointIndex - 2) / 2)];
+    
+    // Calculate slope between the moved point and reference point
+    const positionDiff = referenceRelativePos - movedRelativePos;
+    if (Math.abs(positionDiff) < 0.001) {
+      console.log('Points are too close to calculate slope');
+      return;
+    }
+    
+    const slope = {
+      x: (referencePoint.x - movedPoint.x) / positionDiff,
+      y: (referencePoint.y - movedPoint.y) / positionDiff
+    };
+    
+    console.log(`Using moved point ${movedKeypointIndex} (${movedRelativePos}) and reference point ${referencePointIndex} (${referenceRelativePos}) for slope calculation`);
+    
+    // Calculate corner positions by extrapolating from the moved point
+    let cornerEstimates: { [key: string]: { x: number; y: number } } = {};
+    
+    if (isTopPoint) {
+      // For top points, calculate top corners
+      cornerEstimates = {
+        topLeft: {
+          x: movedPoint.x - slope.x * movedRelativePos,
+          y: movedPoint.y - slope.y * movedRelativePos
+        },
+        topRight: {
+          x: movedPoint.x + slope.x * (1 - movedRelativePos),
+          y: movedPoint.y + slope.y * (1 - movedRelativePos)
+        }
+      };
+    } else {
+      // For bottom points, calculate bottom corners
+      cornerEstimates = {
+        bottomLeft: {
+          x: movedPoint.x - slope.x * movedRelativePos,
+          y: movedPoint.y - slope.y * movedRelativePos
+        },
+        bottomRight: {
+          x: movedPoint.x + slope.x * (1 - movedRelativePos),
+          y: movedPoint.y + slope.y * (1 - movedRelativePos)
+        }
+      };
+    }
+    
+    // Determine which corners to update based on the moved point's position
+    let cornersToUpdate: Array<{index: number, pos: {x: number, y: number}, name: string}> = [];
+    
+    if (relativePosition <= 0.4) {
+      // Left side points (0.333) - update left corners
+      if (isTopPoint) {
+        cornersToUpdate = [{index: 0, pos: cornerEstimates.topLeft!, name: 'top-left'}];
+      } else {
+        cornersToUpdate = [{index: 1, pos: cornerEstimates.bottomLeft!, name: 'bottom-left'}];
+      }
+    } else if (relativePosition >= 0.6) {
+      // Right side points (0.667) - update right corners
+      if (isTopPoint) {
+        cornersToUpdate = [{index: 8, pos: cornerEstimates.topRight!, name: 'top-right'}]; // Changed from 12 to 8
+      } else {
+        cornersToUpdate = [{index: 9, pos: cornerEstimates.bottomRight!, name: 'bottom-right'}]; // Changed from 13 to 9
+      }
+    } else {
+      // Middle point (0.5) - update both left and right corners on the same side (top/bottom)
+      if (isTopPoint) {
+        cornersToUpdate = [
+          {index: 0, pos: cornerEstimates.topLeft!, name: 'top-left'},
+          {index: 8, pos: cornerEstimates.topRight!, name: 'top-right'} // Changed from 12 to 8
+        ];
+      } else {
+        cornersToUpdate = [
+          {index: 1, pos: cornerEstimates.bottomLeft!, name: 'bottom-left'},
+          {index: 9, pos: cornerEstimates.bottomRight!, name: 'bottom-right'} // Changed from 13 to 9
+        ];
+      }
+    }
+    
+    // Update the determined corners
+    cornersToUpdate.forEach(corner => {
+      console.log(`Updating ${corner.name} to (${corner.pos.x.toFixed(1)}, ${corner.pos.y.toFixed(1)}) based on point ${movedKeypointIndex}`);
+      updateFieldKeypoint(corner.index, corner.pos);
+    });
+    
+    console.log(`Updated ${cornersToUpdate.length} corners based on point ${movedKeypointIndex} at position ${relativePosition}`);
+  }, [updateFieldKeypoint]);
 
   // Helper function to determine which bounding box would be selected at given coordinates
   const getClickedBox = useCallback((coords: { x: number; y: number }) => {
@@ -667,13 +1019,210 @@ export default function MainCanvas() {
       ctx.restore();
     }
 
+    // Draw field registration overlay and keypoints
+    if (fieldRegistrationMode && isFieldOverlayVisible && volleyballCourtImage) {
+      ctx.save();
+      
+      // Set opacity for the overlay
+      ctx.globalAlpha = fieldOverlayOpacity;
+      
+      // Check if we have proper corner keypoints for perspective transformation
+      const corners = [
+        fieldKeypointsImageSpace[0],  // top-left
+        fieldKeypointsImageSpace[8], // top-right (changed from 12)
+        fieldKeypointsImageSpace[9], // bottom-right (changed from 13)
+        fieldKeypointsImageSpace[1]   // bottom-left
+      ];
+      
+      if (corners.every(corner => corner && corner.x !== undefined && corner.y !== undefined)) {
+        // Apply perspective transformation to the template
+        const srcWidth = volleyballCourtImage.width;
+        const srcHeight = volleyballCourtImage.height;
+        
+        // Apply the perspective transform
+        const numSegments = 50; // Higher for smoother transformation
+        for (let i = 0; i < numSegments; i++) {
+          for (let j = 0; j < numSegments; j++) {
+            const u1 = i / numSegments;
+            const v1 = j / numSegments;
+            const u2 = (i + 1) / numSegments;
+            const v2 = (j + 1) / numSegments;
+            
+            // Bilinear interpolation for perspective mapping
+            const mapPoint = (u: number, v: number) => {
+              const tl = corners[0];
+              const tr = corners[1];
+              const br = corners[2];
+              const bl = corners[3];
+              
+              const top = {
+                x: tl.x + (tr.x - tl.x) * u,
+                y: tl.y + (tr.y - tl.y) * u
+              };
+              const bottom = {
+                x: bl.x + (br.x - bl.x) * u,
+                y: bl.y + (br.y - bl.y) * u
+              };
+              
+              return {
+                x: top.x + (bottom.x - top.x) * v,
+                y: top.y + (bottom.y - top.y) * v
+              };
+            };
+            
+            const p1 = mapPoint(u1, v1);
+            const p2 = mapPoint(u2, v1);
+            const p3 = mapPoint(u2, v2);
+            const p4 = mapPoint(u1, v2);
+            
+            // Draw transformed segment
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.clip();
+            
+            // Calculate source coordinates
+            const sx = u1 * srcWidth;
+            const sy = v1 * srcHeight;
+            const sw = (u2 - u1) * srcWidth;
+            const sh = (v2 - v1) * srcHeight;
+            
+            try {
+              ctx.drawImage(volleyballCourtImage, sx, sy, sw, sh, p1.x, p1.y, 
+                           Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2), 
+                           Math.sqrt((p4.x-p1.x)**2 + (p4.y-p1.y)**2));
+            } catch {
+              // Handle any drawing errors silently
+            }
+            ctx.restore();
+          }
+        }
+      } else {
+        // Fallback: center the template without transformation
+        const templateWidth = 1280;
+        const templateHeight = 720;
+        const scaleX = canvasDimensions.width / templateWidth;
+        const scaleY = canvasDimensions.height / templateHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        const scaledWidth = templateWidth * scale;
+        const scaledHeight = templateHeight * scale;
+        const offsetX = (canvasDimensions.width - scaledWidth) / 2;
+        const offsetY = (canvasDimensions.height - scaledHeight) / 2;
+        
+        ctx.drawImage(volleyballCourtImage, offsetX, offsetY, scaledWidth, scaledHeight);
+      }
+      
+      // Restore opacity
+      ctx.globalAlpha = 1.0;
+      ctx.restore();
+    }
+
+    // Draw field registration keypoints
+    if (fieldRegistrationMode) {
+      ctx.save();
+      
+      fieldKeypointsImageSpace.forEach((keypoint, index) => {
+        if (keypoint.x !== undefined && keypoint.y !== undefined) {
+          const isCorner = [0, 1, 8, 9].includes(index);
+          const isSelected = selectedFieldKeypoint === index;
+          const isHovered = hoveredKeypoint === index;
+          
+          // Different colors for different keypoint types
+          let fillColor = isCorner ? '#FFD700' : '#00FF00'; // Gold for corners, green for others
+          let strokeColor = isCorner ? '#FFA500' : '#008000';
+          
+          if (isSelected) {
+            fillColor = '#FF0000'; // Red when selected
+            strokeColor = '#AA0000';
+          } else if (isHovered) {
+            fillColor = isCorner ? '#FFFF00' : '#80FF80'; // Lighter colors when hovered
+            strokeColor = isCorner ? '#FFD700' : '#40C040';
+          }
+          
+          const radius = (isSelected || isHovered) ? 8 / zoomLevel : 6 / zoomLevel;
+          
+          ctx.fillStyle = fillColor;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 2 / zoomLevel;
+          
+          ctx.beginPath();
+          ctx.arc(keypoint.x, keypoint.y, radius, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Add keypoint index label
+          ctx.fillStyle = 'black';
+          ctx.font = `bold ${10 / zoomLevel}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(index.toString(), keypoint.x, keypoint.y);
+        }
+      });
+      
+      // Draw lines connecting keypoints to show court structure
+      if (fieldKeypointsImageSpace.length >= 10) {
+        // Draw court boundary (perimeter)
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3 / zoomLevel;
+        ctx.setLineDash([]);
+        
+        ctx.beginPath();
+        const topLeft = fieldKeypointsImageSpace[0];
+        const topRight = fieldKeypointsImageSpace[8];   // changed from 12
+        const bottomRight = fieldKeypointsImageSpace[9]; // changed from 13
+        const bottomLeft = fieldKeypointsImageSpace[1];
+        
+        ctx.moveTo(topLeft.x, topLeft.y);
+        ctx.lineTo(topRight.x, topRight.y);
+        ctx.lineTo(bottomRight.x, bottomRight.y);
+        ctx.lineTo(bottomLeft.x, bottomLeft.y);
+        ctx.lineTo(topLeft.x, topLeft.y);
+        ctx.stroke();
+        
+        // Draw vertical lines (attack lines, net, etc.)
+        ctx.strokeStyle = '#00FFFF';
+        ctx.lineWidth = 2 / zoomLevel;
+        ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+        
+        for (let i = 2; i < 8; i += 2) { // changed from 12 to 8
+          const topPoint = fieldKeypointsImageSpace[i];
+          const bottomPoint = fieldKeypointsImageSpace[i + 1];
+          
+          ctx.beginPath();
+          ctx.moveTo(topPoint.x, topPoint.y);
+          ctx.lineTo(bottomPoint.x, bottomPoint.y);
+          
+          // Highlight the net line (center line) differently
+          if (i === 6) {
+            ctx.strokeStyle = '#FF00FF'; // Magenta for net
+            ctx.lineWidth = 3 / zoomLevel;
+            ctx.setLineDash([]);
+          } else {
+            ctx.strokeStyle = '#00FFFF'; // Cyan for other lines
+            ctx.lineWidth = 2 / zoomLevel;
+            ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+          }
+          ctx.stroke();
+        }
+        
+        ctx.setLineDash([]);
+      }
+      
+      ctx.restore();
+    }
+
     // Restore the context state
     ctx.restore();
     } catch (error) {
       console.error('Error drawing canvas:', error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius, imageLoading]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius, imageLoading, fieldRegistrationMode, isFieldOverlayVisible, fieldOverlayOpacity, fieldKeypointsImageSpace, selectedFieldKeypoint, hoveredKeypoint, volleyballCourtImage]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -748,6 +1297,47 @@ export default function MainCanvas() {
   const handleMouseDown = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // For selection/assignment modes, we still need canvas coordinates immediately
     const coords = getCanvasCoordinates(event);
+
+    // Handle field registration mode first
+    if (fieldRegistrationMode) {
+      // Check if clicking near an existing keypoint
+      const clickThreshold = 15 / zoomLevel; // Scale with zoom
+      let clickedKeypointIndex = -1;
+      
+      for (let i = 0; i < fieldKeypointsImageSpace.length; i++) {
+        const keypoint = fieldKeypointsImageSpace[i];
+        if (keypoint.x !== undefined && keypoint.y !== undefined) {
+          const distance = Math.sqrt(
+            Math.pow(coords.x - keypoint.x, 2) + Math.pow(coords.y - keypoint.y, 2)
+          );
+          if (distance <= clickThreshold) {
+            clickedKeypointIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (clickedKeypointIndex >= 0) {
+        // Click on keypoint - select it and start dragging immediately
+        setSelectedFieldKeypoint(clickedKeypointIndex);
+        setIsDraggingKeypoint(true);
+        console.log(`Selected and started dragging keypoint ${clickedKeypointIndex}`);
+      } else {
+        // Clicked on empty space
+        if (fieldKeypointsImageSpace.length < 10) {
+          // Add new keypoint if we don't have all 10 yet
+          const newIndex = fieldKeypointsImageSpace.length;
+          addFieldKeypoint(coords);
+          console.log(`Added keypoint ${newIndex} at (${coords.x.toFixed(1)}, ${coords.y.toFixed(1)})`);
+        } else {
+          // Deselect any selected keypoint
+          setSelectedFieldKeypoint(null);
+          setIsDraggingKeypoint(false);
+          console.log(`Clicked empty space - deselected keypoint`);
+        }
+      }
+      return; // Exit early for field registration mode
+    }
 
     // Check for middle mouse button or right mouse button for panning
     if (event.button === 1 || event.button === 2) { // Middle mouse button (1) or right mouse button (2)
@@ -907,6 +1497,57 @@ export default function MainCanvas() {
     // For hover effects, we need canvas coordinates
     const coords = getCanvasCoordinates(event);
     
+    // Handle field registration keypoint dragging
+    if (fieldRegistrationMode && selectedFieldKeypoint !== null && isDraggingKeypoint) {
+      const constrainedCoords = constrainKeypointMovement(selectedFieldKeypoint, coords);
+      updateFieldKeypoint(selectedFieldKeypoint, constrainedCoords);
+      
+      // Update related keypoints after the main keypoint is updated
+      const isCorner = [0, 1, 8, 9].includes(selectedFieldKeypoint);
+      const isNonCorner = selectedFieldKeypoint >= 2 && selectedFieldKeypoint <= 7;
+      
+      console.log(`Field keypoint ${selectedFieldKeypoint} dragged. isCorner: ${isCorner}, isNonCorner: ${isNonCorner}`);
+      
+      if (isCorner) {
+        // For corner keypoints, update all non-corner points
+        console.log(`Dragging corner ${selectedFieldKeypoint}, calling updateNonCornerKeypointsFromCorners`);
+        
+        // Update non-corner points immediately during drag
+        updateNonCornerKeypointsFromCorners();
+      } else if (isNonCorner) {
+        // For non-corner keypoints, update corners and other non-corner points  
+        console.log(`Dragging non-corner ${selectedFieldKeypoint}, calling corner and non-corner updates`);
+        setTimeout(() => {
+          updateCornersFromNonCornerPoints(selectedFieldKeypoint);
+          updateNonCornerKeypointsFromCorners(selectedFieldKeypoint);
+          useAppStore.setState({ forceRedrawTimestamp: Date.now() });
+        }, 0);
+      }
+      
+      return;
+    }
+    
+    // Handle field registration keypoint hovering
+    if (fieldRegistrationMode && !isDraggingKeypoint) {
+      const clickThreshold = 15 / zoomLevel;
+      let hoveredKeypointIndex = -1;
+      
+      for (let i = 0; i < fieldKeypointsImageSpace.length; i++) {
+        const keypoint = fieldKeypointsImageSpace[i];
+        if (keypoint.x !== undefined && keypoint.y !== undefined) {
+          const distance = Math.sqrt(
+            Math.pow(coords.x - keypoint.x, 2) + Math.pow(coords.y - keypoint.y, 2)
+          );
+          if (distance <= clickThreshold) {
+            hoveredKeypointIndex = i;
+            break;
+          }
+        }
+      }
+      
+      setHoveredKeypoint(hoveredKeypointIndex >= 0 ? hoveredKeypointIndex : null);
+    }
+    
     // Track cursor position only when in drawing mode for performance
     if (drawingMode) {
       setCursorPosition(coords);
@@ -1008,6 +1649,25 @@ export default function MainCanvas() {
   }, [imagePath, annotations, setAnnotations, saveAnnotationFile]);
 
   const handleMouseUp = useCallback(() => {
+    // Handle field registration keypoint release
+    if (fieldRegistrationMode && selectedFieldKeypoint !== null) {
+      const isCorner = [0, 1, 8, 9].includes(selectedFieldKeypoint);
+      
+      // If it was a corner point, ensure the non-corner points are updated one final time
+      if (isCorner && isDraggingKeypoint) {
+        console.log(`🔧 Mouse up: Final update for corner ${selectedFieldKeypoint}`);
+        // Use setTimeout to ensure the final position is captured
+        setTimeout(() => {
+          updateNonCornerKeypointsFromCorners();
+          console.log(`🔧 Final non-corner update completed for corner ${selectedFieldKeypoint}`);
+        }, 10);
+      }
+      
+      setSelectedFieldKeypoint(null);
+      setIsDraggingKeypoint(false);
+      return;
+    }
+    
     if (isPanning) {
       setIsPanning(false);
       setLastPanPoint(null);
@@ -1060,7 +1720,7 @@ export default function MainCanvas() {
     
     setIsDrawing(false);
     setStartPoint(null);
-  }, [isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
+  }, [fieldRegistrationMode, selectedFieldKeypoint, isDraggingKeypoint, updateNonCornerKeypointsFromCorners, isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
 
   const handleMouseLeave = () => {
     // Clear hover state when mouse leaves canvas
@@ -1304,6 +1964,9 @@ export default function MainCanvas() {
         // Clear selections (both tracklet and bounding box)
         setSelectedTrackletId(null);
         setSelectedBoundingBox(null);
+        // Clear field registration selections
+        setSelectedFieldKeypoint(null);
+        setIsDraggingKeypoint(false);
         // Clear any current drawing state
         setIsDrawing(false);
         setCurrentRect(null);
@@ -1478,7 +2141,12 @@ export default function MainCanvas() {
           style={{ 
             width: '100%',
             height: '100%',
-            objectFit: 'contain'
+            objectFit: 'contain',
+            cursor: fieldRegistrationMode ? 
+              (isDraggingKeypoint ? 'grabbing' : 
+                (hoveredKeypoint !== null ? 'grab' : 
+                  (selectedFieldKeypoint !== null ? 'crosshair' : 'crosshair'))) 
+              : 'default'
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -1490,10 +2158,18 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {(ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (B/ESC to exit)`}
-          {drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
-          {assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} 🔄 Smart Swap (ESC to exit)`}
-          {!drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}
+          {fieldRegistrationMode && `🏐 Field Registration Mode - ${
+            isDraggingKeypoint ? 'Dragging keypoint...' : 
+            (selectedFieldKeypoint !== null ? 
+              (selectedFieldKeypoint >= 2 && selectedFieldKeypoint <= 7 ?  // Changed from 11 to 7 
+                `Non-corner keypoint ${selectedFieldKeypoint} selected - Will intelligently adjust nearby/off-screen corners` :
+                `Corner keypoint ${selectedFieldKeypoint} selected - Will adjust court lines`) : 
+            'Click to place/select keypoints')
+          } (${fieldKeypointsImageSpace.length}/10)`}
+          {!fieldRegistrationMode && (ballAnnotationMode || selectedTrackletId === 99) && `🎯 Ball Annotation Mode - Click center point (B/ESC to exit)`}
+          {!fieldRegistrationMode && drawingMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.drawing')} - ID: ${selectedTrackletId} (ESC to exit)`}
+          {!fieldRegistrationMode && assignMode && selectedTrackletId && selectedTrackletId !== 99 && `${t('modes.assign')} - ID: ${selectedTrackletId} 🔄 Smart Swap (ESC to exit)`}
+          {!fieldRegistrationMode && !drawingMode && !assignMode && !ballAnnotationMode && selectedTrackletId !== 99 && `${t('modes.selection')} (ESC to clear)`}
         </div>
 
         {/* High Quality Toggle Switch */}

@@ -54,7 +54,7 @@ export default function RightSidebar() {
     isDevMode,
     setDevMode,
     trackletDetails,
-    updateTrackletAnnotationDetails
+    updateTrackletAnnotationDetails,
   } = useAppStore();
 
   const [customId, setCustomId] = useState('');
@@ -1406,6 +1406,20 @@ export default function RightSidebar() {
                       <li>• {t('instructions.navigation.jumpFrame')}</li>
                       <li>• {t('instructions.navigation.zoom')}</li>
                       <li>• {t('instructions.navigation.pan')}</li>
+                    </ul>
+                  </div>
+
+                  {/* Field Registration */}
+                  <div>
+                    <h5 className="text-white font-medium mb-2">🏐 Field Registration</h5>
+                    <ul className="space-y-1">
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">F</kbd> - Toggle field registration mode</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">1-9</kbd> - Select keypoint by number</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">C</kbd> - Calculate homography</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">Shift+R</kbd> - Reset keypoints</li>
+                      <li>• <kbd className="bg-gray-700 px-1 rounded text-xs">ESC</kbd> - Clear keypoint selection</li>
+                      <li>• Click keypoints to select, click canvas to move selected keypoint</li>
+                      <li>• Align keypoints with field features for accurate registration</li>
                     </ul>
                   </div>
 

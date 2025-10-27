@@ -24,6 +24,14 @@ export interface ElectronAPI {
   }>;
   findJsonFiles: (dirPath: string) => Promise<string[]>;
   exportToJson: (filePath: string, content: string) => Promise<boolean>;
+  saveFieldRegistration: (data: {
+    rallyPath: string;
+    folderName: string;
+    frameNumber: number;
+    homographyMatrix: number[][];
+    imageSpacePoints: Array<{ x: number; y: number }>;
+    templateSpacePoints: Array<{ x: number; y: number }>;
+  }) => Promise<boolean>;
 }
 
 export interface DirectoryEntry {

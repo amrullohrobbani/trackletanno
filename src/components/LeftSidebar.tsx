@@ -40,7 +40,18 @@ export default function LeftSidebar() {
     deleteSelectedBoundingBox,
     selectedBoundingBox,
     getCurrentRally,
-    ballAnnotationMode
+    ballAnnotationMode,
+    fieldRegistrationMode,
+    setFieldRegistrationMode,
+    isFieldOverlayVisible,
+    setFieldOverlayVisible,
+    fieldOverlayOpacity,
+    setFieldOverlayOpacity,
+    resetFieldKeypoints,
+    calculateHomography,
+    saveFieldRegistration,
+    homographyMatrix,
+    selectedFieldKeypoint
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -252,6 +263,111 @@ export default function LeftSidebar() {
           <div className="mt-3 p-3 bg-orange-900/30 border border-orange-600/30 rounded-lg">
             <p className="text-xs text-orange-400">
               {t('ui.ballAnnotationModeActive')}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Field Registration Controls */}
+      <div className="p-4 border-b border-gray-700 flex-shrink-0">
+        <h2 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
+          🏐 Field Registration
+        </h2>
+        
+        <div className="space-y-3">
+          <button
+            onClick={() => setFieldRegistrationMode(!fieldRegistrationMode)}
+            disabled={ballAnnotationMode}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-colors ${
+              fieldRegistrationMode
+                ? 'bg-orange-600 text-white shadow-lg'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            } ${ballAnnotationMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span className="text-xl">🏐</span>
+            {fieldRegistrationMode ? 'Exit Field Mode' : 'Field Registration Mode'}
+          </button>
+          
+          {fieldRegistrationMode && (
+            <div className="space-y-3 bg-orange-900/20 p-3 rounded-lg border border-orange-700/50">
+              {/* Overlay Controls */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-orange-300">Court Overlay</span>
+                  <button
+                    onClick={() => setFieldOverlayVisible(!isFieldOverlayVisible)}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      isFieldOverlayVisible 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-gray-600 text-gray-300'
+                    }`}
+                  >
+                    {isFieldOverlayVisible ? 'Visible' : 'Hidden'}
+                  </button>
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-orange-300 mb-1">
+                    Opacity: {Math.round(fieldOverlayOpacity * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={fieldOverlayOpacity}
+                    onChange={(e) => setFieldOverlayOpacity(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={resetFieldKeypoints}
+                  className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+                >
+                  Reset Points
+                </button>
+                <button
+                  onClick={calculateHomography}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                >
+                  Calculate H
+                </button>
+              </div>
+              
+              <button
+                onClick={saveFieldRegistration}
+                disabled={!homographyMatrix}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
+              >
+                Save Registration
+              </button>
+              
+              {/* Status */}
+              <div className="text-xs text-orange-300">
+                <div>Selected: {selectedFieldKeypoint !== null ? `Point #${selectedFieldKeypoint + 1}` : 'None'}</div>
+                {homographyMatrix && <div className="text-green-300">✓ Homography calculated</div>}
+              </div>
+              
+              {/* Instructions */}
+              <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
+                <div className="font-medium mb-1">Quick Guide:</div>
+                <div>• Press F to toggle mode</div>
+                <div>• Click keypoints to select</div>
+                <div>• Click canvas to move selected</div>
+                <div>• Press C to calculate homography</div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {ballAnnotationMode && (
+          <div className="mt-3 p-3 bg-orange-900/30 border border-orange-600/30 rounded-lg">
+            <p className="text-xs text-orange-400">
+              Field registration disabled in ball annotation mode
             </p>
           </div>
         )}
