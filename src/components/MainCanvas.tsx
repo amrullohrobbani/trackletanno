@@ -1284,13 +1284,20 @@ export default function MainCanvas() {
       canvasY = (canvasY - panY) / zoomLevel;
     }
     
-    // STEP 6: Clamp to canvas bounds
-    const clampedX = Math.max(0, Math.min(canvasDimensions.width, canvasX));
-    const clampedY = Math.max(0, Math.min(canvasDimensions.height, canvasY));
+    // STEP 6: For field registration, allow out-of-bounds coordinates
+    // For other modes, clamp to canvas bounds
+    let finalX = canvasX;
+    let finalY = canvasY;
+    
+    // Only clamp if not in field registration mode
+    if (!fieldRegistrationMode) {
+      finalX = Math.max(0, Math.min(canvasDimensions.width, canvasX));
+      finalY = Math.max(0, Math.min(canvasDimensions.height, canvasY));
+    }
     
     return {
-      x: Math.round(clampedX * 100) / 100,
-      y: Math.round(clampedY * 100) / 100
+      x: Math.round(finalX * 100) / 100,
+      y: Math.round(finalY * 100) / 100
     };
   };
 

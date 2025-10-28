@@ -32,6 +32,15 @@ export interface ElectronAPI {
     imageSpacePoints: Array<{ x: number; y: number }>;
     templateSpacePoints: Array<{ x: number; y: number }>;
   }) => Promise<boolean>;
+  loadFieldRegistration: (data: {
+    rallyPath: string;
+    folderName: string;
+    frameNumber: number;
+  }) => Promise<{
+    homographyMatrix: number[][];
+    imageSpacePoints: Array<{ x: number; y: number }> | null;
+    templateSpacePoints: Array<{ x: number; y: number }> | null;
+  } | null>;
 }
 
 export interface DirectoryEntry {

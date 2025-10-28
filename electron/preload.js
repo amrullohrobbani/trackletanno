@@ -18,4 +18,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   findJsonFiles: (dirPath) => ipcRenderer.invoke('find-json-files', dirPath),
   exportToJson: (filePath, content) => ipcRenderer.invoke('export-to-json', filePath, content),
   saveFieldRegistration: (data) => ipcRenderer.invoke('save-field-registration', data),
+  loadFieldRegistration: (data) => ipcRenderer.invoke('load-field-registration', data),
 });

@@ -158,6 +158,7 @@ interface AppState {
   setFieldOverlayVisible: (visible: boolean) => void;
   calculateHomography: () => void;
   saveFieldRegistration: () => Promise<void>;
+  loadFieldRegistration: () => Promise<void>;
   
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
@@ -474,6 +475,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const rally = state.getCurrentRally();
     if (rally && index >= 1 && index <= rally.imageFiles.length) {
       set({ currentFrameIndex: index });
+      
+      // Load field registration for the new frame if in field registration mode
+      if (state.fieldRegistrationMode) {
+        console.log('🔄 Frame changed in field registration mode - loading field registration');
+        setTimeout(() => {
+          const currentState = get();
+          if (currentState.fieldRegistrationMode) { // Double-check mode is still active
+            currentState.loadFieldRegistration();
+          }
+        }, 200); // Slightly longer delay to ensure state is stable
+      }
     }
   },
   
@@ -1479,6 +1491,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       assignMode: enabled ? false : get().assignMode,
       ballAnnotationMode: enabled ? false : get().ballAnnotationMode
     });
+    
+    // Load existing field registration when entering field registration mode
+    if (enabled) {
+      console.log('🏐 Field registration mode enabled - will load existing registration');
+      setTimeout(() => {
+        const currentState = get();
+        if (currentState.fieldRegistrationMode) { // Double-check mode is still active
+          console.log('🔄 Calling loadFieldRegistration after mode activation');
+          currentState.loadFieldRegistration();
+        }
+      }, 200); // Longer delay to ensure stable state
+    }
   },
   
   addFieldKeypoint: (imageCoords: { x: number; y: number }) => {
@@ -1552,14 +1576,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   resetFieldKeypoints: () => {
-    // Reset to default positions
+    // Reset to initial template layout positions
     set({
       fieldKeypointsImageSpace: [
-        { x: 100, y: 100 },  { x: 100, y: 600 },  // Corners
-        { x: 400, y: 100 },  { x: 400, y: 600 },  // First vertical line (at 1/3)
-        { x: 700, y: 100 },  { x: 700, y: 600 },  // Center line 
-        { x: 1000, y: 100 }, { x: 1000, y: 600 }, // Second vertical line (at 2/3)
-        { x: 1300, y: 100 }, { x: 1300, y: 600 }  // Corners
+        { x: 0, y: 0 },      // Top-left corner
+        { x: 0, y: 720 },    // Bottom-left corner
+        { x: 426, y: 0 },    // First vertical line top (at 1/3)
+        { x: 426, y: 720 },  // First vertical line bottom
+        { x: 640, y: 0 },    // Center line top
+        { x: 640, y: 720 },  // Center line bottom
+        { x: 853, y: 0 },    // Second vertical line top (at 2/3)
+        { x: 853, y: 720 },  // Second vertical line bottom
+        { x: 1280, y: 0 },   // Top-right corner
+        { x: 1280, y: 720 }  // Bottom-right corner
       ],
       selectedFieldKeypoint: null,
       homographyMatrix: null
@@ -1627,6 +1656,70 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('Error saving field registration:', error);
       set({ saveStatus: 'error' });
       setTimeout(() => set({ saveStatus: 'idle' }), 3000);
+    }
+  },
+
+  loadFieldRegistration: async () => {
+    const { 
+      getCurrentRally,
+      getCurrentFrameNumber,
+      fieldKeypointsTemplateSpace
+    } = get();
+    
+    const rally = getCurrentRally();
+    const frameNumber = getCurrentFrameNumber();
+    
+    console.log(`🔍 loadFieldRegistration called - Rally: ${rally?.name}, Frame: ${frameNumber}`);
+    
+    if (!rally || frameNumber === null || typeof window === 'undefined' || !window.electronAPI) {
+      console.log('❌ Cannot load field registration: missing data or not in Electron environment');
+      console.log(`Rally: ${!!rally}, FrameNumber: ${frameNumber}, Window: ${typeof window}, ElectronAPI: ${!!window.electronAPI}`);
+      return;
+    }
+
+    try {
+      // Create field registration folder name
+      const fieldRegistrationFolderName = `${rally.name}_field_registration`;
+      
+      console.log(`📁 Rally name: "${rally.name}"`);
+      console.log(`📁 Rally path: "${rally.path}"`);
+      console.log(`📁 Looking for field registration in: "${fieldRegistrationFolderName}"`);
+      console.log(`📄 Frame file will be: "${String(frameNumber).padStart(6, '0')}.npy"`);
+      console.log(`🔍 Full expected path: "${rally.path}/${fieldRegistrationFolderName}/${String(frameNumber).padStart(6, '0')}.npy"`);
+      
+      // Load field registration data
+      const result = await window.electronAPI.loadFieldRegistration({
+        rallyPath: rally.path,
+        folderName: fieldRegistrationFolderName,
+        frameNumber
+      });
+      
+      if (result) {
+        console.log(`✅ Field registration loaded for frame ${frameNumber}`);
+        console.log(`📊 Loaded ${result.imageSpacePoints?.length || 0} image points`);
+        console.log(`🎯 Homography matrix:`, result.homographyMatrix);
+        
+        // Update store with loaded data
+        set({
+          homographyMatrix: result.homographyMatrix,
+          fieldKeypointsImageSpace: result.imageSpacePoints || fieldKeypointsTemplateSpace,
+          // Keep the template space as is
+        });
+        
+        console.log('✅ Applied loaded field registration to current frame');
+      } else {
+        console.log(`ℹ️ No field registration found for frame ${frameNumber}`);
+        // Reset to defaults if no registration exists
+        set({
+          homographyMatrix: null,
+          // Don't reset keypoints - let user start fresh
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error loading field registration:', error);
+      set({
+        homographyMatrix: null,
+      });
     }
   },
 }));

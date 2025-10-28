@@ -673,3 +673,115 @@ ipcMain.handle('save-field-registration', async (event, data) => {
     throw error;
   }
 });
+
+// Load field registration homography data
+ipcMain.handle('load-field-registration', async (event, data) => {
+  const { rallyPath, folderName, frameNumber } = data;
+  
+  try {
+    console.log(`🔍 Loading field registration for frame ${frameNumber}`);
+    console.log(`📁 Rally path: ${rallyPath}`);
+    console.log(`📁 Folder name: ${folderName}`);
+    
+    // Create the field registration folder path
+    const fieldRegistrationPath = path.join(rallyPath, folderName);
+    console.log(`📁 Full field registration path: ${fieldRegistrationPath}`);
+    
+    // Format frame number with leading zeros (6 digits)
+    const frameStr = String(frameNumber).padStart(6, '0');
+    console.log(`📄 Looking for frame file: ${frameStr}.npy`);
+    
+    // Check if files exist
+    const homographyFilePath = path.join(fieldRegistrationPath, `${frameStr}.npy`);
+    const coordinatesFilePath = path.join(fieldRegistrationPath, `${frameStr}_coordinates.txt`);
+    
+    console.log(`📄 Homography file path: ${homographyFilePath}`);
+    console.log(`📄 Coordinates file path: ${coordinatesFilePath}`);
+    
+    // Check if homography file exists
+    try {
+      await fsPromises.access(homographyFilePath);
+      console.log(`✅ Homography file found: ${homographyFilePath}`);
+    } catch {
+      console.log(`❌ Homography file not found: ${homographyFilePath}`);
+      return null; // File doesn't exist
+    }
+    
+    // Read the homography matrix (.npy file - actually JSON format)
+    const homographyBuffer = await fsPromises.readFile(homographyFilePath, 'utf8');
+    
+    // Parse JSON data (not real .npy format)
+    let homographyMatrix;
+    try {
+      const jsonData = JSON.parse(homographyBuffer);
+      console.log(`📊 Loaded homography JSON:`, jsonData);
+      
+      if (jsonData.shape && jsonData.data) {
+        // Reconstruct 3x3 matrix from flat array
+        homographyMatrix = [];
+        for (let i = 0; i < 3; i++) {
+          const row = [];
+          for (let j = 0; j < 3; j++) {
+            row.push(jsonData.data[i * 3 + j]);
+          }
+          homographyMatrix.push(row);
+        }
+        console.log(`✅ Reconstructed homography matrix:`, homographyMatrix);
+      } else {
+        throw new Error('Invalid homography JSON format');
+      }
+    } catch (parseError) {
+      console.error(`❌ Error parsing homography JSON:`, parseError);
+      return null;
+    }
+    
+    // Read coordinates file if it exists
+    let imageSpacePoints = null;
+    let templateSpacePoints = null;
+    
+    try {
+      const coordinatesContent = await fsPromises.readFile(coordinatesFilePath, 'utf-8');
+      console.log(`📄 Coordinates file content preview:`, coordinatesContent.substring(0, 200));
+      
+      const lines = coordinatesContent.split('\n');
+      
+      imageSpacePoints = [];
+      templateSpacePoints = [];
+      
+      for (const line of lines) {
+        // Look for lines like "Point 1: (123.45, 67.89) -> (426, 0)"
+        const pointMatch = line.match(/Point \d+: \(([^)]+)\) -> \(([^)]+)\)/);
+        if (pointMatch) {
+          // Parse image space coordinates
+          const [imgX, imgY] = pointMatch[1].split(',').map(s => parseFloat(s.trim()));
+          // Parse template space coordinates  
+          const [tmpX, tmpY] = pointMatch[2].split(',').map(s => parseFloat(s.trim()));
+          
+          if (!isNaN(imgX) && !isNaN(imgY) && !isNaN(tmpX) && !isNaN(tmpY)) {
+            imageSpacePoints.push({ x: imgX, y: imgY });
+            templateSpacePoints.push({ x: tmpX, y: tmpY });
+          }
+        }
+      }
+      
+      console.log(`✅ Parsed ${imageSpacePoints.length} coordinate pairs`);
+      console.log(`📊 Image points:`, imageSpacePoints);
+      console.log(`📊 Template points:`, templateSpacePoints);
+      
+    } catch (coordError) {
+      console.log(`ℹ️ Coordinates file not found or error reading:`, coordError.message);
+    }
+    
+    console.log(`Field registration loaded for frame ${frameNumber}`);
+    
+    return {
+      homographyMatrix,
+      imageSpacePoints,
+      templateSpacePoints
+    };
+    
+  } catch (error) {
+    console.error('Error loading field registration:', error);
+    return null;
+  }
+});
