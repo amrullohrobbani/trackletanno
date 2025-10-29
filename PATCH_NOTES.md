@@ -1,6 +1,60 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.6.0 - Current Release
+## Version 1.6.2 - Current Release
+*Release Date: October 29, 2025*
+
+### 🖼️ Field Registration Overlay Fix for Packaged Apps
+
+#### Fixed Electron Export Issue
+- **Volleyball Court Overlay**: Field registration overlay now displays correctly in packaged Linux and Windows apps
+  - Added dedicated IPC handler `get-volleyball-court-image` for secure image loading
+  - Enhanced fallback system for both development and production environments
+  - Fixed file protocol URL generation for cross-platform compatibility
+
+#### Enhanced Resource Management
+- **Multi-Path Resolution**: Robust path detection for volleyball court template image
+  - Checks multiple locations: `public/`, `out/`, `resources/` directories
+  - Automatic fallback to development URL when running in dev mode
+  - Improved error handling and logging for debugging
+
+#### Build Configuration Updates
+- **Electron-Builder Enhancement**: Updated package configuration to ensure volleyball court image inclusion
+  - Added explicit file inclusion for `public/volleyball_color.png`
+  - Added extraResources configuration for reliable resource packaging
+  - Cross-platform file path handling for Windows and Linux builds
+
+#### Technical Improvements
+- **IPC Integration**: Volleyball court image loading now uses secure Electron IPC communication
+- **Development Compatibility**: Maintains backward compatibility with Next.js development server
+- **Error Handling**: Enhanced error messages and fallback mechanisms
+
+---
+
+## Version 1.6.1 - Previous Release
+*Release Date: October 29, 2025*
+
+### 🛡️ File Renaming Safety Enhancement
+
+#### Enhanced Safety Logic
+- **Conservative File Renaming**: System now only renames files if ALL images have non-digit names
+  - Previous: Renamed ALL files if ANY file had non-digit name
+  - New: Only renames if ALL files need renaming (safety first approach)
+  - Prevents accidental renaming of properly named files
+
+#### Improved Validation & Logging
+- **Detailed Logging**: Better visibility into renaming decisions
+  - Shows count of digit vs non-digit files
+  - Lists examples of non-digit files when preserving original names
+  - Clear console messages explaining why files were/weren't renamed
+
+#### Usage Impact
+- **Mixed Naming Protection**: If folder has both `001.jpg` and `IMG_001.jpg`, preserves all original names
+- **Batch Renaming**: Only when folder has files like `IMG_001.jpg`, `photo_002.jpg` (all non-digit)
+- **Data Safety**: Prevents loss of carefully crafted filename conventions
+
+---
+
+## Version 1.6.0 - Previous Release
 *Release Date: October 29, 2025*
 
 ### 🏐 Field Registration System

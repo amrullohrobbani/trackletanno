@@ -1,6 +1,73 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.6.0 - Current Release
+## Version 1.6.2 - Current Release
+*Release Date: October 29, 2025*
+
+### � Smart File Filtering for Mixed Folders
+
+#### Enhanced Mixed Folder Handling
+- **Digit-Only File Filtering**: When folders contain mixed naming (e.g., `001.jpg`, `IMG_002.jpg`), app now loads only digit-only files
+  - Preserves all original files without modification
+  - Automatically filters to use only properly named frame files
+  - Provides clear logging about filtering decisions
+
+#### Intelligent File Selection
+- **Three-Tier Strategy**: Enhanced file handling based on folder contents
+  1. **All Non-Digit**: Rename all files to frame format (if safe)
+  2. **Mixed Files**: Filter to use only digit-only files, preserve others
+  3. **All Digit**: Use all files normally
+
+#### User Benefits
+- **Data Preservation**: Original files with custom names (IMG_*, photo_*, etc.) remain untouched
+- **App Compatibility**: Only frame-numbered files are loaded for annotation consistency
+- **Flexibility**: Supports datasets with mixed file naming conventions
+
+### �🖼️ Field Registration Overlay Fix for Packaged Apps
+
+#### Fixed Electron Export Issue
+- **Volleyball Court Overlay**: Field registration overlay now displays correctly in packaged Linux and Windows apps
+  - Added dedicated IPC handler for secure volleyball court image loading
+  - Enhanced fallback system for both development and production environments
+  - Fixed file protocol URL generation for cross-platform compatibility
+
+#### Enhanced Resource Management
+- **Multi-Path Resolution**: Robust path detection for volleyball court template image
+  - Checks multiple locations in packaged apps
+  - Automatic fallback to development URL when running in dev mode
+  - Improved error handling and logging
+
+#### Build Configuration Updates
+- **Electron-Builder Enhancement**: Updated package configuration to ensure image inclusion
+  - Added explicit volleyball court image inclusion
+  - Cross-platform file path handling for Windows and Linux builds
+
+---
+
+## Version 1.6.1 - Previous Release
+*Release Date: October 29, 2025*
+
+### 🛡️ File Renaming Safety Enhancement
+
+#### Enhanced Safety Logic
+- **Conservative File Renaming**: System now only renames files if ALL images have non-digit names
+  - Previous: Renamed ALL files if ANY file had non-digit name
+  - New: Only renames if ALL files need renaming (safety first approach)
+  - Prevents accidental renaming of properly named files
+
+#### Improved Validation & Logging
+- **Detailed Logging**: Better visibility into renaming decisions
+  - Shows count of digit vs non-digit files
+  - Lists examples of non-digit files when preserving original names
+  - Clear console messages explaining why files were/weren't renamed
+
+#### Usage Impact
+- **Mixed Naming Protection**: If folder has both `001.jpg` and `IMG_001.jpg`, preserves all original names
+- **Batch Renaming**: Only when folder has files like `IMG_001.jpg`, `photo_002.jpg` (all non-digit)
+- **Data Safety**: Prevents loss of carefully crafted filename conventions
+
+---
+
+## Version 1.6.0 - Previous Release
 *Release Date: October 29, 2025*
 
 ### 🏐 Field Registration System

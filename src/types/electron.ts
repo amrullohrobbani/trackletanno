@@ -15,6 +15,7 @@ export interface ElectronAPI {
     error?: string;
   }>;
   getImageData: (imagePath: string) => Promise<string>; // Returns file:// URL instead of base64 data URL
+  getVolleyballCourtImage: () => Promise<string>; // Returns file:// URL for volleyball court template
   loadAnnotationFile: (annotationFilePath: string) => Promise<string>;
   saveAnnotationFile: (annotationFilePath: string, content: string) => Promise<boolean>;
   readPatchNotes: () => Promise<string>;

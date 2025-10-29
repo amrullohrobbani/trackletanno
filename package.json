@@ -1,6 +1,6 @@
 {
   "name": "matchtagger",
-  "version": "1.6.0",
+  "version": "1.6.2",
   "description": "A tool for annotating tracklet IDs in video frames",
   "author": {
     "name": "MatchTagger Development Team",
@@ -62,7 +62,14 @@
     "files": [
       "out/**/*",
       "electron/**/*",
+      "public/volleyball_color.png",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public/volleyball_color.png",
+        "to": "volleyball_color.png"
+      }
     ],
     "linux": {
       "target": [

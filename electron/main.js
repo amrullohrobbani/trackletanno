@@ -135,15 +135,27 @@ ipcMain.handle('file-exists', async (event, filePath) => {
 async function checkAndRenameImages(folderPath, imageFiles) {
   let renamedCount = 0;
   let needsRenaming = false;
+  let filteredFiles = [...imageFiles]; // Default to all files
 
-  // Check if images already have proper frame numbering (contain only digits)
-  const hasFrameNumbers = imageFiles.every(filename => {
+  // Separate files into digit-only and non-digit categories
+  const digitFiles = imageFiles.filter(filename => {
     const baseName = path.parse(filename).name;
-    return /^\d+$/.test(baseName); // Check if filename (without extension) is all digits
+    return /^\d+$/.test(baseName);
+  });
+  const nonDigitFiles = imageFiles.filter(filename => {
+    const baseName = path.parse(filename).name;
+    return !/^\d+$/.test(baseName);
   });
 
-  if (!hasFrameNumbers) {
-    console.log(`Images in ${folderPath} need renaming to frame format`);
+  // Check if ALL images have non-digit names (safety: only rename if ALL need renaming)
+  const allHaveNonDigitNames = imageFiles.every(filename => {
+    const baseName = path.parse(filename).name;
+    return !/^\d+$/.test(baseName); // Check if filename is NOT all digits
+  });
+
+  // Only rename if ALL files have non-digit names (safety measure)
+  if (allHaveNonDigitNames && imageFiles.length > 0) {
+    console.log(`All ${imageFiles.length} images in ${folderPath} have non-digit names - proceeding with renaming to frame format`);
     needsRenaming = true;
 
     // Rename images to 6-digit frame format: 000001.jpg, 000002.jpg, etc.
@@ -162,11 +174,41 @@ async function checkAndRenameImages(folderPath, imageFiles) {
         console.error(`Failed to rename ${oldFilename}:`, renameError);
       }
     }
+    // After renaming, all files should be digit-only, so use the full list
+    filteredFiles = imageFiles;
+  } else if (digitFiles.length > 0 && nonDigitFiles.length > 0) {
+    // Mixed folder: filter to use only digit-only files for the app
+    console.log(`Mixed folder detected in ${folderPath}:`);
+    console.log(`- ${digitFiles.length} files have digit-only names (will be used in app)`);
+    console.log(`- ${nonDigitFiles.length} files have non-digit names (will be preserved but not loaded)`);
+    console.log(`Loading only digit-only files: ${digitFiles.slice(0, 3).join(', ')}${digitFiles.length > 3 ? '...' : ''}`);
+    
+    // Filter to only use digit-only files
+    filteredFiles = digitFiles.sort((a, b) => {
+      const getFrameNumber = (filename) => {
+        return parseInt(filename.replace(/\D/g, ''), 10) || 0;
+      };
+      return getFrameNumber(a) - getFrameNumber(b);
+    });
+  } else if (digitFiles.length > 0) {
+    // All files already have digit-only names
+    console.log(`All ${digitFiles.length} files in ${folderPath} have digit-only names - using all files`);
+    filteredFiles = digitFiles.sort((a, b) => {
+      const getFrameNumber = (filename) => {
+        return parseInt(filename.replace(/\D/g, ''), 10) || 0;
+      };
+      return getFrameNumber(a) - getFrameNumber(b);
+    });
+  } else {
+    // All files have non-digit names but safety check prevented renaming
+    console.log(`All files have non-digit names but safety conditions not met - keeping original list`);
+    filteredFiles = imageFiles;
   }
 
   return {
     renamed: needsRenaming,
-    count: renamedCount
+    count: renamedCount,
+    filteredFiles: filteredFiles
   };
 }
 
@@ -219,9 +261,9 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
           });
 
           // Check if images need renaming (if they don't have frame numbers)
-          const needsRenaming = await checkAndRenameImages(folderPath, sortedImageFiles);
-          if (needsRenaming.renamed) {
-            validation.issues.push(`Renamed ${needsRenaming.count} images to use frame numbering`);
+          const renamingResult = await checkAndRenameImages(folderPath, sortedImageFiles);
+          if (renamingResult.renamed) {
+            validation.issues.push(`Renamed ${renamingResult.count} images to use frame numbering`);
             // Refresh the sorted list after renaming
             const renamedEntries = await fsPromises.readdir(folderPath);
             const renamedImages = renamedEntries.filter(file => 
@@ -233,6 +275,12 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
               return getFrameNumber(a) - getFrameNumber(b);
             });
             sortedImageFiles.splice(0, sortedImageFiles.length, ...renamedImages);
+          } else {
+            // Use filtered files (digit-only files in mixed folders)
+            if (renamingResult.filteredFiles && renamingResult.filteredFiles.length !== sortedImageFiles.length) {
+              validation.issues.push(`Filtered to ${renamingResult.filteredFiles.length} digit-only files (${sortedImageFiles.length - renamingResult.filteredFiles.length} non-digit files preserved)`);
+              sortedImageFiles.splice(0, sortedImageFiles.length, ...renamingResult.filteredFiles);
+            }
           }
 
           // Check for annotation file
@@ -313,45 +361,6 @@ ipcMain.handle('get-rally-folders', async (event, basePath) => {
     return [];
   }
 });
-
-// Helper function to check and rename images if needed
-async function checkAndRenameImages(folderPath, imageFiles) {
-  let renamedCount = 0;
-  let needsRenaming = false;
-
-  // Check if images already have proper frame numbering (contain only digits)
-  const hasFrameNumbers = imageFiles.every(filename => {
-    const baseName = path.parse(filename).name;
-    return /^\d+$/.test(baseName); // Check if filename (without extension) is all digits
-  });
-
-  if (!hasFrameNumbers) {
-    console.log(`Images in ${folderPath} need renaming to frame format`);
-    needsRenaming = true;
-
-    // Rename images to 6-digit frame format: 000001.jpg, 000002.jpg, etc.
-    for (let i = 0; i < imageFiles.length; i++) {
-      const oldFilename = imageFiles[i];
-      const oldPath = path.join(folderPath, oldFilename);
-      const extension = path.extname(oldFilename);
-      const newFilename = `${(i + 1).toString().padStart(6, '0')}${extension}`;
-      const newPath = path.join(folderPath, newFilename);
-
-      try {
-        await fsPromises.rename(oldPath, newPath);
-        renamedCount++;
-        console.log(`Renamed: ${oldFilename} -> ${newFilename}`);
-      } catch (renameError) {
-        console.error(`Failed to rename ${oldFilename}:`, renameError);
-      }
-    }
-  }
-
-  return {
-    renamed: needsRenaming,
-    count: renamedCount
-  };
-}
 
 ipcMain.handle('get-frame-number', async (event, filename) => {
   try {
@@ -539,6 +548,74 @@ ipcMain.handle('get-image-data', async (event, imagePath) => {
       errorCode: error.code,
       errorStack: error.stack
     });
+    throw error;
+  }
+});
+
+// Get volleyball court template image for field registration
+ipcMain.handle('get-volleyball-court-image', async () => {
+  try {
+    console.log('Loading volleyball court template image...');
+    
+    // Get the path to the volleyball court image in the public directory
+    const imagePath = path.join(__dirname, '..', 'public', 'volleyball_color.png');
+    console.log('Volleyball court image path:', imagePath);
+    
+    // Check if file exists
+    if (!await fsPromises.access(imagePath).then(() => true).catch(() => false)) {
+      // Try alternative paths for packaged app
+      const altPath1 = path.join(__dirname, '..', 'out', 'volleyball_color.png');
+      const altPath2 = path.join(process.resourcesPath, 'public', 'volleyball_color.png');
+      const altPath3 = path.join(process.resourcesPath, 'volleyball_color.png');
+      
+      console.log('Trying alternative paths...');
+      console.log('Alt path 1:', altPath1);
+      console.log('Alt path 2:', altPath2);
+      console.log('Alt path 3:', altPath3);
+      
+      let finalPath = null;
+      for (const altPath of [altPath1, altPath2, altPath3]) {
+        if (await fsPromises.access(altPath).then(() => true).catch(() => false)) {
+          finalPath = altPath;
+          console.log('Found volleyball court image at:', finalPath);
+          break;
+        }
+      }
+      
+      if (!finalPath) {
+        throw new Error(`Volleyball court image not found. Tried paths: ${imagePath}, ${altPath1}, ${altPath2}, ${altPath3}`);
+      }
+      
+      const normalizedPath = path.normalize(finalPath);
+      // Create file protocol URL for the found path
+      let fileUrl;
+      if (process.platform === 'win32') {
+        const urlPath = normalizedPath.replace(/\\/g, '/');
+        fileUrl = `file:///${urlPath}`;
+      } else {
+        fileUrl = `file://${normalizedPath}`;
+      }
+      
+      console.log('Generated volleyball court image URL:', fileUrl);
+      return fileUrl;
+    }
+    
+    // Convert to absolute path
+    const absolutePath = path.resolve(imagePath);
+    
+    // Create file protocol URL
+    let fileUrl;
+    if (process.platform === 'win32') {
+      const urlPath = absolutePath.replace(/\\/g, '/');
+      fileUrl = `file:///${urlPath}`;
+    } else {
+      fileUrl = `file://${absolutePath}`;
+    }
+    
+    console.log('Generated volleyball court image URL:', fileUrl);
+    return fileUrl;
+  } catch (error) {
+    console.error('Error getting volleyball court image:', error);
     throw error;
   }
 });

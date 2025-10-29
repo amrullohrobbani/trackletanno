@@ -115,15 +115,40 @@ export default function MainCanvas() {
   // Load volleyball court template image for field registration
   useEffect(() => {
     if (fieldRegistrationMode && !courtImageLoaded) {
-      const img = new Image();
-      img.onload = () => {
-        setVolleyballCourtImage(img);
-        setCourtImageLoaded(true);
+      const loadCourtImage = async () => {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            setVolleyballCourtImage(img);
+            setCourtImageLoaded(true);
+            console.log('✅ Volleyball court template loaded successfully');
+          };
+          img.onerror = (error) => {
+            console.error('❌ Failed to load volleyball court template:', error);
+          };
+          
+          // Try to load via Electron IPC first (for packaged apps)
+          if (typeof window !== 'undefined' && window.electronAPI) {
+            try {
+              const imageUrl = await window.electronAPI.getVolleyballCourtImage();
+              console.log('📷 Loading volleyball court image via Electron IPC:', imageUrl);
+              img.src = imageUrl;
+            } catch (electronError) {
+              console.warn('⚠️ Electron IPC failed, falling back to direct URL:', electronError);
+              // Fallback to direct URL for development
+              img.src = '/volleyball_color.png';
+            }
+          } else {
+            // Fallback for development environment
+            console.log('📷 Loading volleyball court image via direct URL (development)');
+            img.src = '/volleyball_color.png';
+          }
+        } catch (error) {
+          console.error('❌ Error loading volleyball court template:', error);
+        }
       };
-      img.onerror = () => {
-        console.error('Failed to load volleyball court template');
-      };
-      img.src = '/volleyball_color.png';
+      
+      loadCourtImage();
     }
   }, [fieldRegistrationMode, courtImageLoaded]);
 
@@ -136,6 +161,8 @@ export default function MainCanvas() {
   }, []);
 
   // Function to update related keypoints when non-corner point moves
+  // Currently unused but kept for potential future enhancements
+  /*
   const updateRelatedKeypoints = useCallback((movedIndex: number, newPosition: { x: number; y: number }) => {
     if (movedIndex < 2 || movedIndex > 7) return; // Changed from 11 to 7
     
@@ -218,6 +245,7 @@ export default function MainCanvas() {
       });
     }, 50);
   }, [fieldKeypointsImageSpace, updateFieldKeypoint]);
+  */
 
   // Function to update all non-corner keypoints when corner points move
   const updateNonCornerKeypointsFromCorners = useCallback((excludeIndex?: number) => {
@@ -334,7 +362,6 @@ export default function MainCanvas() {
     // For corner estimation, we need two points on the same side (top or bottom)
     // Find the best reference point on the same side that's furthest from the moved point
     let referencePointIndex: number;
-    let referencePoint: { x: number; y: number };
     
     if (isTopPoint) {
       // For top points, find the furthest top point
@@ -356,7 +383,7 @@ export default function MainCanvas() {
       }
     }
     
-    referencePoint = currentFieldKeypoints[referencePointIndex];
+    const referencePoint = currentFieldKeypoints[referencePointIndex];
     if (!referencePoint) {
       console.log(`Reference point ${referencePointIndex} not found`);
       return;
@@ -1732,7 +1759,7 @@ export default function MainCanvas() {
     
     setIsDrawing(false);
     setStartPoint(null);
-  }, [fieldRegistrationMode, selectedFieldKeypoint, isDraggingKeypoint, updateNonCornerKeypointsFromCorners, isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData]);
+  }, [fieldRegistrationMode, selectedFieldKeypoint, isDraggingKeypoint, updateNonCornerKeypointsFromCorners, isPanning, isDrawing, currentRect, selectedTrackletId, startPoint, boundingBoxes, setBoundingBoxes, addAnnotationData, setSelectedFieldKeypoint]);
 
   const handleMouseLeave = () => {
     // Clear hover state when mouse leaves canvas

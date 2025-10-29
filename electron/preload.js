@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFilenameFromFrame: (frameIndex) => ipcRenderer.invoke('get-filename-from-frame', frameIndex),
   debugDirectory: (dirPath) => ipcRenderer.invoke('debug-directory', dirPath),
   getImageData: (imagePath) => ipcRenderer.invoke('get-image-data', imagePath),
+  getVolleyballCourtImage: () => ipcRenderer.invoke('get-volleyball-court-image'),
   loadAnnotationFile: (annotationFilePath) => ipcRenderer.invoke('load-annotation-file', annotationFilePath),
   saveAnnotationFile: (annotationFilePath, content) => ipcRenderer.invoke('save-annotation-file', annotationFilePath, content),
   readPatchNotes: () => ipcRenderer.invoke('read-patch-notes'),

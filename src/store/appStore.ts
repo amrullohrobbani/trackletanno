@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { AnnotationData, RallyFolder, BoundingBox, IDAnalysisResult } from '@/types/electron';
 import { parseAnnotations, parseTrackletDetails, trackletDetailsToCSV, getTrackletFilePath, extractTrackletDetailsFromAnnotations, TrackletDetails } from '@/utils/annotationParser';
 import { loadJsonBallAnnotations, exportAnnotationsToJson, BALL_TRACKLET_ID } from '@/utils/ballAnnotationParser';
-import { calculateHomography } from '../utils/homographyUtils';
+import { calculateHomography, invertHomography } from '../utils/homographyUtils';
 
 // Default homography matrix extracted from 226s3rally0249570/9590.npy
 // This provides a good initial field registration for volleyball courts
@@ -1587,7 +1587,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Use the default homography matrix to calculate initial image space coordinates
     try {
       // Use the inverse homography to transform template space points to image space
-      const { invertHomography } = require('../utils/homographyUtils');
       const inverseHomography = invertHomography(DEFAULT_HOMOGRAPHY_MATRIX);
       
       // Transform template space points to image space using the default homography
