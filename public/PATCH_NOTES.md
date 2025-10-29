@@ -1,6 +1,49 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.5.0 - Current Release
+## Version 1.6.0 - Current Release
+*Release Date: October 29, 2025*
+
+### 🏐 Field Registration System
+
+#### New Field Registration Mode
+- **Court Overlay System**: Interactive volleyball court mapping with perspective transformation
+- **10-Point Keypoint System**: 4 corner points + 6 intermediate points for accurate court geometry
+- **Off-Canvas Placement**: Place keypoints outside visible area for better perspective correction
+- **Real-time Visual Feedback**: Color-coded keypoints (gold corners, green intermediate points)
+
+#### Smart Keypoint Management
+- **Automatic Line Alignment**: Moving corners automatically adjusts intermediate points
+- **Straight Line Guarantee**: Corner-to-corner lines remain mathematically straight
+- **Default Matrix**: Starts with realistic court positioning from real dataset data
+- **Drag & Drop**: Click and drag keypoints for precise positioning
+
+#### Enhanced File Loading
+- **Multiple Formats**: Supports both padded (`009550.npy`) and unpadded (`9550.npy`) frame numbers
+- **Robust Fallback**: 4-tier system handles different dataset naming conventions
+- **Homography-Only Mode**: Works even when coordinate files are missing
+
+### 🔧 Technical Improvements
+- **Off-Canvas Coordinates**: Updated coordinate system to allow keypoints beyond canvas boundaries
+- **Enhanced IPC**: Improved Electron file loading with better error handling
+- **Store Integration**: New field registration state management functions
+- **Default Homography**: Hardcoded realistic matrix from dataset `226s3rally0249570/9590.npy`
+
+### 🎮 User Experience
+- **Clean Interface**: Professional appearance without debugging clutter
+- **Mode Indicators**: Clear status showing keypoint count and current action
+- **Intuitive Controls**: ESC to exit, click to place, drag to adjust
+- **Hover Effects**: Visual feedback for better interaction
+
+### 📊 Usage
+1. Enter Field Registration Mode via left sidebar
+2. System loads with default court positioning
+3. Click to place/select keypoints (up to 10)
+4. Drag keypoints to match court boundaries
+5. Place corner points off-screen if needed for perspective
+
+---
+
+## Version 1.5.0 - Previous Release
 *Release Date: October 20, 2025*
 
 ### 🎯 New Features

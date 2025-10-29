@@ -1169,7 +1169,7 @@ export default function MainCanvas() {
       if (fieldKeypointsImageSpace.length >= 10) {
         // Draw court boundary (perimeter)
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 1 / zoomLevel;
+        ctx.lineWidth = 2 / zoomLevel;
         ctx.setLineDash([]);
         
         ctx.beginPath();
@@ -1178,6 +1178,7 @@ export default function MainCanvas() {
         const bottomRight = fieldKeypointsImageSpace[9]; // changed from 13
         const bottomLeft = fieldKeypointsImageSpace[1];
         
+        // Draw the perimeter as straight lines from corner to corner
         ctx.moveTo(topLeft.x, topLeft.y);
         ctx.lineTo(topRight.x, topRight.y);
         ctx.lineTo(bottomRight.x, bottomRight.y);
@@ -1919,10 +1920,20 @@ export default function MainCanvas() {
         canvasY = (canvasY - panY) / zoomLevel;
       }
 
-      // Clamp coordinates to canvas bounds
+      // For field registration, allow off-canvas coordinates
+      // For other modes, clamp to canvas bounds
+      let finalX = canvasX;
+      let finalY = canvasY;
+      
+      // Only clamp if not in field registration mode
+      if (!fieldRegistrationMode) {
+        finalX = Math.max(0, Math.min(canvasDimensions.width, canvasX));
+        finalY = Math.max(0, Math.min(canvasDimensions.height, canvasY));
+      }
+
       const coords = {
-        x: Math.max(0, Math.min(canvasDimensions.width, canvasX)),
-        y: Math.max(0, Math.min(canvasDimensions.height, canvasY))
+        x: Math.round(finalX * 100) / 100,
+        y: Math.round(finalY * 100) / 100
       };
 
       // Calculate rectangle from canvas coordinates
@@ -1952,7 +1963,7 @@ export default function MainCanvas() {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [isDrawing, startPoint, panX, panY, zoomLevel, canvasDimensions.width, canvasDimensions.height, handleMouseUp]);
+  }, [isDrawing, startPoint, panX, panY, zoomLevel, canvasDimensions.width, canvasDimensions.height, handleMouseUp, fieldRegistrationMode]);
 
   // Add keyboard shortcuts
   useEffect(() => {
