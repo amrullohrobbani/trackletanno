@@ -29,6 +29,8 @@
     "i18next": "^25.3.2",
     "next": "15.3.5",
     "next-i18next": "^15.4.2",
+    "npyjs": "^1.0.4",
+    "numpy-parser": "^1.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hotkeys-hook": "^5.1.0",

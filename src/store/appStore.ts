@@ -4,6 +4,14 @@ import { parseAnnotations, parseTrackletDetails, trackletDetailsToCSV, getTrackl
 import { loadJsonBallAnnotations, exportAnnotationsToJson, BALL_TRACKLET_ID } from '@/utils/ballAnnotationParser';
 import { calculateHomography } from '../utils/homographyUtils';
 
+// Default homography matrix extracted from 226s3rally0249570/9590.npy
+// This provides a good initial field registration for volleyball courts
+const DEFAULT_HOMOGRAPHY_MATRIX = [
+  [8.33770194703488, 5.650791499582583, -4497.039623674425],
+  [0.2256117154412514, 28.59409374388833, -12582.740898533859],
+  [0.0000013238473810460963, 0.00927406751429447, 1]
+];
+
 interface AppState {
   // Directory and data management
   selectedDirectory: string | null;
@@ -70,6 +78,8 @@ interface AppState {
   fieldOverlayOpacity: number;
   isFieldOverlayVisible: boolean;
   homographyMatrix: number[][] | null;
+  isEditingFieldKeypoints: boolean;
+  setIsEditingFieldKeypoints: (editing: boolean) => void;
   
   // Timeline image cache for TrackletTimelineModal
   timelineImageCache: Map<string, string>;
@@ -159,6 +169,8 @@ interface AppState {
   calculateHomography: () => void;
   saveFieldRegistration: () => Promise<void>;
   loadFieldRegistration: () => Promise<void>;
+  checkFieldRegistrationExists: () => Promise<boolean>;
+  loadFieldRegistrationIfExists: () => Promise<void>;
   
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
@@ -265,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fieldOverlayOpacity: 0.5,
   isFieldOverlayVisible: true,
   homographyMatrix: null,
+  isEditingFieldKeypoints: false,
 
   // Timeline image cache for TrackletTimelineModal
   timelineImageCache: new Map<string, string>(),
@@ -1492,17 +1505,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       ballAnnotationMode: enabled ? false : get().ballAnnotationMode
     });
     
-    // Load existing field registration when entering field registration mode
-    if (enabled) {
-      console.log('🏐 Field registration mode enabled - will load existing registration');
-      setTimeout(() => {
-        const currentState = get();
-        if (currentState.fieldRegistrationMode) { // Double-check mode is still active
-          console.log('🔄 Calling loadFieldRegistration after mode activation');
-          currentState.loadFieldRegistration();
-        }
-      }, 200); // Longer delay to ensure stable state
-    }
+    // NOTE: Removed auto-loading of field registration on mode activation
+    // The new workflow relies on LeftSidebar to check and load when needed
   },
   
   addFieldKeypoint: (imageCoords: { x: number; y: number }) => {
@@ -1576,23 +1580,63 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   resetFieldKeypoints: () => {
-    // Reset to initial template layout positions
-    set({
-      fieldKeypointsImageSpace: [
-        { x: 0, y: 0 },      // Top-left corner
-        { x: 0, y: 720 },    // Bottom-left corner
-        { x: 426, y: 0 },    // First vertical line top (at 1/3)
-        { x: 426, y: 720 },  // First vertical line bottom
-        { x: 640, y: 0 },    // Center line top
-        { x: 640, y: 720 },  // Center line bottom
-        { x: 853, y: 0 },    // Second vertical line top (at 2/3)
-        { x: 853, y: 720 },  // Second vertical line bottom
-        { x: 1280, y: 0 },   // Top-right corner
-        { x: 1280, y: 720 }  // Bottom-right corner
-      ],
-      selectedFieldKeypoint: null,
-      homographyMatrix: null
-    });
+    const { fieldKeypointsTemplateSpace } = get();
+    
+    console.log('🔄 Resetting field keypoints with default homography matrix');
+    
+    // Use the default homography matrix to calculate initial image space coordinates
+    try {
+      // Use the inverse homography to transform template space points to image space
+      const { invertHomography } = require('../utils/homographyUtils');
+      const inverseHomography = invertHomography(DEFAULT_HOMOGRAPHY_MATRIX);
+      
+      // Transform template space points to image space using the default homography
+      const calculatedImageSpacePoints = fieldKeypointsTemplateSpace.map(templatePoint => {
+        // Apply inverse homography transformation: [x', y', w'] = H^-1 * [x, y, 1]
+        const x = templatePoint.x;
+        const y = templatePoint.y;
+        
+        const transformedX = inverseHomography[0][0] * x + inverseHomography[0][1] * y + inverseHomography[0][2];
+        const transformedY = inverseHomography[1][0] * x + inverseHomography[1][1] * y + inverseHomography[1][2];
+        const transformedW = inverseHomography[2][0] * x + inverseHomography[2][1] * y + inverseHomography[2][2];
+        
+        // Normalize by w component for homogeneous coordinates
+        return {
+          x: transformedX / transformedW,
+          y: transformedY / transformedW
+        };
+      });
+      
+      console.log('✅ Calculated image space points from default homography');
+      console.log('📊 Sample points:', calculatedImageSpacePoints.slice(0, 3));
+      
+      set({
+        fieldKeypointsImageSpace: calculatedImageSpacePoints,
+        selectedFieldKeypoint: null,
+        homographyMatrix: DEFAULT_HOMOGRAPHY_MATRIX
+      });
+      
+    } catch (error) {
+      console.error('❌ Error applying default homography, using template coordinates:', error);
+      
+      // Fallback to template coordinates if homography calculation fails
+      set({
+        fieldKeypointsImageSpace: [
+          { x: 0, y: 0 },      // Top-left corner
+          { x: 0, y: 720 },    // Bottom-left corner
+          { x: 426, y: 0 },    // First vertical line top (at 1/3)
+          { x: 426, y: 720 },  // First vertical line bottom
+          { x: 640, y: 0 },    // Center line top
+          { x: 640, y: 720 },  // Center line bottom
+          { x: 853, y: 0 },    // Second vertical line top (at 2/3)
+          { x: 853, y: 720 },  // Second vertical line bottom
+          { x: 1280, y: 0 },   // Top-right corner
+          { x: 1280, y: 720 }  // Bottom-right corner
+        ],
+        selectedFieldKeypoint: null,
+        homographyMatrix: null
+      });
+    }
   },
   
   setFieldOverlayOpacity: (opacity: number) => {
@@ -1601,6 +1645,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   setFieldOverlayVisible: (visible: boolean) => {
     set({ isFieldOverlayVisible: visible });
+  },
+  
+  setIsEditingFieldKeypoints: (editing: boolean) => {
+    set({ isEditingFieldKeypoints: editing });
   },
   
   calculateHomography: () => {
@@ -1694,15 +1742,55 @@ export const useAppStore = create<AppState>((set, get) => ({
         frameNumber
       });
       
-      if (result) {
+      if (result && result.homographyMatrix) {
         console.log(`✅ Field registration loaded for frame ${frameNumber}`);
-        console.log(`📊 Loaded ${result.imageSpacePoints?.length || 0} image points`);
+        console.log(`📊 Loaded ${result.imageSpacePoints?.length || 0} image points from file`);
         console.log(`🎯 Homography matrix:`, result.homographyMatrix);
+        
+        // If we have image space points from coordinates file, use them
+        // Otherwise, reconstruct them from homography matrix and template space points
+        let imageSpacePoints = result.imageSpacePoints;
+        
+        if (!imageSpacePoints || imageSpacePoints.length === 0) {
+          console.log(`🔄 Reconstructing image space points from homography matrix`);
+          
+          // Use the inverse homography to transform template space points to image space
+          try {
+            const { invertHomography } = await import('../utils/homographyUtils');
+            const inverseHomography = invertHomography(result.homographyMatrix);
+            
+            // Transform template space points to image space
+            imageSpacePoints = fieldKeypointsTemplateSpace.map(templatePoint => {
+              // Apply inverse homography transformation: [x', y', w'] = H^-1 * [x, y, 1]
+              const x = templatePoint.x;
+              const y = templatePoint.y;
+              
+              const transformedX = inverseHomography[0][0] * x + inverseHomography[0][1] * y + inverseHomography[0][2];
+              const transformedY = inverseHomography[1][0] * x + inverseHomography[1][1] * y + inverseHomography[1][2];
+              const transformedW = inverseHomography[2][0] * x + inverseHomography[2][1] * y + inverseHomography[2][2];
+              
+              // Normalize by w component for homogeneous coordinates
+              return {
+                x: transformedX / transformedW,
+                y: transformedY / transformedW
+              };
+            });
+            
+            console.log(`✅ Reconstructed ${imageSpacePoints.length} image space points from homography`);
+            console.log(`📊 Reconstructed points:`, imageSpacePoints.slice(0, 3)); // Show first 3 points
+          } catch (error) {
+            console.error(`❌ Error reconstructing image space points:`, error);
+            // Fallback to template space points if reconstruction fails
+            imageSpacePoints = fieldKeypointsTemplateSpace;
+          }
+        } else {
+          console.log(`✅ Using existing image space points from coordinates file (${imageSpacePoints.length} points)`);
+        }
         
         // Update store with loaded data
         set({
           homographyMatrix: result.homographyMatrix,
-          fieldKeypointsImageSpace: result.imageSpacePoints || fieldKeypointsTemplateSpace,
+          fieldKeypointsImageSpace: imageSpacePoints,
           // Keep the template space as is
         });
         
@@ -1720,6 +1808,142 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         homographyMatrix: null,
       });
+    }
+  },
+
+  checkFieldRegistrationExists: async () => {
+    const { 
+      getCurrentRally,
+      getCurrentFrameNumber 
+    } = get();
+    
+    const rally = getCurrentRally();
+    const frameNumber = getCurrentFrameNumber();
+    
+    console.log(`🔍 checkFieldRegistrationExists called`);
+    console.log(`📁 Rally:`, rally ? rally.name : 'null');
+    console.log(`📄 Frame number:`, frameNumber);
+    console.log(`🌐 Window:`, typeof window);
+    console.log(`⚡ ElectronAPI:`, typeof window !== 'undefined' ? !!window.electronAPI : 'undefined');
+    
+    if (!rally || frameNumber === null || typeof window === 'undefined' || !window.electronAPI) {
+      console.log(`❌ Missing required data for field registration check`);
+      console.log(`  - Rally: ${!!rally}`);
+      console.log(`  - Frame number: ${frameNumber}`);
+      console.log(`  - Window: ${typeof window !== 'undefined'}`);
+      console.log(`  - ElectronAPI: ${typeof window !== 'undefined' && !!window.electronAPI}`);
+      return false;
+    }
+
+    try {
+      const fieldRegistrationFolderName = `${rally.name}_field_registration`;
+      console.log(`📁 Field registration folder name: "${fieldRegistrationFolderName}"`);
+      console.log(`📁 Rally path: "${rally.path}"`);
+      console.log(`📄 Looking for frame: ${frameNumber}`);
+      
+      const result = await window.electronAPI.loadFieldRegistration({
+        rallyPath: rally.path,
+        folderName: fieldRegistrationFolderName,
+        frameNumber
+      });
+      
+      const exists = !!result;
+      console.log(`🎯 Field registration exists: ${exists}`);
+      if (result) {
+        console.log(`📊 Loaded result:`, result);
+      }
+      
+      return exists;
+    } catch (error) {
+      console.error('❌ Error checking field registration:', error);
+      return false;
+    }
+  },
+
+  loadFieldRegistrationIfExists: async () => {
+    const { 
+      getCurrentRally,
+      getCurrentFrameNumber,
+      fieldKeypointsTemplateSpace
+    } = get();
+    
+    const rally = getCurrentRally();
+    const frameNumber = getCurrentFrameNumber();
+    
+    if (!rally || frameNumber === null || typeof window === 'undefined' || !window.electronAPI) {
+      return;
+    }
+
+    try {
+      const fieldRegistrationFolderName = `${rally.name}_field_registration`;
+      const result = await window.electronAPI.loadFieldRegistration({
+        rallyPath: rally.path,
+        folderName: fieldRegistrationFolderName,
+        frameNumber
+      });
+      
+      if (result && result.homographyMatrix) {
+        console.log(`✅ Loaded existing field registration for frame ${frameNumber}`);
+        console.log(`📊 Homography matrix:`, result.homographyMatrix);
+        
+        // If we have image space points from coordinates file, use them
+        // Otherwise, reconstruct them from homography matrix and template space points
+        let imageSpacePoints = result.imageSpacePoints;
+        
+        if (!imageSpacePoints || imageSpacePoints.length === 0) {
+          console.log(`🔄 Reconstructing image space points from homography matrix`);
+          
+          // Use the inverse homography to transform template space points to image space
+          try {
+            const { invertHomography } = await import('../utils/homographyUtils');
+            const inverseHomography = invertHomography(result.homographyMatrix);
+            
+            // Transform template space points to image space
+            imageSpacePoints = fieldKeypointsTemplateSpace.map(templatePoint => {
+              // Apply inverse homography transformation: [x', y', w'] = H^-1 * [x, y, 1]
+              const x = templatePoint.x;
+              const y = templatePoint.y;
+              
+              const transformedX = inverseHomography[0][0] * x + inverseHomography[0][1] * y + inverseHomography[0][2];
+              const transformedY = inverseHomography[1][0] * x + inverseHomography[1][1] * y + inverseHomography[1][2];
+              const transformedW = inverseHomography[2][0] * x + inverseHomography[2][1] * y + inverseHomography[2][2];
+              
+              // Normalize by w component for homogeneous coordinates
+              return {
+                x: transformedX / transformedW,
+                y: transformedY / transformedW
+              };
+            });
+            
+            console.log(`✅ Reconstructed ${imageSpacePoints.length} image space points from homography`);
+            console.log(`📊 Reconstructed points:`, imageSpacePoints.slice(0, 3)); // Show first 3 points
+          } catch (error) {
+            console.error(`❌ Error reconstructing image space points:`, error);
+            // Fallback to template space points if reconstruction fails
+            imageSpacePoints = fieldKeypointsTemplateSpace;
+          }
+        } else {
+          console.log(`✅ Using existing image space points from coordinates file (${imageSpacePoints.length} points)`);
+        }
+        
+        // Update store with loaded data
+        set({
+          homographyMatrix: result.homographyMatrix,
+          fieldKeypointsImageSpace: imageSpacePoints,
+          // Keep the template space as is
+        });
+        
+        console.log('✅ Applied loaded field registration to current frame');
+      } else {
+        console.log(`ℹ️ No field registration found for frame ${frameNumber}`);
+        // Reset to defaults if no registration exists
+        set({
+          homographyMatrix: null,
+          // Don't reset keypoints - let user start fresh
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error loading field registration:', error);
     }
   },
 }));

@@ -88,7 +88,8 @@ export default function MainCanvas() {
     selectedFieldKeypoint,
     setSelectedFieldKeypoint,
     updateFieldKeypoint,
-    addFieldKeypoint
+    addFieldKeypoint,
+    isEditingFieldKeypoints
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -1123,7 +1124,7 @@ export default function MainCanvas() {
     }
 
     // Draw field registration keypoints
-    if (fieldRegistrationMode) {
+    if (fieldRegistrationMode && (isFieldOverlayVisible || isEditingFieldKeypoints)) {
       ctx.save();
       
       fieldKeypointsImageSpace.forEach((keypoint, index) => {
@@ -1168,7 +1169,7 @@ export default function MainCanvas() {
       if (fieldKeypointsImageSpace.length >= 10) {
         // Draw court boundary (perimeter)
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 3 / zoomLevel;
+        ctx.lineWidth = 1 / zoomLevel;
         ctx.setLineDash([]);
         
         ctx.beginPath();
@@ -1184,31 +1185,31 @@ export default function MainCanvas() {
         ctx.lineTo(topLeft.x, topLeft.y);
         ctx.stroke();
         
-        // Draw vertical lines (attack lines, net, etc.)
-        ctx.strokeStyle = '#00FFFF';
-        ctx.lineWidth = 2 / zoomLevel;
-        ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+        // // Draw vertical lines (attack lines, net, etc.)
+        // ctx.strokeStyle = '#00FFFF';
+        // ctx.lineWidth = 2 / zoomLevel;
+        // ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
         
-        for (let i = 2; i < 8; i += 2) { // changed from 12 to 8
-          const topPoint = fieldKeypointsImageSpace[i];
-          const bottomPoint = fieldKeypointsImageSpace[i + 1];
+        // for (let i = 2; i < 8; i += 2) { // changed from 12 to 8
+        //   const topPoint = fieldKeypointsImageSpace[i];
+        //   const bottomPoint = fieldKeypointsImageSpace[i + 1];
           
-          ctx.beginPath();
-          ctx.moveTo(topPoint.x, topPoint.y);
-          ctx.lineTo(bottomPoint.x, bottomPoint.y);
+        //   ctx.beginPath();
+        //   ctx.moveTo(topPoint.x, topPoint.y);
+        //   ctx.lineTo(bottomPoint.x, bottomPoint.y);
           
-          // Highlight the net line (center line) differently
-          if (i === 6) {
-            ctx.strokeStyle = '#FF00FF'; // Magenta for net
-            ctx.lineWidth = 3 / zoomLevel;
-            ctx.setLineDash([]);
-          } else {
-            ctx.strokeStyle = '#00FFFF'; // Cyan for other lines
-            ctx.lineWidth = 2 / zoomLevel;
-            ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
-          }
-          ctx.stroke();
-        }
+        //   // Highlight the net line (center line) differently
+        //   if (i === 6) {
+        //     ctx.strokeStyle = '#FF00FF'; // Magenta for net
+        //     ctx.lineWidth = 3 / zoomLevel;
+        //     ctx.setLineDash([]);
+        //   } else {
+        //     ctx.strokeStyle = '#00FFFF'; // Cyan for other lines
+        //     ctx.lineWidth = 2 / zoomLevel;
+        //     ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+        //   }
+        //   ctx.stroke();
+        // }
         
         ctx.setLineDash([]);
       }
@@ -1222,7 +1223,7 @@ export default function MainCanvas() {
       console.error('Error drawing canvas:', error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius, imageLoading, fieldRegistrationMode, isFieldOverlayVisible, fieldOverlayOpacity, fieldKeypointsImageSpace, selectedFieldKeypoint, hoveredKeypoint, volleyballCourtImage]);
+  }, [boundingBoxes, selectedBoundingBox, selectedTrackletId, hoveredBoxId, currentRect, zoomLevel, panX, panY, canvasDimensions, getBoxEventAnnotation, showTrackletLabels, showEventLabels, ballAnnotations, visibleTrackletIds, drawingMode, cursorPosition, isDrawing, startPoint, forceRedrawTimestamp, ballAnnotationRadius, imageLoading, fieldRegistrationMode, isFieldOverlayVisible, fieldOverlayOpacity, fieldKeypointsImageSpace, selectedFieldKeypoint, hoveredKeypoint, volleyballCourtImage, isEditingFieldKeypoints]);
 
   // Redraw canvas when image loads or data changes
   useEffect(() => {
@@ -1302,11 +1303,19 @@ export default function MainCanvas() {
   };
 
   const handleMouseDown = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Check for middle mouse button or right mouse button for panning FIRST
+    if (event.button === 1 || event.button === 2) { // Middle mouse button (1) or right mouse button (2)
+      setIsPanning(true);
+      setLastPanPoint({ x: event.clientX, y: event.clientY });
+      console.log('🖱️ Started panning with button:', event.button === 1 ? 'middle' : 'right');
+      return;
+    }
+
     // For selection/assignment modes, we still need canvas coordinates immediately
     const coords = getCanvasCoordinates(event);
 
-    // Handle field registration mode first
-    if (fieldRegistrationMode) {
+    // Handle field registration mode (only for left clicks)
+    if (fieldRegistrationMode && event.button === 0) {
       // Check if clicking near an existing keypoint
       const clickThreshold = 15 / zoomLevel; // Scale with zoom
       let clickedKeypointIndex = -1;
@@ -1344,13 +1353,6 @@ export default function MainCanvas() {
         }
       }
       return; // Exit early for field registration mode
-    }
-
-    // Check for middle mouse button or right mouse button for panning
-    if (event.button === 1 || event.button === 2) { // Middle mouse button (1) or right mouse button (2)
-      setIsPanning(true);
-      setLastPanPoint({ x: event.clientX, y: event.clientY });
-      return;
     }
 
     // Ball annotation mode - handle first to prevent other modes from interfering
@@ -1571,6 +1573,7 @@ export default function MainCanvas() {
       
       setPan(panX + deltaX, panY + deltaY);
       setLastPanPoint({ x: event.clientX, y: event.clientY });
+      console.log('🖱️ Panning: delta', deltaX, deltaY, 'new pan:', panX + deltaX, panY + deltaY);
       return;
     }
 
@@ -1678,6 +1681,7 @@ export default function MainCanvas() {
     if (isPanning) {
       setIsPanning(false);
       setLastPanPoint(null);
+      console.log('🖱️ Stopped panning');
       return;
     }
 

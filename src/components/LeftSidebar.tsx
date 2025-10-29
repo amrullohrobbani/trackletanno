@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { 
   FolderIcon, 
@@ -20,6 +20,9 @@ import { showAlert, showError } from '@/utils/dialogUtils';
 export default function LeftSidebar() {
   const { t } = useLanguage();
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
+  const [hasFieldRegistration, setHasFieldRegistration] = useState(false);
+  const [checkingFieldRegistration, setCheckingFieldRegistration] = useState(false);
+  const [isEditingKeypoints, setIsEditingKeypoints] = useState(false);
   
   const {
     selectedDirectory,
@@ -51,10 +54,134 @@ export default function LeftSidebar() {
     calculateHomography,
     saveFieldRegistration,
     homographyMatrix,
-    selectedFieldKeypoint
+    selectedFieldKeypoint,
+    getCurrentFrameNumber,
+    checkFieldRegistrationExists,
+    loadFieldRegistrationIfExists,
+    setIsEditingFieldKeypoints
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Check if current frame has field registration data
+  const checkFieldRegistrationForCurrentFrame = async () => {
+    if (!fieldRegistrationMode) return;
+    
+    console.log('🔄 checkFieldRegistrationForCurrentFrame called');
+    console.log(`📁 Current rally: ${getCurrentRally()?.name || 'none'}`);
+    console.log(`📄 Current frame: ${getCurrentFrameNumber()}`);
+    console.log(`🎯 Field registration mode: ${fieldRegistrationMode}`);
+    
+    setCheckingFieldRegistration(true);
+    
+    try {
+      const exists = await checkFieldRegistrationExists();
+      console.log(`🔍 Field registration exists result: ${exists}`);
+      setHasFieldRegistration(exists);
+      
+      // Auto-load field registration if it exists
+      if (exists) {
+        console.log('✅ Field registration found - loading data...');
+        await loadFieldRegistrationIfExists();
+        // Show overlay when field registration exists
+        setFieldOverlayVisible(true);
+        setIsEditingKeypoints(false); // Not editing, just displaying existing
+        setIsEditingFieldKeypoints(false); // Update store state
+        console.log('🎯 Field registration found - overlay enabled');
+      } else {
+        // Hide overlay when no field registration exists
+        setFieldOverlayVisible(false);
+        setIsEditingKeypoints(false); // Not editing yet
+        setIsEditingFieldKeypoints(false); // Update store state
+        console.log('⚠️ No field registration - overlay disabled');
+      }
+    } catch (error) {
+      console.error('❌ Error checking field registration:', error);
+      setHasFieldRegistration(false);
+      // Hide overlay on error
+      setFieldOverlayVisible(false);
+    } finally {
+      setCheckingFieldRegistration(false);
+    }
+  };
+
+  // Check field registration when mode is activated or frame changes
+  useEffect(() => {
+    if (fieldRegistrationMode) {
+      checkFieldRegistrationForCurrentFrame();
+    } else {
+      setHasFieldRegistration(false);
+      setIsEditingKeypoints(false);
+      setIsEditingFieldKeypoints(false); // Update store state
+      // Hide overlay when exiting field registration mode
+      setFieldOverlayVisible(false);
+    }
+  }, [fieldRegistrationMode, currentFrameIndex]);
+
+  // Initialize field registration for current frame
+  const initializeFieldRegistration = async () => {
+    console.log('🔄 Initializing field registration...');
+    
+    // First, check if we have an existing homography matrix for this frame
+    try {
+      const exists = await checkFieldRegistrationExists();
+      if (exists) {
+        console.log('✅ Found existing homography matrix - loading as initial state');
+        
+        // Load the existing field registration data
+        await loadFieldRegistrationIfExists();
+        
+        // Show overlay and enable editing mode so user can refine existing points
+        setFieldOverlayVisible(true);
+        setIsEditingKeypoints(true);
+        setIsEditingFieldKeypoints(true);
+        setHasFieldRegistration(true);
+        
+        console.log('🎯 Field registration initialized with existing homography - overlay and keypoints enabled for editing');
+      } else {
+        console.log('ℹ️ No existing homography found - starting fresh');
+        
+        // No existing homography - start fresh
+        resetFieldKeypoints();
+        setHasFieldRegistration(false);
+        
+        // Show overlay during initialization so user can align keypoints with court lines
+        setFieldOverlayVisible(true);
+        // Enable editing mode so keypoints are visible for positioning
+        setIsEditingKeypoints(true);
+        setIsEditingFieldKeypoints(true);
+        
+        console.log('🔄 Field registration initialized fresh - overlay and keypoints enabled for editing');
+      }
+    } catch (error) {
+      console.error('❌ Error checking existing homography during initialization:', error);
+      
+      // Fallback to fresh initialization on error
+      resetFieldKeypoints();
+      setHasFieldRegistration(false);
+      setFieldOverlayVisible(true);
+      setIsEditingKeypoints(true);
+      setIsEditingFieldKeypoints(true);
+      
+      console.log('🔄 Field registration initialized fresh (fallback) - overlay and keypoints enabled for editing');
+    }
+  };
+
+  // Enhanced save that automatically calculates homography
+  const saveFieldRegistrationWithCalculation = async () => {
+    // Auto-calculate homography before saving
+    calculateHomography();
+    
+    // Small delay to ensure homography is calculated
+    setTimeout(async () => {
+      await saveFieldRegistration();
+      // Re-check field registration status after saving
+      await checkFieldRegistrationForCurrentFrame();
+      // Exit editing mode since we now have saved field registration
+      setIsEditingKeypoints(false);
+      setIsEditingFieldKeypoints(false);
+    }, 100);
+  };
 
   const toggleFolder = (folderPath: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -290,75 +417,106 @@ export default function LeftSidebar() {
           
           {fieldRegistrationMode && (
             <div className="space-y-3 bg-orange-900/20 p-3 rounded-lg border border-orange-700/50">
-              {/* Overlay Controls */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-orange-300">Court Overlay</span>
-                  <button
-                    onClick={() => setFieldOverlayVisible(!isFieldOverlayVisible)}
-                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                      isFieldOverlayVisible 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-gray-600 text-gray-300'
-                    }`}
-                  >
-                    {isFieldOverlayVisible ? 'Visible' : 'Hidden'}
-                  </button>
+              {/* Field Registration Status */}
+              {checkingFieldRegistration ? (
+                <div className="text-center py-2">
+                  <div className="text-orange-300 text-sm">
+                    🔍 Checking field registration...
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-xs text-orange-300 mb-1">
-                    Opacity: {Math.round(fieldOverlayOpacity * 100)}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1.0"
-                    step="0.1"
-                    value={fieldOverlayOpacity}
-                    onChange={(e) => setFieldOverlayOpacity(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                  />
+              ) : (
+                <div className="text-center py-2">
+                  <div className={`text-sm font-medium ${
+                    hasFieldRegistration 
+                      ? 'text-green-300' 
+                      : 'text-yellow-300'
+                  }`}>
+                    {hasFieldRegistration 
+                      ? '✅ Field registration available' 
+                      : '⚠️ No field registration for this frame'
+                    }
+                  </div>
                 </div>
-              </div>
+              )}
+              
+              {/* Overlay Controls - show if has registration OR editing */}
+              {(hasFieldRegistration || isEditingKeypoints) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-orange-300">Court Overlay</span>
+                    <button
+                      onClick={() => setFieldOverlayVisible(!isFieldOverlayVisible)}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        isFieldOverlayVisible 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      {isFieldOverlayVisible ? 'Visible' : 'Hidden'}
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs text-orange-300 mb-1">
+                      Opacity: {Math.round(fieldOverlayOpacity * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.1"
+                      value={fieldOverlayOpacity}
+                      onChange={(e) => setFieldOverlayOpacity(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
               
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                {!hasFieldRegistration ? (
+                  // Init button when no field registration exists
+                  <button
+                    onClick={initializeFieldRegistration}
+                    className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    🎯 Init Field Registration
+                  </button>
+                ) : (
+                  // Reset button when field registration exists
+                  <button
+                    onClick={initializeFieldRegistration}
+                    className="w-full px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    🔄 Reset Points
+                  </button>
+                )}
+                
                 <button
-                  onClick={resetFieldKeypoints}
-                  className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+                  onClick={saveFieldRegistrationWithCalculation}
+                  className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
                 >
-                  Reset Points
-                </button>
-                <button
-                  onClick={calculateHomography}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
-                >
-                  Calculate H
+                  💾 Save Registration
                 </button>
               </div>
-              
-              <button
-                onClick={saveFieldRegistration}
-                disabled={!homographyMatrix}
-                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
-              >
-                Save Registration
-              </button>
               
               {/* Status */}
               <div className="text-xs text-orange-300">
                 <div>Selected: {selectedFieldKeypoint !== null ? `Point #${selectedFieldKeypoint + 1}` : 'None'}</div>
-                {homographyMatrix && <div className="text-green-300">✓ Homography calculated</div>}
+                {homographyMatrix && <div className="text-green-300">✓ Homography ready for save</div>}
               </div>
               
               {/* Instructions */}
               <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
-                <div className="font-medium mb-1">Quick Guide:</div>
-                <div>• Press F to toggle mode</div>
-                <div>• Click keypoints to select</div>
-                <div>• Click canvas to move selected</div>
-                <div>• Press C to calculate homography</div>
+                <div className="font-medium mb-1">Workflow:</div>
+                <div>1. Activate field registration mode</div>
+                <div>2. {hasFieldRegistration ? 'Adjust existing points or reset' : isEditingKeypoints ? 'Position keypoints on court overlay lines' : 'Click "Init" to start positioning points'}</div>
+                <div>3. {isEditingKeypoints ? 'Align keypoints with court boundaries' : 'Position keypoints on court lines'}</div>
+                <div>4. Save (auto-calculates homography)</div>
+                <div className="mt-1 text-xs">
+                  Shortcuts: F=toggle mode, Click=select point
+                </div>
               </div>
             </div>
           )}

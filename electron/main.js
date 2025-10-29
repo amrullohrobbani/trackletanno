@@ -625,24 +625,12 @@ ipcMain.handle('save-field-registration', async (event, data) => {
     // Prepare frame number with zero padding (6 digits)
     const frameStr = frameNumber.toString().padStart(6, '0');
     
-    // Save homography matrix as .npy file (for now, we'll save as JSON since we can't create real .npy files easily)
+    // Save homography matrix as real .npy file using our numpy utility
     const homographyFilePath = path.join(fieldRegistrationPath, `${frameStr}.npy`);
     
-    // Convert homography matrix to flat array for numpy-like format
-    const flatMatrix = [];
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        flatMatrix.push(homographyMatrix[i][j]);
-      }
-    }
-    
-    // Save as binary file (simple approach - save as text for now, can be enhanced later)
-    const homographyData = JSON.stringify({
-      shape: [3, 3],
-      data: flatMatrix,
-      dtype: 'float64'
-    });
-    await fsPromises.writeFile(homographyFilePath, homographyData, 'utf8');
+    const { saveHomographyToNpy } = require('./numpyUtils');
+    const numpyBuffer = saveHomographyToNpy(homographyMatrix);
+    await fsPromises.writeFile(homographyFilePath, numpyBuffer);
     
     // Save coordinate mapping as text file
     const coordinatesFilePath = path.join(fieldRegistrationPath, `${frameStr}_coordinates.txt`);
@@ -664,7 +652,7 @@ ipcMain.handle('save-field-registration', async (event, data) => {
     await fsPromises.writeFile(coordinatesFilePath, coordinatesContent, 'utf8');
     
     console.log(`Field registration saved for frame ${frameNumber}:`);
-    console.log(`- Homography: ${homographyFilePath}`);
+    console.log(`- Homography: ${homographyFilePath} (real .npy format)`);
     console.log(`- Coordinates: ${coordinatesFilePath}`);
     
     return true;
@@ -676,103 +664,176 @@ ipcMain.handle('save-field-registration', async (event, data) => {
 
 // Load field registration homography data
 ipcMain.handle('load-field-registration', async (event, data) => {
+  console.log('🚀 ELECTRON: load-field-registration IPC handler called');
+  console.log('🚀 ELECTRON: Received data:', JSON.stringify(data, null, 2));
+  
   const { rallyPath, folderName, frameNumber } = data;
   
   try {
-    console.log(`🔍 Loading field registration for frame ${frameNumber}`);
-    console.log(`📁 Rally path: ${rallyPath}`);
-    console.log(`📁 Folder name: ${folderName}`);
+    console.log(`🔍 ELECTRON: Loading field registration for frame ${frameNumber}`);
+    console.log(`📁 ELECTRON: Rally path: ${rallyPath}`);
+    console.log(`📁 ELECTRON: Folder name: ${folderName}`);
     
     // Create the field registration folder path
     const fieldRegistrationPath = path.join(rallyPath, folderName);
-    console.log(`📁 Full field registration path: ${fieldRegistrationPath}`);
+    console.log(`📁 ELECTRON: Full field registration path: ${fieldRegistrationPath}`);
     
-    // Format frame number with leading zeros (6 digits)
+    // Format frame number both ways
     const frameStr = String(frameNumber).padStart(6, '0');
-    console.log(`📄 Looking for frame file: ${frameStr}.npy`);
+    const frameStrNoPad = String(frameNumber);
+    console.log(`📄 ELECTRON: Looking for frame file: ${frameStr}.npy (padded) or ${frameStrNoPad}.npy (unpadded)`);
     
-    // Check if files exist
-    const homographyFilePath = path.join(fieldRegistrationPath, `${frameStr}.npy`);
-    const coordinatesFilePath = path.join(fieldRegistrationPath, `${frameStr}_coordinates.txt`);
+    // Try to find the homography file in this order:
+    // 1. New format unpadded (most common)
+    // 2. New format padded  
+    // 3. Old format unpadded
+    // 4. Old format padded
     
-    console.log(`📄 Homography file path: ${homographyFilePath}`);
-    console.log(`📄 Coordinates file path: ${coordinatesFilePath}`);
+    const fileCheckOrder = [
+      {
+        path: path.join(fieldRegistrationPath, `${frameStrNoPad}.npy`),
+        coords: path.join(fieldRegistrationPath, `${frameStrNoPad}_coordinates.txt`),
+        format: 'new',
+        padding: 'unpadded',
+        isOldFormat: false
+      },
+      {
+        path: path.join(fieldRegistrationPath, `${frameStr}.npy`),
+        coords: path.join(fieldRegistrationPath, `${frameStr}_coordinates.txt`),
+        format: 'new',
+        padding: 'padded',
+        isOldFormat: false
+      },
+      {
+        path: path.join(rallyPath, `${frameStrNoPad}.npy`),
+        coords: null,
+        format: 'old',
+        padding: 'unpadded',
+        isOldFormat: true
+      },
+      {
+        path: path.join(rallyPath, `${frameStr}.npy`),
+        coords: null,
+        format: 'old',
+        padding: 'padded',
+        isOldFormat: true
+      }
+    ];
     
-    // Check if homography file exists
-    try {
-      await fsPromises.access(homographyFilePath);
-      console.log(`✅ Homography file found: ${homographyFilePath}`);
-    } catch {
-      console.log(`❌ Homography file not found: ${homographyFilePath}`);
-      return null; // File doesn't exist
+    let homographyPath = null;
+    let coordinatesPath = null;
+    let isOldFormat = false;
+    let foundFormat = null;
+    
+    for (let i = 0; i < fileCheckOrder.length; i++) {
+      const check = fileCheckOrder[i];
+      console.log(`📄 ELECTRON: Checking ${check.format} format (${check.padding}): ${check.path}`);
+      
+      try {
+        await fsPromises.access(check.path);
+        console.log(`✅ ELECTRON: Found homography file (${check.format} ${check.padding}): ${check.path}`);
+        homographyPath = check.path;
+        coordinatesPath = check.coords;
+        isOldFormat = check.isOldFormat;
+        foundFormat = `${check.format} ${check.padding}`;
+        break;
+      } catch {
+        console.log(`❌ ELECTRON: Not found (${check.format} ${check.padding}): ${check.path}`);
+      }
     }
     
-    // Read the homography matrix (.npy file - actually JSON format)
-    const homographyBuffer = await fsPromises.readFile(homographyFilePath, 'utf8');
-    
-    // Parse JSON data (not real .npy format)
-    let homographyMatrix;
-    try {
-      const jsonData = JSON.parse(homographyBuffer);
-      console.log(`📊 Loaded homography JSON:`, jsonData);
-      
-      if (jsonData.shape && jsonData.data) {
-        // Reconstruct 3x3 matrix from flat array
-        homographyMatrix = [];
-        for (let i = 0; i < 3; i++) {
-          const row = [];
-          for (let j = 0; j < 3; j++) {
-            row.push(jsonData.data[i * 3 + j]);
-          }
-          homographyMatrix.push(row);
-        }
-        console.log(`✅ Reconstructed homography matrix:`, homographyMatrix);
-      } else {
-        throw new Error('Invalid homography JSON format');
-      }
-    } catch (parseError) {
-      console.error(`❌ Error parsing homography JSON:`, parseError);
+    if (!homographyPath) {
+      console.log(`❌ ELECTRON: No homography file found for frame ${frameNumber} in any format`);
       return null;
     }
     
-    // Read coordinates file if it exists
+    console.log(`🎯 ELECTRON: Using homography file (${foundFormat}): ${homographyPath}`);
+    
+    // Read the homography matrix (.npy file - real numpy format)
+    console.log(`📖 ELECTRON: Reading homography file: ${homographyPath}`);
+    const homographyBuffer = await fsPromises.readFile(homographyPath);
+    console.log(`📊 ELECTRON: File size: ${homographyBuffer.length} bytes`);
+    
+    // Parse using our numpy utility
+    let homographyMatrix;
+    try {
+      const { loadHomographyFromNpy } = require('./numpyUtils');
+      homographyMatrix = loadHomographyFromNpy(homographyBuffer);
+      console.log(`✅ ELECTRON: Loaded homography matrix from real .npy file (${foundFormat}):`, homographyMatrix);
+    } catch (numpyError) {
+      console.log(`⚠️ ELECTRON: Failed to load as real .npy, trying legacy JSON format...`);
+      console.log(`⚠️ ELECTRON: NumPy error:`, numpyError.message);
+      
+      // Fallback: try to parse as legacy JSON format for backward compatibility
+      try {
+        const jsonData = JSON.parse(homographyBuffer.toString('utf8'));
+        console.log(`📊 ELECTRON: Loaded legacy homography JSON:`, jsonData);
+        
+        if (jsonData.shape && jsonData.data) {
+          // Reconstruct 3x3 matrix from flat array
+          homographyMatrix = [];
+          for (let i = 0; i < 3; i++) {
+            const row = [];
+            for (let j = 0; j < 3; j++) {
+              row.push(jsonData.data[i * 3 + j]);
+            }
+            homographyMatrix.push(row);
+          }
+          console.log(`✅ ELECTRON: Reconstructed homography matrix from legacy format:`, homographyMatrix);
+        } else {
+          throw new Error('Invalid legacy homography JSON format');
+        }
+      } catch (parseError) {
+        console.error(`❌ ELECTRON: Error parsing homography file:`, parseError);
+        return null;
+      }
+    }
+    
+    // Read coordinates file if it exists (only for new format)
     let imageSpacePoints = null;
     let templateSpacePoints = null;
     
-    try {
-      const coordinatesContent = await fsPromises.readFile(coordinatesFilePath, 'utf-8');
-      console.log(`📄 Coordinates file content preview:`, coordinatesContent.substring(0, 200));
-      
-      const lines = coordinatesContent.split('\n');
-      
-      imageSpacePoints = [];
-      templateSpacePoints = [];
-      
-      for (const line of lines) {
-        // Look for lines like "Point 1: (123.45, 67.89) -> (426, 0)"
-        const pointMatch = line.match(/Point \d+: \(([^)]+)\) -> \(([^)]+)\)/);
-        if (pointMatch) {
-          // Parse image space coordinates
-          const [imgX, imgY] = pointMatch[1].split(',').map(s => parseFloat(s.trim()));
-          // Parse template space coordinates  
-          const [tmpX, tmpY] = pointMatch[2].split(',').map(s => parseFloat(s.trim()));
-          
-          if (!isNaN(imgX) && !isNaN(imgY) && !isNaN(tmpX) && !isNaN(tmpY)) {
-            imageSpacePoints.push({ x: imgX, y: imgY });
-            templateSpacePoints.push({ x: tmpX, y: tmpY });
+    if (!isOldFormat && coordinatesPath) {
+      try {
+        const coordinatesContent = await fsPromises.readFile(coordinatesPath, 'utf-8');
+        console.log(`📄 Coordinates file content preview:`, coordinatesContent.substring(0, 200));
+        
+        const lines = coordinatesContent.split('\n');
+        
+        imageSpacePoints = [];
+        templateSpacePoints = [];
+        
+        for (const line of lines) {
+          // Look for lines like "Point 1: (123.45, 67.89) -> (426, 0)"
+          const pointMatch = line.match(/Point \d+: \(([^)]+)\) -> \(([^)]+)\)/);
+          if (pointMatch) {
+            // Parse image space coordinates
+            const [imgX, imgY] = pointMatch[1].split(',').map(s => parseFloat(s.trim()));
+            // Parse template space coordinates  
+            const [tmpX, tmpY] = pointMatch[2].split(',').map(s => parseFloat(s.trim()));
+            
+            if (!isNaN(imgX) && !isNaN(imgY) && !isNaN(tmpX) && !isNaN(tmpY)) {
+              imageSpacePoints.push({ x: imgX, y: imgY });
+              templateSpacePoints.push({ x: tmpX, y: tmpY });
+            }
           }
         }
+        
+        console.log(`✅ ELECTRON: Parsed ${imageSpacePoints.length} coordinate pairs`);
+        console.log(`📊 ELECTRON: Image points:`, imageSpacePoints);
+        console.log(`📊 ELECTRON: Template points:`, templateSpacePoints);
+        
+      } catch (coordError) {
+        console.log(`ℹ️ ELECTRON: Coordinates file not found or error reading:`, coordError.message);
       }
-      
-      console.log(`✅ Parsed ${imageSpacePoints.length} coordinate pairs`);
-      console.log(`📊 Image points:`, imageSpacePoints);
-      console.log(`📊 Template points:`, templateSpacePoints);
-      
-    } catch (coordError) {
-      console.log(`ℹ️ Coordinates file not found or error reading:`, coordError.message);
+    } else {
+      console.log(`ℹ️ ELECTRON: Skipping coordinates file for ${isOldFormat ? 'old format' : 'missing coordinates path'}`);
     }
     
-    console.log(`Field registration loaded for frame ${frameNumber}`);
+    console.log(`✅ ELECTRON: Field registration loaded for frame ${frameNumber}`);
+    console.log(`📊 ELECTRON: Homography matrix loaded successfully`);
+    console.log(`📊 ELECTRON: Image space points: ${imageSpacePoints ? imageSpacePoints.length : 0}`);
+    console.log(`📊 ELECTRON: Template space points: ${templateSpacePoints ? templateSpacePoints.length : 0}`);
     
     return {
       homographyMatrix,
@@ -781,7 +842,7 @@ ipcMain.handle('load-field-registration', async (event, data) => {
     };
     
   } catch (error) {
-    console.error('Error loading field registration:', error);
+    console.error('❌ ELECTRON: Error loading field registration:', error);
     return null;
   }
 });
