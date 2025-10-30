@@ -72,6 +72,9 @@ interface AppState {
 
   // Field registration homography mode state
   fieldRegistrationMode: boolean;
+  fourPointMode: boolean; // Sub-mode for 4-point quick registration
+  fourPointTemplateIndices: number[]; // Indices of selected template points (0-9)
+  fourPointImageCoords: Array<{ x: number; y: number }>; // Corresponding image space coords
   fieldKeypointsTemplateSpace: Array<{ x: number; y: number }>;
   fieldKeypointsImageSpace: Array<{ x: number; y: number }>;
   selectedFieldKeypoint: number | null;
@@ -172,6 +175,13 @@ interface AppState {
   checkFieldRegistrationExists: () => Promise<boolean>;
   loadFieldRegistrationIfExists: () => Promise<void>;
   
+  // 4-point mode actions
+  setFourPointMode: (enabled: boolean) => void;
+  selectTemplatePoint: (index: number) => void;
+  addFourPointImageCoord: (imageCoords: { x: number; y: number }) => void;
+  calculateFourPointHomography: () => void;
+  resetFourPointMode: () => void;
+  
   // Computed getters
   getCurrentRally: () => RallyFolder | null;
   getCurrentImagePath: () => string | null;
@@ -249,6 +259,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Initial field registration homography mode state
   fieldRegistrationMode: false,
+  fourPointMode: false,
+  fourPointTemplateIndices: [],
+  fourPointImageCoords: [],
   fieldKeypointsTemplateSpace: [
     { x: 0, y: 0 },      // Top-left corner
     { x: 0, y: 720 },    // Bottom-left corner
@@ -1944,5 +1957,97 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('❌ Error loading field registration:', error);
     }
+  },
+  
+  // 4-point mode actions
+  setFourPointMode: (enabled: boolean) => {
+    set({ 
+      fourPointMode: enabled,
+      // Reset 4-point data when toggling mode
+      fourPointTemplateIndices: enabled ? [] : [],
+      fourPointImageCoords: enabled ? [] : []
+    });
+  },
+  
+  selectTemplatePoint: (index: number) => {
+    const { fourPointTemplateIndices } = get();
+    // Allow selecting any number of points (minimum 4 required for calculation)
+    // Don't allow duplicates
+    if (!fourPointTemplateIndices.includes(index)) {
+      set({ 
+        fourPointTemplateIndices: [...fourPointTemplateIndices, index] 
+      });
+    }
+  },
+  
+  addFourPointImageCoord: (imageCoords: { x: number; y: number }) => {
+    const { fourPointImageCoords, fourPointTemplateIndices } = get();
+    // Only add image coords if we have corresponding template points selected
+    // and we haven't placed all of them yet
+    if (fourPointImageCoords.length < fourPointTemplateIndices.length) {
+      set({ 
+        fourPointImageCoords: [...fourPointImageCoords, imageCoords] 
+      });
+    }
+  },
+  
+  calculateFourPointHomography: () => {
+    const { 
+      fourPointTemplateIndices, 
+      fourPointImageCoords, 
+      fieldKeypointsTemplateSpace 
+    } = get();
+    
+    // Need at least 4 points and matching number of image coords
+    if (fourPointTemplateIndices.length < 4 || fourPointImageCoords.length !== fourPointTemplateIndices.length) {
+      console.warn(`Need at least 4 point pairs to calculate homography (have ${fourPointTemplateIndices.length} template, ${fourPointImageCoords.length} image)`);
+      return;
+    }
+    
+    try {
+      // Get the selected template points
+      const selectedTemplatePoints = fourPointTemplateIndices.map(index => 
+        fieldKeypointsTemplateSpace[index]
+      );
+      
+      // Calculate homography from template space to image space
+      // calculateHomography(sourcePoints, destinationPoints) maps source → destination
+      // We want: template space → image space
+      const matrix = calculateHomography(selectedTemplatePoints, fourPointImageCoords);
+      
+      // Apply the homography to all 10 template points to get their image space positions
+      const allImageSpacePoints = fieldKeypointsTemplateSpace.map(templatePoint => {
+        // Apply homography transformation: [x', y', w'] = H * [x, y, 1]
+        const x = templatePoint.x;
+        const y = templatePoint.y;
+        
+        const transformedX = matrix[0][0] * x + matrix[0][1] * y + matrix[0][2];
+        const transformedY = matrix[1][0] * x + matrix[1][1] * y + matrix[1][2];
+        const transformedW = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
+        
+        // Normalize by w component for homogeneous coordinates
+        return {
+          x: transformedX / transformedW,
+          y: transformedY / transformedW
+        };
+      });
+      
+      // Update the store with the calculated homography and all keypoint positions
+      set({ 
+        homographyMatrix: matrix,
+        fieldKeypointsImageSpace: allImageSpacePoints
+      });
+    } catch (error) {
+      console.error('Error calculating point mode homography:', error);
+      set({ homographyMatrix: null });
+    }
+  },
+  
+  resetFourPointMode: () => {
+    set({ 
+      fourPointMode: false,
+      fourPointTemplateIndices: [],
+      fourPointImageCoords: []
+    });
   },
 }));

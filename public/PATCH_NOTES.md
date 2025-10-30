@@ -1,9 +1,53 @@
 # Tracklet Annotation Tool - Patch Notes
 
-## Version 1.6.2 - Current Release
+## Version 1.6.3 - Current Release
+*Release Date: October 30, 2025*
+
+### 🎯 4-Point Quick Registration Mode
+
+#### New Fast Registration Workflow
+- **4-Point Mode**: Added quick field registration mode as alternative to full 10-point manual positioning
+  - Select only 4 template points on court overlay
+  - Place corresponding points in image
+  - Auto-calculate homography and position all 10 keypoints
+  - Significantly faster than manual 10-point placement
+
+#### Visual Enhancements
+- **Template Overlay**: Small court template appears in top-right corner during 4-point mode
+  - Shows all 10 keypoints with magenta highlighting for selected points
+  - Clear instructions: "Click 4 Template Points"
+  - Semi-transparent background with magenta border
+
+- **Point Visualization**: Clear visual feedback for 4-point workflow
+  - Selected template points highlighted in magenta
+  - Large magenta circles (#1-4) for image points
+  - Dashed lines connecting image points to template points
+  - Progress display in sidebar showing selected points
+
+#### UI Controls
+- **Quick Mode Button**: "🎯 4-Point Quick Mode" toggle in field registration controls
+- **Apply Transformation**: "✨ Apply 4-Point Transformation" button (enabled when 4 points ready)
+- **Progress Tracking**: Selected template points shown with indices in sidebar
+- **Workflow Instructions**: Clear step-by-step guide in sidebar panel
+
+#### Technical Features
+- **Automatic Homography**: Calculates transformation from 4 point pairs
+- **Smart Application**: Applies homography to all 10 keypoints automatically
+- **Geometric Consistency**: Ensures all points maintain proper court geometry
+- **Seamless Integration**: Works alongside existing 10-point manual mode
+
+#### Advantages
+- **Speed**: 4-point setup much faster than 10-point manual placement
+- **Accuracy**: Homography transformation ensures geometric correctness
+- **Flexibility**: Choose any 4 points (corners recommended for best results)
+- **Verification**: Auto-positioned points can be fine-tuned in normal mode if needed
+
+---
+
+## Version 1.6.2 - Previous Release
 *Release Date: October 29, 2025*
 
-### � Smart File Filtering for Mixed Folders
+### 📂 Smart File Filtering for Mixed Folders
 
 #### Enhanced Mixed Folder Handling
 - **Digit-Only File Filtering**: When folders contain mixed naming (e.g., `001.jpg`, `IMG_002.jpg`), app now loads only digit-only files

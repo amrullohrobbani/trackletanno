@@ -58,7 +58,14 @@ export default function LeftSidebar() {
     getCurrentFrameNumber,
     checkFieldRegistrationExists,
     loadFieldRegistrationIfExists,
-    setIsEditingFieldKeypoints
+    setIsEditingFieldKeypoints,
+    // 4-point mode
+    fourPointMode,
+    setFourPointMode,
+    fourPointTemplateIndices,
+    fourPointImageCoords,
+    resetFourPointMode,
+    calculateFourPointHomography
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -499,6 +506,85 @@ export default function LeftSidebar() {
                 >
                   💾 Save Registration
                 </button>
+              </div>
+              
+              {/* Point Mode Controls */}
+              <div className="space-y-2 pt-2 border-t border-orange-700/50">
+                <button
+                  onClick={() => {
+                    if (fourPointMode) {
+                      // Exiting point mode
+                      resetFourPointMode();
+                    } else {
+                      // Entering point mode
+                      setFourPointMode(true);
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded text-sm font-medium transition-colors ${
+                    fourPointMode
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-gray-600 hover:bg-gray-700 text-white'
+                  }`}
+                >
+                  {fourPointMode ? '🔢 Exit Point Mode' : '🎯 Point Mode (Quick)'}
+                </button>
+                
+                {fourPointMode && (
+                  <div className="bg-purple-900/20 p-2 rounded border border-purple-700/50 space-y-2">
+                    <div className="text-xs text-purple-300">
+                      <div className="font-medium mb-1">
+                        {fourPointTemplateIndices.length < 4 
+                          ? 'Step 1: Select Template Points (min 4)'
+                          : `Step 2: Place Points in Image (${fourPointImageCoords.length}/${fourPointTemplateIndices.length})`
+                        }
+                      </div>
+                      {fourPointTemplateIndices.length === 0 ? (
+                        <div className="text-purple-400">Click points on court overlay →</div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap gap-1">
+                            {fourPointTemplateIndices.map((idx, i) => (
+                              <span 
+                                key={idx} 
+                                className={`px-2 py-1 rounded text-white ${
+                                  i < fourPointImageCoords.length 
+                                    ? 'bg-green-600' 
+                                    : 'bg-purple-600'
+                                }`}
+                              >
+                                #{idx} {i < fourPointImageCoords.length && '✓'}
+                              </span>
+                            ))}
+                          </div>
+                          {fourPointTemplateIndices.length >= 4 && fourPointImageCoords.length < fourPointTemplateIndices.length && (
+                            <div className="text-purple-400 text-xs mt-1">
+                              Click on image to place point #{fourPointTemplateIndices[fourPointImageCoords.length]}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {fourPointTemplateIndices.length >= 4 && fourPointImageCoords.length === fourPointTemplateIndices.length && (
+                      <button
+                        onClick={() => {
+                          calculateFourPointHomography();
+                          setFourPointMode(false);
+                        }}
+                        className="w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors"
+                      >
+                        ✨ Apply Transformation ({fourPointTemplateIndices.length} points)
+                      </button>
+                    )}
+                    
+                    <div className="text-xs text-purple-300 bg-purple-900/30 p-2 rounded">
+                      <div className="font-medium mb-1">Quick Workflow:</div>
+                      <div>1. Select 4+ template points on overlay</div>
+                      <div>2. Place them in order on image</div>
+                      <div>3. Apply to auto-calculate all 10 points</div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Status */}

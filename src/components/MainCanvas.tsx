@@ -89,7 +89,14 @@ export default function MainCanvas() {
     setSelectedFieldKeypoint,
     updateFieldKeypoint,
     addFieldKeypoint,
-    isEditingFieldKeypoints
+    isEditingFieldKeypoints,
+    // 4-point mode
+    fourPointMode,
+    fourPointTemplateIndices,
+    fourPointImageCoords,
+    selectTemplatePoint,
+    addFourPointImageCoord,
+    fieldKeypointsTemplateSpace
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
@@ -1160,11 +1167,17 @@ export default function MainCanvas() {
           const isSelected = selectedFieldKeypoint === index;
           const isHovered = hoveredKeypoint === index;
           
+          // Check if this is a 4-point mode selected template point
+          const is4PointSelected = fourPointMode && fourPointTemplateIndices.includes(index);
+          
           // Different colors for different keypoint types
           let fillColor = isCorner ? '#FFD700' : '#00FF00'; // Gold for corners, green for others
           let strokeColor = isCorner ? '#FFA500' : '#008000';
           
-          if (isSelected) {
+          if (is4PointSelected) {
+            fillColor = '#FF00FF'; // Magenta for 4-point mode selected
+            strokeColor = '#AA00AA';
+          } else if (isSelected) {
             fillColor = '#FF0000'; // Red when selected
             strokeColor = '#AA0000';
           } else if (isHovered) {
@@ -1172,7 +1185,7 @@ export default function MainCanvas() {
             strokeColor = isCorner ? '#FFD700' : '#40C040';
           }
           
-          const radius = (isSelected || isHovered) ? 8 / zoomLevel : 6 / zoomLevel;
+          const radius = (isSelected || isHovered || is4PointSelected) ? 8 / zoomLevel : 6 / zoomLevel;
           
           ctx.fillStyle = fillColor;
           ctx.strokeStyle = strokeColor;
@@ -1191,6 +1204,49 @@ export default function MainCanvas() {
           ctx.fillText(index.toString(), keypoint.x, keypoint.y);
         }
       });
+      
+      // Draw 4-point mode image coordinates
+      if (fourPointMode && fourPointImageCoords.length > 0) {
+        fourPointImageCoords.forEach((coord, index) => {
+          // Draw the image point
+          ctx.fillStyle = '#FF00FF';
+          ctx.strokeStyle = '#AA00AA';
+          ctx.lineWidth = 3 / zoomLevel;
+          
+          ctx.beginPath();
+          ctx.arc(coord.x, coord.y, 10 / zoomLevel, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Draw label
+          ctx.fillStyle = 'white';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 3 / zoomLevel;
+          ctx.font = `bold ${14 / zoomLevel}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.strokeText(`#${index + 1}`, coord.x, coord.y);
+          ctx.fillText(`#${index + 1}`, coord.x, coord.y);
+          
+          // Draw line to corresponding template point if it exists
+          if (index < fourPointTemplateIndices.length) {
+            const templateIdx = fourPointTemplateIndices[index];
+            const templatePoint = fieldKeypointsImageSpace[templateIdx];
+            if (templatePoint && templatePoint.x !== undefined && templatePoint.y !== undefined) {
+              ctx.strokeStyle = '#FF00FF';
+              ctx.lineWidth = 2 / zoomLevel;
+              ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+              
+              ctx.beginPath();
+              ctx.moveTo(coord.x, coord.y);
+              ctx.lineTo(templatePoint.x, templatePoint.y);
+              ctx.stroke();
+              
+              ctx.setLineDash([]);
+            }
+          }
+        });
+      }
       
       // Draw lines connecting keypoints to show court structure
       if (fieldKeypointsImageSpace.length >= 10) {
@@ -1344,6 +1400,49 @@ export default function MainCanvas() {
 
     // Handle field registration mode (only for left clicks)
     if (fieldRegistrationMode && event.button === 0) {
+      // POINT MODE: Handle template point selection and image point placement
+      if (fourPointMode) {
+        // In point mode, if we have the overlay visible, clicks on keypoints select them as template points
+        // Once we have 4+ template points, clicks on the image place corresponding image points
+        
+        // Check if we're clicking on a keypoint in the current fieldKeypointsImageSpace
+        // These represent the template positions on the overlay
+        const clickThreshold = 15 / zoomLevel;
+        let clickedOnTemplate = false;
+        
+        for (let i = 0; i < fieldKeypointsImageSpace.length; i++) {
+          const keypoint = fieldKeypointsImageSpace[i];
+          if (keypoint.x !== undefined && keypoint.y !== undefined) {
+            const distance = Math.sqrt(
+              Math.pow(coords.x - keypoint.x, 2) + Math.pow(coords.y - keypoint.y, 2)
+            );
+            
+            if (distance <= clickThreshold) {
+              // Clicked on a template keypoint - select it for point mode
+              if (!fourPointTemplateIndices.includes(i)) {
+                selectTemplatePoint(i);
+              }
+              clickedOnTemplate = true;
+              return; // Exit early
+            }
+          }
+        }
+        
+        // If not clicking on a template keypoint, this is an image point placement
+        // Only allow if we have at least 4 template points selected
+        if (!clickedOnTemplate) {
+          if (fourPointTemplateIndices.length >= 4 && fourPointImageCoords.length < fourPointTemplateIndices.length) {
+            addFourPointImageCoord(coords);
+            return; // Exit early
+          } else if (fourPointTemplateIndices.length < 4) {
+            return; // Exit early - not ready for image placement
+          }
+        }
+        
+        return; // Exit early for point mode
+      }
+      
+      // NORMAL 10-POINT MODE: Standard keypoint editing
       // Check if clicking near an existing keypoint
       const clickThreshold = 15 / zoomLevel; // Scale with zoom
       let clickedKeypointIndex = -1;
@@ -2207,7 +2306,14 @@ export default function MainCanvas() {
         
         {/* Mode indicator */}
         <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm">
-          {fieldRegistrationMode && `🏐 Field Registration Mode - ${
+          {fieldRegistrationMode && fourPointMode && (
+            fourPointTemplateIndices.length < 4 
+              ? `🎯 Point Mode - Step 1: Click ${4 - fourPointTemplateIndices.length} more template points on overlay (${fourPointTemplateIndices.length}/4 min)`
+              : (fourPointImageCoords.length < fourPointTemplateIndices.length
+                  ? `🎯 Point Mode - Step 2: Place point #${fourPointTemplateIndices[fourPointImageCoords.length]} in image (${fourPointImageCoords.length}/${fourPointTemplateIndices.length})`
+                  : `🎯 Point Mode - Ready! Click "Apply Transformation" in sidebar`)
+          )}
+          {fieldRegistrationMode && !fourPointMode && `🏐 Field Registration Mode - ${
             isDraggingKeypoint ? 'Dragging keypoint...' : 
             (selectedFieldKeypoint !== null ? 
               (selectedFieldKeypoint >= 2 && selectedFieldKeypoint <= 7 ?  // Changed from 11 to 7 
