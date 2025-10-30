@@ -95,8 +95,7 @@ export default function MainCanvas() {
     fourPointTemplateIndices,
     fourPointImageCoords,
     selectTemplatePoint,
-    addFourPointImageCoord,
-    fieldKeypointsTemplateSpace
+    addFourPointImageCoord
   } = useAppStore();
 
   const imagePath = getCurrentImagePath();
